@@ -26,23 +26,23 @@ $ tray put ./q3-review
 https://q3-review.acme.dev
 ```
 
-Only let certain people see it.
+Keep it private, and pick who can see it.
 
 ```sh
 $ tray put ./q3-review --private
 $ tray share q3-review bob@acme.com @acme.com
 ```
 
-Use your own domain.
-
-```sh
-$ tray domain add docs.acme.com -s q3-review
-```
-
 Changed your mind? Go back a version.
 
 ```sh
 $ tray rollback q3-review
+```
+
+Give a site its own address, like docs.acme.com.
+
+```sh
+$ tray domain add docs.acme.com -s q3-review
 ```
 
 [Every command and flag →](/cli)
