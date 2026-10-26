@@ -241,6 +241,19 @@ button {
   border-left-color: var(--blue);
 }
 
+/* Desktop: the sidebar fills the viewport and the meta line sits at its bottom. */
+@media (min-width: 880px) {
+  .sidebar {
+    height: 100vh;
+  }
+  .sidebar-nav {
+    flex: 1;
+  }
+  .meta {
+    margin-top: auto;
+  }
+}
+
 .meta {
   font-size: 12px;
   line-height: 16px;

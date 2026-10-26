@@ -48,9 +48,11 @@ describe("SKILL.md", () => {
 
   test("body is short and covers the workflow", () => {
     const body = skillBody();
-    expect(body.split("\n").length).toBeLessThan(75);
+    expect(body.split("\n").length).toBeLessThan(85);
     for (const s of [
       "tray whoami --json",
+      "tray skill install",
+      "tray setup",
       "tray put",
       "-s ",
       "--private",

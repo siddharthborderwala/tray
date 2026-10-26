@@ -9,6 +9,14 @@ It runs on your own Cloudflare account, so your sites and data stay yours.
 
 ## Install
 
+Tell your agent:
+
+```prompt
+Read https://tray.sh/skill.md and set me up with Tray
+```
+
+It installs Tray and walks you through setup. Or install it yourself:
+
 ```sh tabs="curl,bun,npm"
 $ curl -fsSL https://tray.sh/install | sh
 $ bun add -g @tray-sh/cli
@@ -17,19 +25,19 @@ $ npm i -g @tray-sh/cli
 
 ## Set up
 
-Tray runs on your own Cloudflare account. A Worker serves your sites, R2 stores the files and Cloudflare Access signs people in to private ones.
+Tray runs on your own Cloudflare account. A Worker serves your sites, R2 stores the files, with private sharing through Cloudflare Access.
 
 ```sh
 $ tray setup
 ```
 
-Setup asks for three things:
+Setup takes 60 seconds and asks for three things:
 
 - **A domain on Cloudflare.** Use one just for Tray. Every site gets its own subdomain, like q3-review.acme.dev.
 - **A Cloudflare API token.** Setup opens a link that fills in everything Tray needs. You only click Create.
 - **Your email.** You own every site, and you sign in with it to see private ones.
 
-If Zero Trust isn't on yet, setup walks you through turning it on. The free plan is enough. It takes about 60 seconds in all.
+The free plan on Cloudflare is enough.
 
 ## Put it on a tray
 
@@ -68,17 +76,6 @@ $ tray share q3-review bob@acme.com @acme.com
 
 ## For agents
 
-Agents use the same CLI. Point yours at [tray.sh/skill.md](/skill.md) and it knows when to put something on a tray. It prints one line: the link.
+Tray works with Claude Code, Codex, Cursor, Gemini CLI, OpenCode and any agent that can run a command. Your agent puts things on a tray and replies with the link.
 
-```sh
-$ tray put ./dist -s q3-review --json
-{
-  "site": "q3-review",
-  "url": "https://q3-review.acme.dev",
-  "visibility": "public",
-  "deploy": "lq3m9-2c7e",
-  "files": 12,
-  "uploaded": 12,
-  "bytes": 482133
-}
-```
+[Set up your agent →](/agents)

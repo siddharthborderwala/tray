@@ -20,6 +20,7 @@ export const AUTHOR_URL = "https://x.com/sidborderwala";
 /** Docs pages, in sidebar order. `id` is the content entry (src/content/docs/<id>.md). */
 export const PAGES = [
   { id: "index", label: "Home", href: "/" },
+  { id: "agents", label: "Agents", href: "/agents" },
   { id: "cli", label: "CLI", href: "/cli" },
   { id: "api", label: "API", href: "/api" },
   { id: "troubleshooting", label: "Troubleshooting", href: "/troubleshooting" },

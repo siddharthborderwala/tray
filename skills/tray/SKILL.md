@@ -1,7 +1,7 @@
 ---
 name: tray
 description: >-
-  Publish a folder, build output, zip, or HTML file to a URL with the `tray`
+  Publish a folder, build output, file (HTML, PDF, image) or several files to a URL with the `tray`
   CLI (self-hosted on the user's own Cloudflare domain). Use this whenever the
   user wants something viewable by someone else, such as "share this", "send
   me a link", "host this", "put this online", "publish the report", "make it
@@ -22,6 +22,15 @@ metadata:
 single file (a PDF, an image) or several files, and prints a URL on the user's
 own domain. Deploys are immutable, so nothing is
 lost (`tray rollback` always works).
+
+## Setting up Tray
+
+If the user asks you to set them up: install the CLI if `tray` is missing
+(`curl -fsSL https://tray.sh/install | sh`), run `tray skill install`, then
+`tray whoami --json`. If that fails, ask them to run one of these in their own
+terminal (in Claude Code: `! <command>`), since both need them in a browser:
+`tray setup` for a new tray (asks for a Cloudflare domain, an API token via a
+pre-filled link, and their email; about a minute), or `tray login <domain>`.
 
 ## 1. Check state
 

@@ -6,7 +6,7 @@ export const prerender = true;
 /** A short index for agents. The full docs are in /llms-full.txt. */
 const LLMS = `# Tray
 
-> Tray turns a folder, zip or HTML file into a link on your own domain. One command, \`tray put <path>\`, prints the URL. It is open source (MIT) and self-hosted on the user's Cloudflare account, and built for people and agents alike: every prompt has a flag, \`--json\` prints one JSON object, and nothing waits on a terminal.
+> Tray turns a folder, a file or a few files into a link on your own domain. One command, \`tray put <path>\`, prints the URL. It is open source (MIT) and self-hosted on the user's Cloudflare account, and built for people and agents alike: every prompt has a flag, \`--json\` prints one JSON object, and nothing waits on a terminal.
 
 ## When to use Tray
 
@@ -20,6 +20,7 @@ Don't use it for secrets you wouldn't put on a website, or for files over 50 MB 
 ## Docs
 
 - [Overview](${SITE_URL}/index.md): what Tray does, install, and a quick start
+- [Agents](${SITE_URL}/agents.md): set up Tray in Claude Code, Codex, Cursor and other agents
 - [CLI](${SITE_URL}/cli.md): every command, flag, environment variable and exit code
 - [API](${SITE_URL}/api.md): the HTTP API behind the CLI, with publishing steps and errors
 - [Troubleshooting](${SITE_URL}/troubleshooting.md): fixes for the most common errors
