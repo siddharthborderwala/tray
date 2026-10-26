@@ -19,19 +19,29 @@ $ npm i -g @tray-sh/cli
 
 Put something on a tray and you get a link. Send it to anyone. Change it and the link stays the same.
 
+Put a folder, a zip or one HTML file.
+
 ```sh
-# Put a folder, a zip or one HTML file
 $ tray put ./q3-review
 https://q3-review.acme.dev
+```
 
-# Only let certain people see it
+Only let certain people see it.
+
+```sh
 $ tray put ./q3-review --private
 $ tray share q3-review bob@acme.com @acme.com
+```
 
-# Use your own domain
+Use your own domain.
+
+```sh
 $ tray domain add docs.acme.com -s q3-review
+```
 
-# Changed your mind? Go back a version
+Changed your mind? Go back a version.
+
+```sh
 $ tray rollback q3-review
 ```
 
