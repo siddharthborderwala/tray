@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { createAccessVerifier } from "../src/access.ts";
 import { resolvePath, safeNext } from "../src/serve.ts";
-import { accessJwt, APPROVE_AUD, OWNER, setup, SIGNIN_AUD } from "./helpers.ts";
+import { accessJwt, APPROVE_AUD, certsFetch, OWNER, setup, SIGNIN_AUD } from "./helpers.ts";
 
 const cookie = async (email: string, aud = SIGNIN_AUD) => ({
   cookie: `CF_Authorization=${await accessJwt(email, aud)}`,
@@ -262,5 +263,21 @@ describe("private sites", () => {
       headers: { cookie: "CF_Authorization=garbage" },
     });
     expect(res.status).toBe(200);
+  });
+});
+
+describe("Access certs", () => {
+  test("tokens with an unknown kid don't refetch the certs on every request", async () => {
+    let fetches = 0;
+    const verify = createAccessVerifier(async (input) => {
+      fetches++;
+      return certsFetch(input);
+    });
+    const opts = { teamDomain: "acme", aud: SIGNIN_AUD };
+    expect(await verify(await accessJwt(OWNER, SIGNIN_AUD), opts)).toEqual({ email: OWNER });
+    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT", kid: "rotated?" }));
+    const forged = `${header.replace(/=+$/, "")}.e30.c2ln`;
+    for (let i = 0; i < 5; i++) expect(await verify(forged, opts)).toBeNull();
+    expect(fetches).toBe(1);
   });
 });

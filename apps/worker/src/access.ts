@@ -10,6 +10,8 @@ import type { HonoJsonWebKey } from "hono/utils/jwt/jws";
 import type { Fetch } from "./env.ts";
 
 const CERTS_TTL_MS = 60 * 60 * 1000;
+/** A token with an unknown `kid` refetches the certs (rotation), but at most this often. */
+const CERTS_REFRESH_MS = 60 * 1000;
 
 export type AccessVerifier = (
   token: string | undefined,
@@ -33,7 +35,12 @@ export function createAccessVerifier(
 
   async function certs(issuer: string, kid: string | undefined): Promise<HonoJsonWebKey[]> {
     const hit = cache.get(issuer);
-    if (hit && Date.now() - hit.at < CERTS_TTL_MS && hit.keys.some((k) => k.kid === kid))
+    const age = hit ? Date.now() - hit.at : Infinity;
+    if (
+      hit &&
+      age < CERTS_TTL_MS &&
+      (hit.keys.some((k) => k.kid === kid) || age < CERTS_REFRESH_MS)
+    )
       return hit.keys;
     const res = await fetchImpl(`${issuer}/cdn-cgi/access/certs`);
     if (!res.ok) throw new Error(`Access certs: HTTP ${res.status}`);
