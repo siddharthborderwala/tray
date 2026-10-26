@@ -157,9 +157,10 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   if ("redirect" in resolved) return c.redirect(encodeURI(resolved.redirect) + url.search, 301);
 
   const { entry, status } = resolved;
+  // Weak: Cloudflare's edge drops strong ETags (it may re-encode the body), but keeps weak ones.
   const etag = `"${entry.hash}"`;
   const headers: Record<string, string> = {
-    etag: etag,
+    etag: `W/${etag}`,
     "content-type": entry.type || "application/octet-stream",
     "x-content-type-options": "nosniff",
   };
@@ -174,6 +175,7 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   return c.body(blob.body, status, { ...headers, "content-length": String(blob.size) });
 }
 
+/** Weak comparison (RFC 9110 §8.8.3.2): `W/"x"` and `"x"` both match. */
 function matches(ifNoneMatch: string | undefined, etag: string) {
   if (!ifNoneMatch) return false;
   if (ifNoneMatch.trim() === "*") return true;

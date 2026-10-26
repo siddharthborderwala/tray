@@ -78,17 +78,22 @@ describe("serving public sites", () => {
     expect(await res.text()).toBe("<h1>home</h1>");
     expect(res.headers.get("content-type")).toBe("text/html;charset=utf-8");
     const etag = res.headers.get("etag")!;
-    expect(etag).toMatch(/^"[a-f0-9]{64}"$/);
+    expect(etag).toMatch(/^W\/"[a-f0-9]{64}"$/); // weak, so Cloudflare's edge keeps it
     expect(res.headers.get("cache-control")).toBeNull();
     expect(res.headers.get("content-length")).toBe("13");
 
     res = await visit("https://report.acme.dev/", { headers: { "if-none-match": etag } });
     expect(res.status).toBe(304);
     expect(await res.text()).toBe("");
+    const strong = etag.slice(2);
+    res = await visit("https://report.acme.dev/", { headers: { "if-none-match": strong } });
+    expect(res.status).toBe(304);
     res = await visit("https://report.acme.dev/", {
-      headers: { "if-none-match": `W/${etag}, "other"` },
+      headers: { "if-none-match": `"other", ${etag}` },
     });
     expect(res.status).toBe(304);
+    res = await visit("https://report.acme.dev/", { headers: { "if-none-match": '"other"' } });
+    expect(res.status).toBe(200);
 
     res = await visit("https://report.acme.dev/style.css");
     expect(res.headers.get("content-type")).toBe("text/css;charset=utf-8");
