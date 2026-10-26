@@ -241,8 +241,9 @@ button {
   border-left-color: var(--blue);
 }
 
+/* 36px above the meta line, the same as under the wordmark. */
 .meta {
-  margin-top: 20px;
+  margin-top: 8px;
   font-size: 12px;
   line-height: 16px;
   color: var(--gray-3);
