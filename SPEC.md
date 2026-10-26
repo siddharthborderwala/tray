@@ -167,6 +167,9 @@ tray key create [--name <name>]
 tray key list | ls
 tray key revoke <name>
 
+tray whoami
+tray skill [install [--project]]
+
 tray setup [--domain <d>] [--email <e>]
 tray upgrade
 ```
@@ -179,7 +182,7 @@ Publish a folder, `.zip`, `.tar.gz`, single `.html` file, or `-` (stdin HTML).
 
 | Flag | Meaning |
 |---|---|
-| `-s, --site <name>` | Site name. Default: slug of the folder or file name (`report.html` → `report`). |
+| `-s, --site <name>` | Site name. Default: slug of the folder or file name (`q3-review.html` → `q3-review`). Generic build folder names (`dist`, `out`, `build`, `public`, `site`, `_site`, `www`) fall back to the parent folder's name, so `tray put ./dist` in `~/work/q3-review` → `q3-review`. |
 | `--private` | Only the owner can view. Applies when creating (or with `--replace`). |
 | `--spa` | Unknown paths serve `/index.html`. |
 | `--replace` | Overwrite a site last put from a different source. |
@@ -353,6 +356,34 @@ $ tray key revoke ci
 Keys are prefixed `tray_k_` (secret-scanner friendly) and stored hashed.
 
 ---
+
+### `tray whoami`
+
+Which tray this machine is using and who it is logged in as. Safe to run
+anywhere; never prompts. Agents run it before `tray put`.
+
+```
+$ tray whoami --json
+{"domain":"acme.dev","email":"sid@acme.com","key":"mbp","source":"keychain"}
+```
+
+Exit 4 when not logged in (with the usual hint).
+
+### `tray skill` / `tray skill install`
+
+Tray ships an agent skill (`skills/tray/SKILL.md` in the repo, embedded in the
+binary, served at `tray.sh/skill.md`).
+
+- `tray skill` prints the full, version-matched guide for agents (the SKILL.md
+  stub tells agents to run it).
+- `tray skill install` copies the skill to `~/.agents/skills/tray/` and
+  `~/.claude/skills/tray/` (plus `~/.hermes/skills/tray/` if `~/.hermes`
+  exists). `--project` writes `.agents/skills/tray/` and
+  `.claude/skills/tray/` in the current repo instead, to commit. Idempotent;
+  `--json` lists what was written. Prints a one-line network hint when Codex or
+  Cursor is installed.
+- `tray setup` and `tray login` end with "Add Tray to your coding agents?
+  (Y/n)" in interactive mode. `tray upgrade` refreshes installed copies.
 
 ### `tray setup`
 
@@ -567,7 +598,9 @@ A visitor must not be able to tell a private site from one that doesn't exist.
 
 - Bun + TypeScript, compiled with `bun build --compile` for darwin-arm64,
   darwin-x64, linux-x64, linux-arm64, windows-x64.
-- `curl -fsSL tray.sh/install | sh` → `~/.local/bin/tray`.
+- `curl -fsSL tray.sh/install | sh` → `~/.tray/bin/tray` (`TRAY_INSTALL` to
+  change). It adds that directory to PATH in the user's shell rc file
+  (`TRAY_NO_MODIFY_PATH=1` to skip) and appends it to `$GITHUB_PATH` in CI.
 - Versioning: one version for the whole project (CLI and the Worker bundle it
   embeds). Starts at `0.1.0`. Released by tagging `vX.Y.Z`; GitHub Releases is
   the changelog. The CLI compares its version with the Worker's `tray-version`.
