@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs the tray CLI.  curl -fsSL tray.sh/install | sh
 #
-#   TRAY_VERSION=v0.1.0   install a specific version (default: latest)
+#   TRAY_VERSION=v0.1.0   install a specific version (default: latest; the v is optional)
 #   TRAY_INSTALL=~/.tray  install directory (binary goes in $TRAY_INSTALL/bin)
 #   TRAY_NO_MODIFY_PATH=1 don't touch shell rc files (PATH)
 #
@@ -18,6 +18,10 @@ main() {
 
   target="$(detect_target)"
   version="${TRAY_VERSION:-latest}"
+  case "$version" in
+    latest | v*) ;;
+    *) version="v$version" ;; # TRAY_VERSION=0.1.0 works too
+  esac
   if [ "$version" = "latest" ]; then
     base="https://github.com/$REPO/releases/latest/download"
   else
@@ -118,6 +122,29 @@ append_once() {
     return 1
   fi
   printf '\n# tray\n%s\n' "$2" >>"$1"
+}
+
+detect_target() {
+  os="$(uname -s)"
+  arch="$(uname -m)"
+  case "$os" in
+    Darwin) os="darwin" ;;
+    Linux) os="linux" ;;
+    *) fail "unsupported OS: $os (on Windows, download a release from https://github.com/$REPO/releases)" ;;
+  esac
+  case "$arch" in
+    x86_64 | amd64) arch="x64" ;;
+    arm64 | aarch64) arch="arm64" ;;
+    *) fail "unsupported architecture: $arch" ;;
+  esac
+  # An x64 shell under Rosetta on Apple silicon: use the native build.
+  if [ "$os" = "darwin" ] && [ "$arch" = "x64" ] && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)" = "1" ]; then
+    arch="arm64"
+  fi
+  if [ "$os" = "linux" ] && { [ -f /etc/alpine-release ] || ldd --version 2>&1 | grep -q musl; }; then
+    arch="$arch-musl"
+  fi
+  echo "$os-$arch"
 }
 
 download() {
