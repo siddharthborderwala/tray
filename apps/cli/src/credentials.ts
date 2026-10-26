@@ -4,12 +4,14 @@ import { readJson, writeJson, type Accounts } from "./config.ts";
 import { TrayDomainInput } from "@tray-sh/schema";
 import { noDomain, notLoggedIn, usageError } from "./errors.ts";
 
+export type KeySource = "keychain" | "file";
+
 export interface KeyStore {
   get(domain: string): Promise<string | null>;
   set(domain: string, key: string): Promise<void>;
   delete(domain: string): Promise<void>;
   /** Where the saved key for `domain` lives, for `tray whoami`. */
-  source?(domain: string): Promise<"keychain" | "file" | null>;
+  source?(domain: string): Promise<KeySource | null>;
 }
 
 const SERVICE = "sh.tray.cli";
@@ -37,41 +39,121 @@ export function fileKeyStore(dir: string): KeyStore {
   };
 }
 
-/** OS keychain via Bun.secrets, falling back to auth.json when it is unavailable. */
-export function defaultKeyStore(
-  dir: string,
-  secrets: typeof Bun.secrets | undefined = Bun.secrets,
-): KeyStore {
+/**
+ * Which store new keys go to, and which is read first.
+ *
+ * - macOS: the Keychain only for our Developer ID-signed release binaries.
+ *   The Keychain ties an item to the signature of the binary that created it,
+ *   so every new unsigned build would get an "allow access?" prompt (and an
+ *   agent would hang on it). Unsigned builds use auth.json.
+ * - Windows: Credential Manager. Linux: the Secret Service. Both via
+ *   Bun.secrets, with auth.json as the fallback when they fail or time out.
+ */
+export function preferredKeyStore(platform: NodeJS.Platform, macosSigned: boolean): KeySource {
+  return platform === "darwin" && !macosSigned ? "file" : "keychain";
+}
+
+/** Keychain calls never wait longer than this when nobody can answer a prompt. */
+export const KEYCHAIN_TIMEOUT_MS = 2_000;
+/** In an interactive terminal the user can answer an OS prompt, so allow longer. */
+export const KEYCHAIN_INTERACTIVE_TIMEOUT_MS = 60_000;
+
+class KeychainTimeout extends Error {}
+
+let stalled = false;
+/** True once a keychain call timed out (it may still be pending in the OS). */
+export const keychainStalled = () => stalled;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      stalled = true;
+      reject(new KeychainTimeout(`keychain didn't answer in ${ms}ms`));
+    }, ms);
+    (timer as { unref?: () => void }).unref?.();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+export interface KeyStoreOptions {
+  /** Bun.secrets, or a stand-in in tests. */
+  secrets?: typeof Bun.secrets;
+  platform?: NodeJS.Platform;
+  /** True for release binaries signed with our Developer ID (see build.ts). */
+  macosSigned?: boolean;
+  /** Upper bound for any single keychain call. */
+  timeoutMs?: number;
+}
+
+/**
+ * The OS keychain or auth.json, chosen by `preferredKeyStore`. Reads check the
+ * preferred store first and then the other one, so keys saved by an earlier
+ * build keep working. Keychain calls are bounded by `timeoutMs` and treated as
+ * "not there" when they fail, so a locked keyring or an unanswered prompt
+ * can't hang the CLI.
+ */
+export function defaultKeyStore(dir: string, opts: KeyStoreOptions = {}): KeyStore {
+  const secrets = "secrets" in opts ? opts.secrets : Bun.secrets;
+  const timeoutMs = opts.timeoutMs ?? KEYCHAIN_TIMEOUT_MS;
+  const preferred = preferredKeyStore(opts.platform ?? process.platform, opts.macosSigned ?? false);
   const file = fileKeyStore(dir);
-  const fromKeychain = async (domain: string) => {
-    try {
-      return (await secrets?.get({ service: SERVICE, name: domain })) || null;
-    } catch {
-      return null;
-    }
+
+  const keychain = {
+    async get(domain: string): Promise<string | null> {
+      if (!secrets) return null;
+      try {
+        return (
+          (await withTimeout(secrets.get({ service: SERVICE, name: domain }), timeoutMs)) || null
+        );
+      } catch {
+        return null;
+      }
+    },
+    /** True when the key was stored. */
+    async set(domain: string, key: string): Promise<boolean> {
+      if (!secrets) return false;
+      try {
+        await withTimeout(secrets.set({ service: SERVICE, name: domain, value: key }), timeoutMs);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    async delete(domain: string): Promise<void> {
+      if (!secrets) return;
+      try {
+        await withTimeout(secrets.delete({ service: SERVICE, name: domain }), timeoutMs);
+      } catch {}
+    },
   };
+
+  const order: KeySource[] = preferred === "keychain" ? ["keychain", "file"] : ["file", "keychain"];
+  async function lookup(domain: string): Promise<{ key: string; source: KeySource } | null> {
+    for (const source of order) {
+      const key = source === "keychain" ? await keychain.get(domain) : await file.get(domain);
+      if (key) return { key, source };
+    }
+    return null;
+  }
+
   return {
     async get(domain) {
-      return (await fromKeychain(domain)) ?? file.get(domain);
+      return (await lookup(domain))?.key ?? null;
     },
     async source(domain) {
-      if (await fromKeychain(domain)) return "keychain";
-      return (await file.get(domain)) ? "file" : null;
+      return (await lookup(domain))?.source ?? null;
     },
     async set(domain, key) {
-      try {
-        if (!secrets) throw new Error("no keychain");
-        await secrets.set({ service: SERVICE, name: domain, value: key });
+      if (preferred === "keychain" && (await keychain.set(domain, key))) {
         await file.delete(domain); // don't leave a stale plaintext copy
         return;
-      } catch {}
+      }
       await file.set(domain, key);
     },
     async delete(domain) {
-      try {
-        await secrets?.delete({ service: SERVICE, name: domain });
-      } catch {}
       await file.delete(domain);
+      await keychain.delete(domain);
     },
   };
 }

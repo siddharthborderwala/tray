@@ -3,6 +3,7 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 import {
   apiBaseUrl,
+  preferredKeyStore,
   apiUrl,
   defaultKeyStore,
   fileKeyStore,
@@ -10,6 +11,7 @@ import {
   resolveDomain,
   resolveKey,
 } from "../src/credentials.ts";
+import { MACOS_SIGNED } from "../src/build.ts";
 import { TrayError } from "../src/errors.ts";
 import { memoryKeyStore, tmp } from "./helpers.ts";
 
@@ -96,7 +98,7 @@ describe("key stores", () => {
         throw new Error("no keychain");
       },
     } as unknown as typeof Bun.secrets;
-    const store = defaultKeyStore(dir, broken);
+    const store = defaultKeyStore(dir, { secrets: broken, platform: "linux" });
     await store.set("acme.dev", "tray_k_1");
     expect(await fileKeyStore(dir).get("acme.dev")).toBe("tray_k_1");
     expect(await store.get("acme.dev")).toBe("tray_k_1");
@@ -111,10 +113,113 @@ describe("key stores", () => {
       set: async ({ name, value }: { name: string; value: string }) => void mem.set(name, value),
       delete: async ({ name }: { name: string }) => mem.delete(name),
     } as unknown as typeof Bun.secrets;
-    const store = defaultKeyStore(dir, secrets);
+    const store = defaultKeyStore(dir, { secrets, platform: "linux" });
     await store.set("acme.dev", "tray_k_new");
     expect(mem.get("acme.dev")).toBe("tray_k_new");
     expect(await fileKeyStore(dir).get("acme.dev")).toBeNull();
+  });
+});
+
+/** An in-memory Bun.secrets stand-in that counts calls. */
+function fakeSecrets(initial: Record<string, string> = {}, opts: { hang?: boolean } = {}) {
+  const mem = new Map(Object.entries(initial));
+  const calls: string[] = [];
+  const wait = <T>(v: T) => (opts.hang ? new Promise<T>(() => {}) : Promise.resolve(v));
+  const secrets = {
+    get: ({ name }: { name: string }) => (calls.push(`get ${name}`), wait(mem.get(name) ?? null)),
+    set: ({ name, value }: { name: string; value: string }) => (
+      calls.push(`set ${name}`),
+      opts.hang ? wait(undefined) : (mem.set(name, value), wait(undefined))
+    ),
+    delete: ({ name }: { name: string }) => (calls.push(`delete ${name}`), wait(mem.delete(name))),
+  } as unknown as typeof Bun.secrets;
+  return { secrets, mem, calls };
+}
+
+describe("keychain policy", () => {
+  test("preferredKeyStore: signed macOS, Windows and Linux use the keychain; unsigned macOS uses auth.json", () => {
+    expect(preferredKeyStore("darwin", true)).toBe("keychain");
+    expect(preferredKeyStore("darwin", false)).toBe("file");
+    expect(preferredKeyStore("win32", false)).toBe("keychain");
+    expect(preferredKeyStore("linux", false)).toBe("keychain");
+  });
+
+  test("unsigned macOS writes auth.json and never touches the Keychain on save", async () => {
+    const dir = tmp();
+    const k = fakeSecrets();
+    const store = defaultKeyStore(dir, {
+      secrets: k.secrets,
+      platform: "darwin",
+      macosSigned: false,
+    });
+    await store.set("acme.dev", "tray_k_1");
+    expect(await fileKeyStore(dir).get("acme.dev")).toBe("tray_k_1");
+    expect(k.calls).toEqual([]);
+    expect(await store.get("acme.dev")).toBe("tray_k_1");
+    expect(await store.source!("acme.dev")).toBe("file");
+    expect(k.calls).toEqual([]); // found in the file first, so no Keychain read either
+  });
+
+  test("unsigned macOS still finds a key an earlier signed build saved in the Keychain", async () => {
+    const dir = tmp();
+    const k = fakeSecrets({ "acme.dev": "tray_k_kc" });
+    const store = defaultKeyStore(dir, {
+      secrets: k.secrets,
+      platform: "darwin",
+      macosSigned: false,
+    });
+    expect(await store.get("acme.dev")).toBe("tray_k_kc");
+    expect(await store.source!("acme.dev")).toBe("keychain");
+  });
+
+  test("signed macOS saves to the Keychain and reads it first", async () => {
+    const dir = tmp();
+    await fileKeyStore(dir).set("acme.dev", "tray_k_file");
+    const k = fakeSecrets();
+    const store = defaultKeyStore(dir, {
+      secrets: k.secrets,
+      platform: "darwin",
+      macosSigned: true,
+    });
+    expect(await store.get("acme.dev")).toBe("tray_k_file"); // old file key still works
+    await store.set("acme.dev", "tray_k_new");
+    expect(k.mem.get("acme.dev")).toBe("tray_k_new");
+    expect(await fileKeyStore(dir).get("acme.dev")).toBeNull();
+    expect(await store.source!("acme.dev")).toBe("keychain");
+  });
+
+  test("a keychain that never answers times out and falls back to auth.json", async () => {
+    const dir = tmp();
+    await fileKeyStore(dir).set("acme.dev", "tray_k_file");
+    const k = fakeSecrets({}, { hang: true });
+    const store = defaultKeyStore(dir, { secrets: k.secrets, platform: "linux", timeoutMs: 20 });
+    const started = Date.now();
+    expect(await store.get("acme.dev")).toBe("tray_k_file");
+    await store.set("other.dev", "tray_k_2"); // keychain write times out → file
+    expect(await fileKeyStore(dir).get("other.dev")).toBe("tray_k_2");
+    await store.delete("other.dev");
+    expect(await fileKeyStore(dir).get("other.dev")).toBeNull();
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  test("no Bun.secrets at all: file only", async () => {
+    const dir = tmp();
+    const store = defaultKeyStore(dir, { secrets: undefined, platform: "linux" });
+    await store.set("acme.dev", "tray_k_1");
+    expect(await store.source!("acme.dev")).toBe("file");
+  });
+
+  test("delete removes both copies", async () => {
+    const dir = tmp();
+    await fileKeyStore(dir).set("acme.dev", "tray_k_file");
+    const k = fakeSecrets({ "acme.dev": "tray_k_kc" });
+    const store = defaultKeyStore(dir, { secrets: k.secrets, platform: "linux" });
+    await store.delete("acme.dev");
+    expect(await store.get("acme.dev")).toBeNull();
+  });
+
+  test("MACOS_SIGNED is false in unsigned builds", () => {
+    expect(MACOS_SIGNED).toBe(false);
   });
 });
 

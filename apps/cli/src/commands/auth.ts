@@ -166,16 +166,31 @@ export async function whoami(ctx: Ctx): Promise<void> {
     if (!saved) throw notLoggedIn(domain);
     source = saved;
   }
+  const where =
+    source === "env" ? "TRAY_API_KEY" : source === "keychain" ? "the keychain" : "auth.json";
+  // A saved key with no local login record (accounts.json missing or wiped): the key works,
+  // but who it belongs to isn't known locally. Say so instead of printing nulls silently.
+  const unknown = source !== "env" && !account;
   const me = {
     domain,
     email: source === "env" ? null : (account?.email ?? null),
     key: source === "env" ? "TRAY_API_KEY" : (account?.keyName ?? null),
     source,
+    ...(unknown
+      ? {
+          warning: `a key for ${domain} is saved in ${where}, but there's no local login record, so its email and name are unknown. Run \`tray login ${domain}\` to refresh it.`,
+        }
+      : {}),
   };
-  const text = [
-    `${me.email ?? "(API key)"} on ${domain}`,
-    `key: ${me.key ?? "unknown"} (${source === "env" ? "TRAY_API_KEY" : source})`,
-  ].join("\n");
+  const text = unknown
+    ? [
+        `key for ${domain} in ${where}`,
+        `email and key name unknown: no local login record (run \`tray login ${domain}\` to refresh)`,
+      ].join("\n")
+    : [
+        `${me.email ?? "(API key)"} on ${domain}`,
+        `key: ${me.key ?? "unknown"} (${source === "env" ? "TRAY_API_KEY" : source})`,
+      ].join("\n");
   result(ctx, text, me);
 }
 

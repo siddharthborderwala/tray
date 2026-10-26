@@ -8,7 +8,13 @@ import { setup, upgrade } from "./commands/setup.ts";
 import { share, unshare } from "./commands/share.ts";
 import { edit, list, open, remove, rollback } from "./commands/sites.ts";
 import { configDir } from "./config.ts";
-import { defaultKeyStore, type KeyStore } from "./credentials.ts";
+import { MACOS_SIGNED } from "./build.ts";
+import {
+  KEYCHAIN_INTERACTIVE_TIMEOUT_MS,
+  KEYCHAIN_TIMEOUT_MS,
+  defaultKeyStore,
+  type KeyStore,
+} from "./credentials.ts";
 import type { Ctx } from "./ctx.ts";
 import { EXIT, TrayError } from "./errors.ts";
 import { formatError } from "./format.ts";
@@ -108,19 +114,26 @@ export async function main(argv: string[], deps: MainDeps = {}): Promise<number>
 
   const g = mergeGlobals(parsed.models as Record<string, Partial<Globals>>);
   const dir = configDir(env);
+  const mode = detectMode({
+    json: g.json,
+    nonInteractive: g.nonInteractive,
+    stdinTTY: deps.stdinTTY ?? !!process.stdin.isTTY,
+    stdoutTTY,
+    env,
+  });
   const ctx: Ctx = {
-    mode: detectMode({
-      json: g.json,
-      nonInteractive: g.nonInteractive,
-      stdinTTY: deps.stdinTTY ?? !!process.stdin.isTTY,
-      stdoutTTY,
-      env,
-    }),
+    mode,
     yes: g.yes,
     domainFlag: g.domain,
     env,
     configDir: dir,
-    keyStore: deps.keyStore ?? defaultKeyStore(dir),
+    keyStore:
+      deps.keyStore ??
+      defaultKeyStore(dir, {
+        macosSigned: MACOS_SIGNED,
+        // Someone at an interactive terminal can answer an OS keychain prompt; agents and CI can't.
+        timeoutMs: mode.interactive ? KEYCHAIN_INTERACTIVE_TIMEOUT_MS : KEYCHAIN_TIMEOUT_MS,
+      }),
     fetch: deps.fetch,
     sleep: deps.sleep,
     stdout,

@@ -27,6 +27,7 @@ first, then the result). Indented on a terminal, one line when piped.
 ```jsonc
 // tray whoami
 {"domain":"acme.dev","email":"sid@acme.com","key":"mbp","source":"keychain"} // source: env | keychain | file
+// with a saved key but no local login record: "email" and "key" are null and a "warning" says to run `tray login <domain>`
 
 // tray put
 {"site":"q3-review","url":"https://q3-review.acme.dev","visibility":"public",

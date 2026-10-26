@@ -94,13 +94,30 @@ Verified against `gh` and `vercel` docs.
 ### Credential resolution
 
 `--domain` / `TRAY_DOMAIN` → saved current account → error.
-`TRAY_API_KEY` → saved key for that domain (Keychain via `Bun.secrets`, else
-`~/.config/tray/auth.json`, mode 600) → error:
+`TRAY_API_KEY` → saved key for that domain → error:
 
 ```
 error: not logged in to thts.app
 Run `tray login thts.app` or set TRAY_API_KEY.
 ```
+
+**Where saved keys live.** The OS credential store via `Bun.secrets`, or
+`~/.config/tray/auth.json` (mode 600):
+
+- **macOS:** the Keychain only for release binaries signed with our Developer
+  ID (identifier `sh.tray.cli`; the signing job builds them with
+  `--define TRAY_MACOS_SIGNED=true`). The Keychain binds an item to the
+  signature of the binary that created it, so unsigned builds would get an
+  "allow access?" prompt after every rebuild, and an agent would hang on it.
+  Unsigned and locally built binaries use `auth.json`.
+- **Windows:** Credential Manager. **Linux:** the Secret Service, falling back
+  to `auth.json` when it errors.
+- Every keychain call is bounded: 2 s when nobody can answer an OS prompt
+  (non-interactive, agents, CI), 60 s in an interactive terminal. On a timeout
+  or error the CLI uses `auth.json`.
+- Reads check the preferred store first, then the other, so keys saved by an
+  earlier build keep working. `tray whoami` reports which one (`source`:
+  `env`, `keychain` or `file`).
 
 ### Output and modes
 

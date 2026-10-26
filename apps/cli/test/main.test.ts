@@ -367,6 +367,15 @@ describe("whoami and skill", () => {
     expect(JSON.parse(out[0]!)).toMatchObject({ domain: "acme.dev", source: "env" });
   });
 
+  test("whoami: a saved key without a local login record says so", async () => {
+    saveAccounts(join(configHome, "tray"), { accounts: {} });
+    expect(await run(["whoami", "--json", "--domain", "acme.dev"]).done).toBe(0);
+    const me = JSON.parse(out[0]!);
+    expect(me).toMatchObject({ domain: "acme.dev", email: null, key: null });
+    expect(me.warning).toContain("no local login record");
+    expect(me.warning).toContain("tray login acme.dev");
+  });
+
   test("whoami exits 4 when not logged in, with no network calls", async () => {
     keys = memoryKeyStore();
     const { done, calls } = run(["whoami"]);

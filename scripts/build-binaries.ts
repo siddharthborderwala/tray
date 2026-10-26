@@ -9,6 +9,11 @@
 //   dist/npm/cli/                       npm package @tray-sh/cli (launcher)
 //
 // Run `bun run --filter @tray-sh/worker build` first: the CLI embeds the Worker.
+//
+// macOS signing: with TRAY_MACOS_SIGN_IDENTITY (and APPLE_TEAM_ID) set, darwin
+// binaries are built with `--define TRAY_MACOS_SIGNED=true` (the CLI then keeps
+// keys in the Keychain) and signed by scripts/macos/sign.sh before packaging.
+// TRAY_REQUIRE_SIGNING=1 makes a missing identity an error (release builds).
 import { $ } from "bun";
 import { cp, mkdir, rm } from "node:fs/promises";
 
@@ -28,6 +33,12 @@ const version: string = cli.version;
 const targets = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
 for (const t of targets) if (!ALL.includes(t)) throw new Error(`unknown target: ${t}`);
 
+const signIdentity = process.env.TRAY_MACOS_SIGN_IDENTITY;
+const darwinTargets = targets.filter((t) => t.startsWith("darwin"));
+if (darwinTargets.length && !signIdentity && process.env.TRAY_REQUIRE_SIGNING === "1") {
+  throw new Error("TRAY_REQUIRE_SIGNING=1 but TRAY_MACOS_SIGN_IDENTITY isn't set");
+}
+
 const dist = `${root}dist`;
 await mkdir(`${dist}/release`, { recursive: true });
 
@@ -38,7 +49,10 @@ for (const target of targets) {
   await rm(binDir, { recursive: true, force: true });
   await mkdir(binDir, { recursive: true });
 
-  await $`bun build --compile --minify --sourcemap --target=bun-${target} --no-compile-autoload-dotenv --no-compile-autoload-bunfig ${root}apps/cli/src/index.ts --outfile ${binDir}/${exe}`.quiet();
+  const sign = os === "darwin" && !!signIdentity;
+  const define = sign ? ["--define", "TRAY_MACOS_SIGNED=true"] : [];
+  await $`bun build --compile --minify --sourcemap --target=bun-${target} --no-compile-autoload-dotenv --no-compile-autoload-bunfig ${define} ${root}apps/cli/src/index.ts --outfile ${binDir}/${exe}`.quiet();
+  if (sign) await $`sh ${root}scripts/macos/sign.sh ${binDir}/${exe}`;
 
   // GitHub release asset
   const asset = `${dist}/release/tray-${target}`;
@@ -68,7 +82,7 @@ for (const target of targets) {
       2,
     ),
   );
-  console.log(`built ${target}`);
+  console.log(`built ${target}${sign ? " (signed)" : ""}`);
 }
 
 // npm launcher package: @tray-sh/cli

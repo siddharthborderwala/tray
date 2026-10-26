@@ -13,6 +13,8 @@ Pull requests are welcome too. For anything large, open an issue first so we can
 
 Please don't open a public issue for a vulnerability. Report it privately through GitHub's private vulnerability reporting: [report a vulnerability](https://github.com/siddharthborderwala/tray/security/advisories/new). You'll get a reply within a few days.
 
+The macOS binaries are signed with a Developer ID, and every release is built in GitHub Actions with build provenance. [SECURITY.md](https://github.com/siddharthborderwala/tray/blob/main/SECURITY.md) shows how to verify a download.
+
 ## Everything else
 
 For questions, feedback or just to say hi, find Sid on X: [@sidborderwala](https://x.com/sidborderwala).

@@ -2,9 +2,21 @@ name: release
 
 # Push a tag like v0.1.0 to release. The tag must match the version in
 # apps/cli/package.json, apps/worker/package.json and skills/tray/SKILL.md.
+#
+# Run it by hand (Actions → release → Run workflow) for a dry run: it builds
+# every target and signs (and, with the API key secrets, notarizes) the macOS
+# binaries, uploads them as workflow artifacts, and publishes nothing.
+#
+# macOS signing secrets (required for tag builds):
+#   MACOS_CERT_P12       base64 of the Developer ID Application .p12
+#   MACOS_CERT_PASSWORD  its password
+#   APPLE_TEAM_ID        e.g. X3LGKV5NYS
+# Optional, to notarize: APPLE_API_KEY_ID, APPLE_API_ISSUER_ID, APPLE_API_KEY_P8
+# (the .p8 file's contents).
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -25,13 +37,87 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - run: bun install --frozen-lockfile
       - name: Check tag matches version
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           test "v$(jq -r .version apps/cli/package.json)" = "$GITHUB_REF_NAME"
           test "v$(jq -r .version apps/worker/package.json)" = "$GITHUB_REF_NAME"
           grep -q "^  version: ${GITHUB_REF_NAME#v}$" skills/tray/SKILL.md
       - run: bun run test
       - run: bun run --filter @tray-sh/worker build
+
+      # --- macOS: import the Developer ID certificate into a throwaway keychain ---
+      - name: Import signing certificate
+        if: runner.os == 'macOS'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$MACOS_CERT_P12" ] || [ -z "$MACOS_CERT_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]; then
+            echo "::error::MACOS_CERT_P12, MACOS_CERT_PASSWORD and APPLE_TEAM_ID must be set to build macOS binaries"
+            exit 1
+          fi
+          keychain="$RUNNER_TEMP/tray-signing.keychain-db"
+          password="$(openssl rand -hex 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          # The Developer ID Application identity for our team, by SHA-1 (unambiguous).
+          identity="$(security find-identity -v -p codesigning "$keychain" \
+            | grep "Developer ID Application: .*($APPLE_TEAM_ID)" | head -1 | awk '{print $2}')"
+          if [ -z "$identity" ]; then
+            echo "::error::no 'Developer ID Application' identity for team $APPLE_TEAM_ID in MACOS_CERT_P12"
+            exit 1
+          fi
+          {
+            echo "TRAY_MACOS_KEYCHAIN=$keychain"
+            echo "TRAY_MACOS_SIGN_IDENTITY=$identity"
+            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+            echo "TRAY_REQUIRE_SIGNING=1"
+          } >> "$GITHUB_ENV"
+
+      # Signs darwin binaries before packaging (scripts/macos/sign.sh) when the env above is set.
       - run: bun scripts/build-binaries.ts ${{ matrix.targets }}
+
+      - name: Notarize
+        if: runner.os == 'macOS'
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_API_ISSUER_ID" ] || [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "Notarization secrets not set; skipping (binaries are signed, not notarized)."
+            exit 0
+          fi
+          key="$RUNNER_TEMP/notary.p8"
+          printf '%s\n' "$APPLE_API_KEY_P8" > "$key"
+          # A bare Mach-O can't be stapled; notarizing registers its hash with Apple so
+          # Gatekeeper's online check passes. Submit each binary in a zip.
+          for bin in dist/bin/darwin-*/tray; do
+            zip="$RUNNER_TEMP/$(basename "$(dirname "$bin")").zip"
+            ditto -c -k --keepParent "$bin" "$zip"
+            xcrun notarytool submit "$zip" --key "$key" --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER_ID" --wait --output-format json | tee "$zip.json"
+            if [ "$(jq -r .status "$zip.json")" != "Accepted" ]; then
+              id="$(jq -r .id "$zip.json")"
+              xcrun notarytool log "$id" --key "$key" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" || true
+              echo "::error::notarization failed for $bin"
+              exit 1
+            fi
+          done
+          rm -f "$key"
+
+      - name: Delete signing keychain
+        if: always() && runner.os == 'macOS'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/tray-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist-${{ matrix.runner }}
@@ -41,6 +127,7 @@ jobs:
 
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -69,6 +156,7 @@ jobs:
 
   npm:
     needs: release
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: read
