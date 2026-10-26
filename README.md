@@ -1,9 +1,9 @@
-<h1>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.png">
   <img alt="tray. Artifacts for every agent. Put it on a tray. Pass it around." src=".github/assets/banner-light.png">
 </picture>
-</h1>
+
+# tray
 
 Tray turns a folder or an HTML file into a link you can share. Put it on a tray, pass it around. For you, your agents and your friends.
 
