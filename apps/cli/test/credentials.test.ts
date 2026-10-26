@@ -121,6 +121,10 @@ describe("domains", () => {
   test("normalizeDomain", () => {
     expect(normalizeDomain("acme.dev")).toBe("acme.dev");
     expect(normalizeDomain("https://tray.ACME.dev/approve")).toBe("acme.dev");
+    // A domain that starts with "tray." is still a domain.
+    expect(normalizeDomain("tray.sh")).toBe("tray.sh");
+    expect(normalizeDomain("tray.tray.sh")).toBe("tray.sh");
+    expect(normalizeDomain("https://tray.sh/")).toBe("tray.sh");
   });
   test("apiBaseUrl uses tray.<domain>, TRAY_API_URL overrides", () => {
     expect(apiBaseUrl("acme.dev", {})).toBe("https://tray.acme.dev");

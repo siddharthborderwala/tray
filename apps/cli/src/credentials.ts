@@ -100,12 +100,14 @@ export async function resolveKey(
 
 /** Accept `acme.dev`, `tray.acme.dev`, `https://tray.acme.dev/` and reduce to `acme.dev`. */
 export function normalizeDomain(input: string): string {
-  return input
+  const host = input
     .trim()
     .toLowerCase()
     .replace(/^https?:\/\//, "")
-    .replace(/\/.*$/, "")
-    .replace(/^tray\./, "");
+    .replace(/\/.*$/, "");
+  // `tray.acme.dev` (the API host) → `acme.dev`, but `tray.sh` is a domain itself.
+  const rest = host.replace(/^tray\./, "");
+  return rest.includes(".") ? rest : host;
 }
 
 /** API base URL for a tray. `TRAY_API_URL` overrides it (local Worker development). */
