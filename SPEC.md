@@ -569,6 +569,10 @@ A visitor must not be able to tell a private site from one that doesn't exist.
 
 ## 7. Out of scope for v1
 
+- After 0.1.0, only if needed: `_redirects` and `_headers` files in the site
+  folder (Cloudflare Pages / Netlify format), then a small `tray.json` (default
+  name, `spa`, extra ignore patterns). No cache headers are set by Tray.
+
 - BYO S3 storage
 - Custom domains outside the user's Cloudflare account (Cloudflare for SaaS)
 - Signed / expiring share links

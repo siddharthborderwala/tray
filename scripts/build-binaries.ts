@@ -84,7 +84,8 @@ await Bun.write(
     {
       name: "@traysh/cli",
       version,
-      description: "Artifacts for every agent. Turn a folder or an HTML file into a link you can share.",
+      description:
+        "Artifacts for every agent. Turn a folder or an HTML file into a link you can share.",
       license: "MIT",
       homepage: "https://tray.sh",
       repository: { type: "git", url: "git+https://github.com/siddharthborderwala/tray.git" },
