@@ -15,16 +15,6 @@ Read https://tray.sh/skill.md and set me up with Tray
 
 It installs the CLI and the Tray skill, then asks you to run one command yourself: `tray setup` for a new tray, or `tray login` for one you already have. Both need you to click in a browser.
 
-## Or do it yourself
-
-```sh
-$ curl -fsSL https://tray.sh/install | sh
-$ tray setup
-$ tray skill install
-```
-
-`tray skill install` adds the skill to every agent on your machine. Setup and login offer to do it for you at the end.
-
 ## Your agent
 
 The skill tells your agent when to put something on a tray and how. Agents look for it in two places:
