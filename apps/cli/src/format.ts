@@ -47,8 +47,11 @@ export function toJson(value: unknown, pretty: boolean): string {
 
 export function formatError(err: TrayError, json: boolean, pretty = false): string {
   if (json) {
+    // API errors keep their extra fields (e.g. `missing`), as SPEC §3 promises the API's shape.
+    const body = (err as TrayError & { body?: Record<string, unknown> }).body;
     return toJson(
       {
+        ...body,
         error: err.message,
         code: err.code,
         ...(err.hint ? { hint: err.hint } : {}),

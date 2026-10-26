@@ -31,7 +31,7 @@ export class ApiFailure extends TrayError {
     readonly status: number,
     readonly body?: ApiError,
   ) {
-    super(message, code, exit, hint);
+    super(message, code, exit, hint, body?.param);
   }
 }
 

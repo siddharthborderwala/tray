@@ -205,7 +205,7 @@ describe("errors", () => {
     expect(err.code).toBe("site_exists");
     expect(err.exit).toBe(1);
     expect(err.hint).toBe("use --replace");
-    expect(err.param).toBeUndefined(); // CLI errors carry param only when the CLI sets it
+    expect(err.param).toBe("site"); // same shape as the API (SPEC §3), so --json errors keep it
     expect(err.body.param).toBe("site");
   });
 

@@ -1,3 +1,4 @@
+import { apiError } from "../src/api.ts";
 import { describe, expect, test } from "bun:test";
 import { TrayError } from "../src/errors.ts";
 import {
@@ -45,6 +46,24 @@ describe("format", () => {
     const err = new TrayError("x", "y");
     expect(formatError(err, true, true)).toBe('{\n  "error": "x",\n  "code": "y"\n}');
     expect(formatError(err, true)).toBe('{"error":"x","code":"y"}');
+  });
+
+  test("formatError: API errors keep param and extra fields in JSON", () => {
+    const err = apiError(
+      { status: 409, headers: new Headers() },
+      {
+        error: "2 blob(s) not uploaded yet",
+        code: "missing_blobs",
+        param: "files",
+        missing: ["a"],
+      },
+    );
+    expect(JSON.parse(formatError(err, true))).toEqual({
+      error: "2 blob(s) not uploaded yet",
+      code: "missing_blobs",
+      param: "files",
+      missing: ["a"],
+    });
   });
 
   test("formatError: text and JSON shapes", () => {
