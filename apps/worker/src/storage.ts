@@ -124,6 +124,52 @@ export async function mapLimit<T, R>(
   return out;
 }
 
+/** Up to this many hashes, one `head` each is cheapest. */
+const HEAD_LIMIT = 500;
+
+/**
+ * The hashes in `hashes` that have no `blobs/<hash>` object, sorted.
+ *
+ * R2 calls count against the Worker's per-request limit (1,000 on Free), so a
+ * large set is swept with sorted `list` pages (up to 1,000 consecutive keys
+ * per call) instead of one `head` per hash. Every hash is still checked.
+ */
+export async function missingBlobs(bucket: R2Bucket, hashes: readonly string[]) {
+  const wanted = [...new Set(hashes)].sort();
+  const missing: string[] = [];
+  const headAll = async (rest: string[]) => {
+    const heads = await mapLimit(rest, 50, (h) => bucket.head(paths.blob(h)));
+    missing.push(...rest.filter((_, i) => !heads[i]));
+  };
+  if (wanted.length <= HEAD_LIMIT) {
+    await headAll(wanted);
+    return missing;
+  }
+
+  const prefix = paths.blob("");
+  let i = 0;
+  while (i < wanted.length) {
+    // A strict prefix of the next wanted key sorts just before it.
+    const page = await bucket.list({
+      prefix,
+      startAfter: paths.blob(wanted[i]!).slice(0, -1),
+      limit: 1000,
+    });
+    const found = new Set(page.objects.map((o) => o.key.slice(prefix.length)));
+    const lastKey = page.objects.at(-1)?.key.slice(prefix.length);
+    if (page.truncated && lastKey === undefined) {
+      await headAll(wanted.slice(i)); // shouldn't happen without a delimiter; stay correct anyway
+      break;
+    }
+    // This page settles every wanted hash up to its last key (all of them once the listing ends).
+    while (i < wanted.length && (!page.truncated || wanted[i]! <= lastKey!)) {
+      if (!found.has(wanted[i]!)) missing.push(wanted[i]!);
+      i++;
+    }
+  }
+  return missing;
+}
+
 export const now = () => new Date().toISOString();
 
 export function siteUrl(env: Env, site: string) {

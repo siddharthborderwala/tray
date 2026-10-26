@@ -338,6 +338,40 @@ describe("deploys", () => {
     expect(bucket.calls.head).toBe(1);
   });
 
+  test("a 3,000-file first deploy stays well under the 1,000 R2 calls per request", async () => {
+    const { api, bucket, upload } = await setup();
+    // Unrelated blobs interleaved with ours, as in a bucket that has seen other deploys.
+    await upload(
+      Object.fromEntries(Array.from({ length: 4000 }, (_, i) => [`/old${i}`, `old ${i}`])),
+    );
+    const files = await upload(
+      Object.fromEntries(Array.from({ length: 3000 }, (_, i) => [`/f${i}.html`, `file ${i}`])),
+    );
+    const ghosts = [await sha256("ghost 1"), await sha256("ghost 2")].sort();
+    const body = (extra: Record<string, unknown>) => ({
+      method: "POST",
+      json: { files: { ...files, ...extra }, spa: false, source: { path: "/w", machine: "m" } },
+    });
+    const calls = () => Object.values(bucket.calls).reduce((a, b) => a + b, 0);
+
+    bucket.calls = { head: 0, get: 0, put: 0, list: 0, delete: 0 };
+    let res = await api(
+      "/sites/docs/deploys",
+      body({
+        "/g1": { hash: ghosts[0], size: 1, type: "text/plain" },
+        "/g2": { hash: ghosts[1], size: 1, type: "text/plain" },
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).missing).toEqual(ghosts);
+    expect(calls()).toBeLessThan(100);
+
+    bucket.calls = { head: 0, get: 0, put: 0, list: 0, delete: 0 };
+    res = await api("/sites/docs/deploys", body({}));
+    expect(res.status).toBe(201);
+    expect(calls()).toBeLessThan(100);
+  });
+
   test("50 MB total → 413 too_large", async () => {
     const { api } = await setup();
     const hash = await sha256("x");

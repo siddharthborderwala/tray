@@ -22,6 +22,7 @@ import {
   listAll,
   loadSite,
   mapLimit,
+  missingBlobs,
   now,
   paths,
   putJson,
@@ -286,8 +287,7 @@ export const sites = newRouter()
     const toCheck = [...new Set(Object.values(req.files).map((f) => f.hash))].filter(
       (h) => !known.has(h),
     );
-    const heads = await mapLimit(toCheck, 50, (h) => bucket.head(paths.blob(h)));
-    const missing = toCheck.filter((_, i) => !heads[i]);
+    const missing = await missingBlobs(bucket, toCheck);
     if (missing.length) {
       throw new TrayError(409, "missing_blobs", `${missing.length} blob(s) not uploaded yet`, {
         hint: "Upload them with PUT /v1/blobs/{sha256}, then deploy again.",
