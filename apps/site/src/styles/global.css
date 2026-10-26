@@ -179,9 +179,6 @@ button {
   height: 5px;
   border-radius: 1px;
   flex-shrink: 0;
-  background: var(--ink);
-}
-.wordmark .period.blue {
   background: var(--blue);
 }
 

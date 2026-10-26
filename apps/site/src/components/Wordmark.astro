@@ -1,14 +1,12 @@
 ---
-/** The `tray.` wordmark: bold "tray" and a square period. */
+/** The `tray.` wordmark: bold "tray" and a square blue period. */
 interface Props {
-  /** Color of the period. */
-  period?: "ink" | "blue";
   href?: string;
 }
-const { period = "ink", href } = Astro.props;
+const { href } = Astro.props;
 const Tag = href ? "a" : "span";
 ---
 
 <Tag class="wordmark" href={href} aria-label={href ? "tray, home" : undefined}>
-  <span aria-hidden={href ? "true" : undefined}>tray</span><span class:list={["period", period]} aria-hidden="true"></span>
+  <span aria-hidden={href ? "true" : undefined}>tray</span><span class="period" aria-hidden="true"></span>
 </Tag>
