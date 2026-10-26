@@ -171,8 +171,8 @@ describe("tray skill install", () => {
     expect(networkHint(home)).toBeUndefined();
     mkdirSync(join(home, ".codex"));
     mkdirSync(join(home, ".cursor"));
-    expect(networkHint(home, "thts.app")).toBe(
-      "Codex and Cursor sandboxes block the network by default; allow tray.thts.app there (see `tray skill`).",
+    expect(networkHint(home, "acme.dev")).toBe(
+      "Codex and Cursor sandboxes block the network by default; allow tray.acme.dev there (see `tray skill`).",
     );
   });
 });

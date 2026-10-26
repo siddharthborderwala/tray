@@ -98,7 +98,7 @@ export async function resolveKey(
   throw notLoggedIn(domain);
 }
 
-/** Accept `thts.app`, `tray.thts.app`, `https://tray.thts.app/` and reduce to `thts.app`. */
+/** Accept `acme.dev`, `tray.acme.dev`, `https://tray.acme.dev/` and reduce to `acme.dev`. */
 export function normalizeDomain(input: string): string {
   return input
     .trim()

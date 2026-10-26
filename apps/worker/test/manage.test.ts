@@ -139,7 +139,7 @@ describe("domains", () => {
     expect(res.status).toBe(404);
     expect((await res.json()).code).toBe("site_not_found");
 
-    res = await api("/domains", { method: "POST", json: { host: "docs.thts.app", site: "docs" } });
+    res = await api("/domains", { method: "POST", json: { host: "docs.acme.dev", site: "docs" } });
     expect(res.status).toBe(400);
     expect((await res.json()).param).toBe("host");
 

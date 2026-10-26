@@ -45,27 +45,27 @@ describe("resolveKey: TRAY_API_KEY → saved key → error", () => {
   test("env key overrides a saved login", async () => {
     expect(
       await resolveKey(
-        "thts.app",
+        "acme.dev",
         { TRAY_API_KEY: "tray_k_env" },
-        memoryKeyStore({ "thts.app": "tray_k_saved" }),
+        memoryKeyStore({ "acme.dev": "tray_k_saved" }),
       ),
     ).toBe("tray_k_env");
   });
   test("saved key for that domain", async () => {
     expect(
       await resolveKey(
-        "thts.app",
+        "acme.dev",
         {},
-        memoryKeyStore({ "thts.app": "tray_k_saved", "x.app": "nope" }),
+        memoryKeyStore({ "acme.dev": "tray_k_saved", "x.app": "nope" }),
       ),
     ).toBe("tray_k_saved");
   });
   test("not logged in: exit 4 with the spec's message", async () => {
-    const err = await resolveKey("thts.app", {}, memoryKeyStore()).catch((e) => e);
+    const err = await resolveKey("acme.dev", {}, memoryKeyStore()).catch((e) => e);
     expect(err).toBeInstanceOf(TrayError);
     expect(err.exit).toBe(4);
-    expect(err.message).toBe("not logged in to thts.app");
-    expect(err.hint).toBe("Run `tray login thts.app` or set TRAY_API_KEY.");
+    expect(err.message).toBe("not logged in to acme.dev");
+    expect(err.hint).toBe("Run `tray login acme.dev` or set TRAY_API_KEY.");
   });
 });
 
@@ -73,12 +73,12 @@ describe("key stores", () => {
   test("file store writes auth.json with mode 600", async () => {
     const dir = tmp();
     const store = fileKeyStore(dir);
-    await store.set("thts.app", "tray_k_1");
+    await store.set("acme.dev", "tray_k_1");
     await store.set("b.app", "tray_k_2");
-    expect(await store.get("thts.app")).toBe("tray_k_1");
+    expect(await store.get("acme.dev")).toBe("tray_k_1");
     expect(statSync(join(dir, "auth.json")).mode & 0o777).toBe(0o600);
-    await store.delete("thts.app");
-    expect(await store.get("thts.app")).toBeNull();
+    await store.delete("acme.dev");
+    expect(await store.get("acme.dev")).toBeNull();
     expect(await store.get("b.app")).toBe("tray_k_2");
   });
 
@@ -96,14 +96,14 @@ describe("key stores", () => {
       },
     } as unknown as typeof Bun.secrets;
     const store = defaultKeyStore(dir, broken);
-    await store.set("thts.app", "tray_k_1");
-    expect(await fileKeyStore(dir).get("thts.app")).toBe("tray_k_1");
-    expect(await store.get("thts.app")).toBe("tray_k_1");
+    await store.set("acme.dev", "tray_k_1");
+    expect(await fileKeyStore(dir).get("acme.dev")).toBe("tray_k_1");
+    expect(await store.get("acme.dev")).toBe("tray_k_1");
   });
 
   test("keychain store prefers the keychain and leaves no plaintext copy", async () => {
     const dir = tmp();
-    await fileKeyStore(dir).set("thts.app", "tray_k_old");
+    await fileKeyStore(dir).set("acme.dev", "tray_k_old");
     const mem = new Map<string, string>();
     const secrets = {
       get: async ({ name }: { name: string }) => mem.get(name) ?? null,
@@ -111,20 +111,20 @@ describe("key stores", () => {
       delete: async ({ name }: { name: string }) => mem.delete(name),
     } as unknown as typeof Bun.secrets;
     const store = defaultKeyStore(dir, secrets);
-    await store.set("thts.app", "tray_k_new");
-    expect(mem.get("thts.app")).toBe("tray_k_new");
-    expect(await fileKeyStore(dir).get("thts.app")).toBeNull();
+    await store.set("acme.dev", "tray_k_new");
+    expect(mem.get("acme.dev")).toBe("tray_k_new");
+    expect(await fileKeyStore(dir).get("acme.dev")).toBeNull();
   });
 });
 
 describe("domains", () => {
   test("normalizeDomain", () => {
-    expect(normalizeDomain("thts.app")).toBe("thts.app");
-    expect(normalizeDomain("https://tray.THTS.app/approve")).toBe("thts.app");
+    expect(normalizeDomain("acme.dev")).toBe("acme.dev");
+    expect(normalizeDomain("https://tray.ACME.dev/approve")).toBe("acme.dev");
   });
   test("apiBaseUrl uses tray.<domain>, TRAY_API_URL overrides", () => {
-    expect(apiBaseUrl("thts.app", {})).toBe("https://tray.thts.app");
-    expect(apiBaseUrl("thts.app", { TRAY_API_URL: "http://localhost:8787/" })).toBe(
+    expect(apiBaseUrl("acme.dev", {})).toBe("https://tray.acme.dev");
+    expect(apiBaseUrl("acme.dev", { TRAY_API_URL: "http://localhost:8787/" })).toBe(
       "http://localhost:8787",
     );
   });

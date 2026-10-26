@@ -28,8 +28,8 @@ describe("device flow", () => {
     const { api, bucket } = await setup();
     const dc = await start(api);
     expect(dc.userCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
-    expect(dc.verificationUri).toBe("https://tray.thts.app/approve");
-    expect(dc.verificationUriComplete).toBe(`https://tray.thts.app/approve?code=${dc.userCode}`);
+    expect(dc.verificationUri).toBe("https://tray.acme.dev/approve");
+    expect(dc.verificationUriComplete).toBe(`https://tray.acme.dev/approve?code=${dc.userCode}`);
     expect(dc.expiresIn).toBe(600);
     expect(dc.interval).toBe(5);
     expect(await bucket.json(`auth/pending/${dc.deviceCode}.json`)).toMatchObject({
@@ -173,8 +173,8 @@ describe("device flow", () => {
 describe("/approve page", () => {
   test("needs the owner's Access identity", async () => {
     const { visit } = await setup();
-    expect((await visit("https://tray.thts.app/approve")).status).toBe(403);
-    const res = await visit("https://tray.thts.app/approve", {
+    expect((await visit("https://tray.acme.dev/approve")).status).toBe(403);
+    const res = await visit("https://tray.acme.dev/approve", {
       headers: { "cf-access-jwt-assertion": await accessJwt("eve@acme.com", APPROVE_AUD) },
     });
     expect(res.status).toBe(403);
@@ -184,9 +184,9 @@ describe("/approve page", () => {
     const { visit } = await setup();
     const headers = { "cf-access-jwt-assertion": await accessJwt(OWNER, APPROVE_AUD) };
     for (const res of [
-      await visit("https://tray.thts.app/approve"),
-      await visit("https://tray.thts.app/approve", { headers }),
-      await visit("https://tray.thts.app/approve?code=BCDF-GHJK", { headers }),
+      await visit("https://tray.acme.dev/approve"),
+      await visit("https://tray.acme.dev/approve", { headers }),
+      await visit("https://tray.acme.dev/approve?code=BCDF-GHJK", { headers }),
     ]) {
       expect(res.headers.get("x-frame-options")).toBe("DENY");
       expect(res.headers.get("content-security-policy")).toBe("frame-ancestors 'none'");
@@ -197,7 +197,7 @@ describe("/approve page", () => {
     const { api, visit } = await setup();
     const dc = await start(api);
     const post = (extra: Record<string, string>) =>
-      visit("https://tray.thts.app/approve", {
+      visit("https://tray.acme.dev/approve", {
         method: "POST",
         headers: {
           "cf-access-jwt-assertion": "",
@@ -209,9 +209,9 @@ describe("/approve page", () => {
     const jwt = await accessJwt(OWNER, APPROVE_AUD);
     const refused: Record<string, string>[] = [
       { origin: "null" },
-      { origin: "https://q3-review.thts.app" },
+      { origin: "https://q3-review.acme.dev" },
       { "sec-fetch-site": "same-site" },
-      { "sec-fetch-site": "cross-site", origin: "https://tray.thts.app" },
+      { "sec-fetch-site": "cross-site", origin: "https://tray.acme.dev" },
     ];
     for (const extra of refused) {
       const res = await post({ "cf-access-jwt-assertion": jwt, ...extra });
@@ -221,7 +221,7 @@ describe("/approve page", () => {
     const ok = await post({
       "cf-access-jwt-assertion": jwt,
       "sec-fetch-site": "same-origin",
-      origin: "https://tray.thts.app",
+      origin: "https://tray.acme.dev",
     });
     expect(ok.status).toBe(200);
   });
@@ -231,7 +231,7 @@ describe("/approve page", () => {
     const dc = await start(api, "build-box");
     const headers = { "cf-access-jwt-assertion": await accessJwt(OWNER, APPROVE_AUD) };
 
-    let res = await visit("https://tray.thts.app/approve", { headers });
+    let res = await visit("https://tray.acme.dev/approve", { headers });
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBeNull();
     expect(await res.text()).toContain('name="code"');
@@ -244,7 +244,7 @@ describe("/approve page", () => {
     expect(html).toContain("#FAF9F0");
 
     // Cross-site posts are refused.
-    res = await visit("https://tray.thts.app/approve", {
+    res = await visit("https://tray.acme.dev/approve", {
       method: "POST",
       headers: {
         ...headers,
@@ -255,11 +255,11 @@ describe("/approve page", () => {
     });
     expect(res.status).toBe(403);
 
-    res = await visit("https://tray.thts.app/approve", {
+    res = await visit("https://tray.acme.dev/approve", {
       method: "POST",
       headers: {
         ...headers,
-        origin: "https://tray.thts.app",
+        origin: "https://tray.acme.dev",
         "content-type": "application/x-www-form-urlencoded",
       },
       body: `code=${dc.userCode}&action=approve`,
@@ -276,7 +276,7 @@ describe("/approve page", () => {
   test("deny from the page", async () => {
     const { api, visit } = await setup();
     const dc = await start(api);
-    const res = await visit("https://tray.thts.app/approve", {
+    const res = await visit("https://tray.acme.dev/approve", {
       method: "POST",
       headers: {
         "cf-access-jwt-assertion": await accessJwt(OWNER, APPROVE_AUD),

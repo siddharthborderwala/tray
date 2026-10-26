@@ -64,13 +64,13 @@ function world(opts: { release?: ReturnType<typeof release>; workerVersion?: str
     const base = `https://github.com/siddharthborderwala/tray/releases/download/v${rel.version}/`;
     if (url === base + rel.asset) return new Response(rel.archive as Uint8Array<ArrayBuffer>);
     if (url === base + "SHA256SUMS") return new Response(rel.sums);
-    if (url === "https://tray.thts.app/v1/openapi.json") {
+    if (url === "https://tray.acme.dev/v1/openapi.json") {
       if (opts.workerVersion === null) throw new Error("ENOTFOUND");
       return Response.json({}, { headers: { "tray-version": opts.workerVersion ?? "0.1.0" } });
     }
     if (
       url.startsWith(
-        "https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/tray-thts-app/content",
+        "https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/tray-acme-dev/content",
       ) &&
       method === "PUT"
     ) {
@@ -90,12 +90,12 @@ beforeEach(() => {
   configDir = join(tmp(), "tray");
   out = [];
   err = [];
-  keys = memoryKeyStore({ "cloudflare:thts.app": "cf_token" });
-  saveSetup(configDir, "thts.app", {
+  keys = memoryKeyStore({ "cloudflare:acme.dev": "cf_token" });
+  saveSetup(configDir, "acme.dev", {
     accountId: "acct",
     zoneId: "z",
-    worker: "tray-thts-app",
-    bucket: "tray-thts-app",
+    worker: "tray-acme-dev",
+    bucket: "tray-acme-dev",
     email: "sid@acme.com",
   });
 });
@@ -193,7 +193,7 @@ describe("tray upgrade", () => {
     });
     const put = w.seen.find((s) => s.method === "PUT")!;
     expect(put.url).toBe(
-      "https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/tray-thts-app/content",
+      "https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/tray-acme-dev/content",
     );
     expect(put.body).toEqual({ metadata: { main_module: "worker.js" }, source: "new worker" });
     // No GitHub check the second time round.
@@ -201,7 +201,7 @@ describe("tray upgrade", () => {
     expect(JSON.parse(out.at(-1)!)).toMatchObject({
       version: "0.2.0",
       upgradedFrom: "0.1.0",
-      workers: [{ domain: "thts.app", from: "0.1.0", to: "0.2.0", redeployed: true }],
+      workers: [{ domain: "acme.dev", from: "0.1.0", to: "0.2.0", redeployed: true }],
     });
   });
 
@@ -214,7 +214,7 @@ describe("tray upgrade", () => {
     });
     expect(w.seen.map((s) => s.url)).toEqual([
       "https://api.github.com/repos/siddharthborderwala/tray/releases/latest",
-      "https://tray.thts.app/v1/openapi.json",
+      "https://tray.acme.dev/v1/openapi.json",
     ]);
     expect(JSON.parse(out.at(-1)!)).toMatchObject({
       upgradedFrom: null,

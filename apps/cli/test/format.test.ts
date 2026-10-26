@@ -29,12 +29,12 @@ describe("format", () => {
     const t = formatTable(
       ["SITE", "URL"],
       [
-        ["report", "https://report.thts.app"],
-        ["docs", "https://docs.thts.app"],
+        ["report", "https://report.acme.dev"],
+        ["docs", "https://docs.acme.dev"],
       ],
     );
     expect(t).toBe(
-      ["SITE     URL", "report   https://report.thts.app", "docs     https://docs.thts.app"].join(
+      ["SITE     URL", "report   https://report.acme.dev", "docs     https://docs.acme.dev"].join(
         "\n",
       ),
     );

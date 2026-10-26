@@ -12,7 +12,7 @@ import { memoryKeyStore, mockFetch, tmp } from "./helpers.ts";
 
 const siteBody = (over: Record<string, unknown> = {}) => ({
   name: "report",
-  url: "https://report.thts.app",
+  url: "https://report.acme.dev",
   visibility: "public",
   currentDeploy: "d2",
   domains: [],
@@ -44,10 +44,10 @@ beforeEach(() => {
   configHome = tmp();
   out = [];
   err = [];
-  keys = memoryKeyStore({ "thts.app": "tray_k_saved" });
+  keys = memoryKeyStore({ "acme.dev": "tray_k_saved" });
   saveAccounts(join(configHome, "tray"), {
-    current: "thts.app",
-    accounts: { "thts.app": { email: "sid@acme.com", keyName: "mbp" } },
+    current: "acme.dev",
+    accounts: { "acme.dev": { email: "sid@acme.com", keyName: "mbp" } },
   });
 });
 
@@ -94,7 +94,7 @@ describe("tray put", () => {
     const json = JSON.parse(out[0]!);
     expect(json).toMatchObject({
       site: "report",
-      url: "https://report.thts.app",
+      url: "https://report.acme.dev",
       visibility: "private",
       deploy: "d3",
       files: 2,
@@ -116,7 +116,7 @@ describe("tray put", () => {
       "POST /v1/sites/report/deploys": () => Response.json(deployBody("d2"), { status: 200 }),
     });
     expect(await done).toBe(0);
-    expect(out).toEqual(["https://report.thts.app"]);
+    expect(out).toEqual(["https://report.acme.dev"]);
     expect(
       calls.find((c) => c.method === "POST" && c.path.endsWith("/deploys"))!.body.visibility,
     ).toBeUndefined();
@@ -196,7 +196,7 @@ describe("auth + modes", () => {
     expect(await done).toBe(4);
     expect(out).toEqual([]);
     expect(err.join("\n")).toBe(
-      "error: not logged in to thts.app\nRun `tray login thts.app` or set TRAY_API_KEY.",
+      "error: not logged in to acme.dev\nRun `tray login acme.dev` or set TRAY_API_KEY.",
     );
   });
 
@@ -240,7 +240,7 @@ describe("auth + modes", () => {
     });
     expect(await done).toBe(0);
     expect(calls[0]!.path).toBe("/v1/keys/current");
-    expect(keys.data["thts.app"]).toBeUndefined();
+    expect(keys.data["acme.dev"]).toBeUndefined();
     expect(loadAccounts(join(configHome, "tray")).current).toBeUndefined();
   });
 
@@ -354,7 +354,7 @@ describe("whoami and skill", () => {
   test("whoami --json: domain, email, key name, source", async () => {
     expect(await run(["whoami", "--json"]).done).toBe(0);
     expect(JSON.parse(out[0]!)).toEqual({
-      domain: "thts.app",
+      domain: "acme.dev",
       email: "sid@acme.com",
       key: "mbp",
       source: "keychain",
@@ -364,7 +364,7 @@ describe("whoami and skill", () => {
   test("whoami reports TRAY_API_KEY as source env", async () => {
     keys = memoryKeyStore();
     expect(await run(["whoami", "--json"], {}, { TRAY_API_KEY: "tray_k_x" }).done).toBe(0);
-    expect(JSON.parse(out[0]!)).toMatchObject({ domain: "thts.app", source: "env" });
+    expect(JSON.parse(out[0]!)).toMatchObject({ domain: "acme.dev", source: "env" });
   });
 
   test("whoami exits 4 when not logged in, with no network calls", async () => {
@@ -372,7 +372,7 @@ describe("whoami and skill", () => {
     const { done, calls } = run(["whoami"]);
     expect(await done).toBe(4);
     expect(calls.length).toBe(0);
-    expect(err.join("\n")).toContain("tray login thts.app");
+    expect(err.join("\n")).toContain("tray login acme.dev");
   });
 
   test("tray skill prints the guide", async () => {

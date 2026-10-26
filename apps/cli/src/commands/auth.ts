@@ -70,7 +70,7 @@ export async function login(
       (await askText(ctx, {
         flag: "<domain>",
         message: "Domain of your tray",
-        placeholder: "thts.app",
+        placeholder: "acme.dev",
       })),
   );
   const api = apiFor(ctx, domain);

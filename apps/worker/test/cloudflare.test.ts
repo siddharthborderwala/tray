@@ -5,7 +5,7 @@ import type { Env } from "../src/env.ts";
 import { TrayError } from "../src/errors.ts";
 
 const env = {
-  DOMAIN: "thts.app",
+  DOMAIN: "acme.dev",
   CF_ACCOUNT_ID: "acct",
   CF_API_TOKEN: "tok",
   ACCESS_SIGNIN_APP_ID: "app1",
@@ -19,8 +19,8 @@ function fakeApi() {
     aud: "aud",
     name: "tray sign-in",
     type: "self_hosted",
-    domain: "*.thts.app/.tray/signin",
-    destinations: [{ type: "public", uri: "*.thts.app/.tray/signin" }],
+    domain: "*.acme.dev/.tray/signin",
+    destinations: [{ type: "public", uri: "*.acme.dev/.tray/signin" }],
     policies: [{ id: "pol1", precedence: 1, name: "anyone", decision: "allow" }],
     created_at: "x",
   };
@@ -99,9 +99,9 @@ describe("cloudflareApi", () => {
     expect(put.body).toMatchObject({
       name: "tray sign-in",
       type: "self_hosted",
-      domain: "*.thts.app/.tray/signin",
+      domain: "*.acme.dev/.tray/signin",
       destinations: [
-        { type: "public", uri: "*.thts.app/.tray/signin" },
+        { type: "public", uri: "*.acme.dev/.tray/signin" },
         { type: "public", uri: "docs.acme.com/.tray/signin" },
       ],
       policies: [{ id: "pol1", precedence: 1 }],
@@ -115,7 +115,7 @@ describe("cloudflareApi", () => {
     expect(f.calls.map((c) => c.method)).toEqual(["GET"]);
 
     await cf.removeSigninHost("docs.acme.com");
-    expect(f.app().destinations).toEqual([{ type: "public", uri: "*.thts.app/.tray/signin" }]);
+    expect(f.app().destinations).toEqual([{ type: "public", uri: "*.acme.dev/.tray/signin" }]);
   });
 
   test("API failures and missing config become TrayErrors", async () => {

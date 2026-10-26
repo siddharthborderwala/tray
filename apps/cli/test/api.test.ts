@@ -6,7 +6,7 @@ import { mockFetch } from "./helpers.ts";
 
 const site = {
   name: "report",
-  url: "https://report.thts.app",
+  url: "https://report.acme.dev",
   visibility: "public" as const,
   currentDeploy: "d2",
   domains: [],
@@ -23,7 +23,7 @@ const make = (
   return {
     ...m,
     api: createApi({
-      baseUrl: "https://tray.thts.app",
+      baseUrl: "https://tray.acme.dev",
       key: "tray_k_test",
       fetch: m.fetch,
       ...extra,
@@ -40,7 +40,7 @@ describe("requests", () => {
     expect(calls[0]!.body).toEqual({ hashes: [H("a"), H("b")] });
   });
 
-  test("PUT /blobs/{sha} sends raw bytes with Content-Length", async () => {
+  test("PUT /blobs/{sha} sends raw bytes with content-length", async () => {
     const { api, calls } = make({
       "PUT /v1/blobs/:sha": () => Response.json({ hash: H("c"), size: 3 }, { status: 201 }),
     });
@@ -79,7 +79,7 @@ describe("requests", () => {
       n++;
       throw new Error("ECONNRESET");
     }) as unknown as typeof fetch;
-    const api = createApi({ baseUrl: "https://tray.thts.app", key: "k", fetch: fetchImpl });
+    const api = createApi({ baseUrl: "https://tray.acme.dev", key: "k", fetch: fetchImpl });
     const err = await api.putBlob("a", new Uint8Array([1])).catch((e) => e);
     expect(err).toBeInstanceOf(TrayError);
     expect(err.code).toBe("network");
@@ -156,8 +156,8 @@ describe("requests", () => {
       "POST /v1/auth/device": () => ({
         deviceCode: "dc",
         userCode: "QXFT-7K2M",
-        verificationUri: "https://tray.thts.app/approve",
-        verificationUriComplete: "https://tray.thts.app/approve?code=QXFT-7K2M",
+        verificationUri: "https://tray.acme.dev/approve",
+        verificationUriComplete: "https://tray.acme.dev/approve?code=QXFT-7K2M",
         expiresIn: 600,
         interval: 5,
       }),
@@ -226,7 +226,7 @@ describe("errors", () => {
 
   test("network failure → exit 1, code network", async () => {
     const api = createApi({
-      baseUrl: "https://tray.thts.app",
+      baseUrl: "https://tray.acme.dev",
       fetch: (async () => {
         throw new Error("ENOTFOUND");
       }) as unknown as typeof fetch,
@@ -234,7 +234,7 @@ describe("errors", () => {
     const err = await api.listSites().catch((e) => e);
     expect(err.code).toBe("network");
     expect(err.exit).toBe(1);
-    expect(err.message).toContain("tray.thts.app");
+    expect(err.message).toContain("tray.acme.dev");
   });
 
   test("a 2xx response that isn't JSON is bad_response", async () => {
@@ -243,13 +243,13 @@ describe("errors", () => {
   });
 });
 
-describe("Tray-Version", () => {
+describe("tray-version", () => {
   test("warns once when the Worker is older than the CLI", async () => {
     const warnings: string[] = [];
     const { api } = make(
       {
         "GET /v1/sites": () =>
-          Response.json({ data: [] }, { headers: { "Tray-Version": "0.0.1" } }),
+          Response.json({ data: [] }, { headers: { "tray-version": "0.0.1" } }),
       },
       { onOutdated: (v) => warnings.push(v) },
     );
@@ -263,7 +263,7 @@ describe("Tray-Version", () => {
     const { api } = make(
       {
         "GET /v1/sites": () =>
-          Response.json({ data: [] }, { headers: { "Tray-Version": VERSION } }),
+          Response.json({ data: [] }, { headers: { "tray-version": VERSION } }),
       },
       { onOutdated: (v) => warnings.push(v) },
     );

@@ -29,7 +29,7 @@ export const savedToken = (store: KeyStore, domain: string) => store.get(tokenSl
 export const saveToken = (store: KeyStore, domain: string, token: string) =>
   store.set(tokenSlot(domain), token);
 
-/** `thts.app` → `tray-thts-app` (valid as both an R2 bucket and a Worker name). */
+/** `acme.dev` → `tray-acme-dev` (valid as both an R2 bucket and a Worker name). */
 export function resourceName(domain: string): string {
   return `tray-${domain.replace(/[^a-z0-9]+/g, "-")}`.slice(0, 63).replace(/-+$/, "");
 }

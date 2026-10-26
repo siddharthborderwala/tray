@@ -10,7 +10,7 @@ describe("auth", () => {
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body).toMatchObject({ code: "unauthenticated", error: "missing API key" });
-    expect(body.hint).toContain("tray login thts.app");
+    expect(body.hint).toContain("tray login acme.dev");
   });
 
   test("wrong key, malformed key and revoked key are rejected", async () => {
@@ -67,7 +67,7 @@ describe("auth", () => {
     expect((await api("/sites", { key: null })).headers.get("tray-version")).toMatch(
       /^\d+\.\d+\.\d+/,
     );
-    expect((await visit("https://nope.thts.app/")).headers.get("tray-version")).toMatch(
+    expect((await visit("https://nope.acme.dev/")).headers.get("tray-version")).toMatch(
       /^\d+\.\d+\.\d+/,
     );
   });
@@ -184,7 +184,7 @@ describe("blobs", () => {
       },
     });
     let res = await app.request(
-      `https://tray.thts.app/v1/blobs/${hash}`,
+      `https://tray.acme.dev/v1/blobs/${hash}`,
       {
         method: "PUT",
         body: stream,
@@ -197,7 +197,7 @@ describe("blobs", () => {
     expect(((await res.json()) as { code: string }).code).toBe("length_required");
 
     res = await app.request(
-      `https://tray.thts.app/v1/blobs/${hash}`,
+      `https://tray.acme.dev/v1/blobs/${hash}`,
       {
         method: "PUT",
         headers: { authorization: `Bearer ${key}`, "content-length": String(MAX_DEPLOY_BYTES + 1) },
@@ -248,7 +248,7 @@ describe("deploys", () => {
     const body = await res.json();
     expect(body.site).toMatchObject({
       name: "report",
-      url: "https://report.thts.app",
+      url: "https://report.acme.dev",
       visibility: "private",
       domains: [],
       shareCount: 1,
@@ -471,7 +471,7 @@ describe("rollback", () => {
     res = await api("/sites/report/rollback", { method: "POST", json: { to: v1 } });
     expect(res.status).toBe(200);
     expect((await res.json()).currentDeploy).toBe(v1);
-    expect(await (await visit("https://report.thts.app/")).text()).toBe("v1");
+    expect(await (await visit("https://report.acme.dev/")).text()).toBe("v1");
 
     // retry-safe
     res = await api("/sites/report/rollback", { method: "POST", json: { to: v1 } });

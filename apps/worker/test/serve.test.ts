@@ -73,7 +73,7 @@ describe("serving public sites", () => {
       "/docs/index.html": "docs",
     });
 
-    let res = await visit("https://report.thts.app/");
+    let res = await visit("https://report.acme.dev/");
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("<h1>home</h1>");
     expect(res.headers.get("content-type")).toBe("text/html;charset=utf-8");
@@ -82,27 +82,27 @@ describe("serving public sites", () => {
     expect(res.headers.get("cache-control")).toBeNull();
     expect(res.headers.get("content-length")).toBe("13");
 
-    res = await visit("https://report.thts.app/", { headers: { "if-none-match": etag } });
+    res = await visit("https://report.acme.dev/", { headers: { "if-none-match": etag } });
     expect(res.status).toBe(304);
     expect(await res.text()).toBe("");
-    res = await visit("https://report.thts.app/", {
+    res = await visit("https://report.acme.dev/", {
       headers: { "if-none-match": `W/${etag}, "other"` },
     });
     expect(res.status).toBe(304);
 
-    res = await visit("https://report.thts.app/style.css");
+    res = await visit("https://report.acme.dev/style.css");
     expect(res.headers.get("content-type")).toBe("text/css;charset=utf-8");
 
-    res = await visit("https://report.thts.app/docs?x=1");
+    res = await visit("https://report.acme.dev/docs?x=1");
     expect(res.status).toBe(301);
     expect(res.headers.get("location")).toBe("/docs/?x=1");
 
-    res = await visit("https://report.thts.app/docs/", { method: "HEAD" });
+    res = await visit("https://report.acme.dev/docs/", { method: "HEAD" });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-length")).toBe("4");
     expect(await res.text()).toBe("");
 
-    res = await visit("https://report.thts.app/", { method: "POST" });
+    res = await visit("https://report.acme.dev/", { method: "POST" });
     expect(res.status).toBe(405);
   });
 
@@ -112,15 +112,15 @@ describe("serving public sites", () => {
     await deploy("b", { "/index.html": "spa shell" }, { spa: true });
     await deploy("c", { "/index.html": "plain" });
 
-    let res = await visit("https://a.thts.app/nope");
+    let res = await visit("https://a.acme.dev/nope");
     expect(res.status).toBe(404);
     expect(await res.text()).toBe("custom 404");
 
-    res = await visit("https://b.thts.app/some/route");
+    res = await visit("https://b.acme.dev/some/route");
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("spa shell");
 
-    res = await visit("https://c.thts.app/nope");
+    res = await visit("https://c.acme.dev/nope");
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBeNull();
     const html = await res.text();
@@ -141,14 +141,14 @@ describe("serving public sites", () => {
     const { api, deploy, visit } = await setup();
     const v1 = (await (await deploy("r", { "/index.html": "one" })).json()).deploy.id;
     await deploy("r", { "/index.html": "two" });
-    expect(await (await visit("https://r.thts.app/")).text()).toBe("two");
+    expect(await (await visit("https://r.acme.dev/")).text()).toBe("two");
     await api("/sites/r/rollback", { method: "POST", json: { to: v1 } });
-    expect(await (await visit("https://r.thts.app/")).text()).toBe("one");
+    expect(await (await visit("https://r.acme.dev/")).text()).toBe("one");
   });
 
   test("the API host is not a site", async () => {
     const { visit } = await setup();
-    const res = await visit("https://tray.thts.app/");
+    const res = await visit("https://tray.acme.dev/");
     expect(res.status).toBe(404);
   });
 });
@@ -163,14 +163,14 @@ describe("private sites", () => {
     });
 
     for (const email of [OWNER, "bob@partner.io", "anyone@acme.com", "Bob@Partner.io"]) {
-      const res = await visit("https://secret.thts.app/", { headers: await cookie(email) });
+      const res = await visit("https://secret.acme.dev/", { headers: await cookie(email) });
       expect(res.status).toBe(200);
       expect(await res.text()).toBe("classified");
       expect(res.headers.get("cache-control")).toBeNull();
     }
     for (const email of ["eve@partner.io", "eve@acme.com.evil.io", "eve@notacme.com"]) {
       expect(
-        (await visit("https://secret.thts.app/", { headers: await cookie(email) })).status,
+        (await visit("https://secret.acme.dev/", { headers: await cookie(email) })).status,
       ).toBe(404);
     }
   });
@@ -185,7 +185,7 @@ describe("private sites", () => {
       "garbage",
     ];
     for (const token of bad) {
-      const res = await visit("https://secret.thts.app/", {
+      const res = await visit("https://secret.acme.dev/", {
         headers: { cookie: `CF_Authorization=${token}` },
       });
       expect(res.status).toBe(404);
@@ -203,8 +203,8 @@ describe("private sites", () => {
     });
 
     // Not signed in: missing site vs private site.
-    const missing = await snapshot(await visit("https://ghost.thts.app/page"));
-    const unsigned = await snapshot(await visit("https://secret.thts.app/page"));
+    const missing = await snapshot(await visit("https://ghost.acme.dev/page"));
+    const unsigned = await snapshot(await visit("https://secret.acme.dev/page"));
     expect(unsigned).toEqual(missing);
     expect(missing.status).toBe(404);
     expect(Object.fromEntries(missing.headers)["cache-control"]).toBeUndefined();
@@ -215,9 +215,9 @@ describe("private sites", () => {
     // Signed in as someone not on the list: missing site vs private site.
     const eve = await cookie("eve@elsewhere.org");
     const missingSigned = await snapshot(
-      await visit("https://ghost.thts.app/page", { headers: eve }),
+      await visit("https://ghost.acme.dev/page", { headers: eve }),
     );
-    const notShared = await snapshot(await visit("https://secret.thts.app/page", { headers: eve }));
+    const notShared = await snapshot(await visit("https://secret.acme.dev/page", { headers: eve }));
     expect(notShared).toEqual(missingSigned);
     expect(missingSigned.body).toContain("Signed in as eve@elsewhere.org");
     expect(missingSigned.body).toContain('href="/cdn-cgi/access/logout"');
@@ -234,32 +234,32 @@ describe("private sites", () => {
       await visit(url, { headers: await cookie("eve@elsewhere.org") });
       return { ...bucket.calls };
     };
-    expect(await count("https://secret.thts.app/")).toEqual(await count("https://ghost.thts.app/"));
+    expect(await count("https://secret.acme.dev/")).toEqual(await count("https://ghost.acme.dev/"));
   });
 
   test("/.tray/signin verifies Access and redirects to next on the same host", async () => {
     const { visit } = await setup();
     const headers = { "cf-access-jwt-assertion": await accessJwt("bob@acme.com", SIGNIN_AUD) };
-    let res = await visit("https://secret.thts.app/.tray/signin?next=%2Fdeck%3Fp%3D2", { headers });
+    let res = await visit("https://secret.acme.dev/.tray/signin?next=%2Fdeck%3Fp%3D2", { headers });
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/deck?p=2");
 
-    res = await visit("https://secret.thts.app/.tray/signin?next=https://evil.example", {
+    res = await visit("https://secret.acme.dev/.tray/signin?next=https://evil.example", {
       headers,
     });
     expect(res.headers.get("location")).toBe("/");
 
-    res = await visit("https://secret.thts.app/.tray/signin?next=/.//evil.example", { headers });
+    res = await visit("https://secret.acme.dev/.tray/signin?next=/.//evil.example", { headers });
     expect(res.headers.get("location")).toBe("/");
 
-    res = await visit("https://secret.thts.app/.tray/signin?next=/x");
+    res = await visit("https://secret.acme.dev/.tray/signin?next=/x");
     expect(res.status).toBe(403);
   });
 
   test("public sites ignore Access entirely", async () => {
     const { deploy, visit } = await setup();
     await deploy("open", { "/index.html": "hello" });
-    const res = await visit("https://open.thts.app/", {
+    const res = await visit("https://open.acme.dev/", {
       headers: { cookie: "CF_Authorization=garbage" },
     });
     expect(res.status).toBe(200);

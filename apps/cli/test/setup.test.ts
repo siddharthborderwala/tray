@@ -51,12 +51,12 @@ function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: s
     const headers = new Headers(init?.headers);
 
     // The new tray's API (setup's liveness check / key claim).
-    if (url.host === "tray.thts.app") {
+    if (url.host === "tray.acme.dev") {
       const key = headers.get("authorization")?.replace("Bearer ", "") ?? "";
       if (method === "GET" && url.pathname === "/v1/keys") {
         const setupKey = JSON.parse(
           state.scripts
-            .get(resourceName("thts.app"))
+            .get(resourceName("acme.dev"))
             ?.metadata.bindings.find((b: any) => b.name === "TRAY_SETUP_KEY")?.text ?? "{}",
         );
         const hash = new Bun.CryptoHasher("sha256").update(key).digest("hex");
@@ -88,7 +88,7 @@ function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: s
     const route = `${method} ${path}`;
     if (route === "GET /zones") {
       const name = url.searchParams.get("name");
-      const zones = (opts.zones ?? ["thts.app"])
+      const zones = (opts.zones ?? ["acme.dev"])
         .filter((z) => z === name)
         .map((z) => ({ id: ZONE, name: z, account: { id: ACCOUNT, name: "Sid" } }));
       return ok(zones, { page: 1, total_pages: 1 });
@@ -203,7 +203,7 @@ beforeEach(() => {
 function ctxFor(
   fetchImpl: typeof fetch,
   env: Record<string, string> = { CLOUDFLARE_API_TOKEN: "cf_token" },
-  domain = "thts.app",
+  domain = "acme.dev",
 ): Ctx {
   return {
     mode: { interactive: false, json: true, prettyJson: false },
@@ -227,38 +227,38 @@ describe("tray setup", () => {
     await setup(ctxFor(cf.fetch), "Sid@Acme.com", { workerSource: WORKER });
     const s = cf.state;
 
-    expect([...s.buckets]).toEqual(["tray-thts-app"]);
+    expect([...s.buckets]).toEqual(["tray-acme-dev"]);
     expect(s.idps).toMatchObject([{ type: "onetimepin" }]);
     expect(s.policies).toEqual([
       {
         id: expect.any(String),
-        name: "tray owner (thts.app)",
+        name: "tray owner (acme.dev)",
         decision: "allow",
         include: [{ email: { email: "sid@acme.com" } }],
       },
       {
         id: expect.any(String),
-        name: "tray sign-in (thts.app)",
+        name: "tray sign-in (acme.dev)",
         decision: "allow",
         include: [{ everyone: {} }],
       },
     ]);
     const [approve, signin] = s.apps;
     expect(approve).toMatchObject({
-      name: "tray approve (thts.app)",
+      name: "tray approve (acme.dev)",
       type: "self_hosted",
-      domain: "tray.thts.app/approve",
-      destinations: [{ type: "public", uri: "tray.thts.app/approve" }],
+      domain: "tray.acme.dev/approve",
+      destinations: [{ type: "public", uri: "tray.acme.dev/approve" }],
       policies: [{ id: s.policies[0]!.id, precedence: 1 }],
       allowed_idps: [s.idps[0]!.id],
     });
     expect(signin).toMatchObject({
-      name: "tray sign-in (thts.app)",
-      destinations: [{ type: "public", uri: "*.thts.app/.tray/signin" }],
+      name: "tray sign-in (acme.dev)",
+      destinations: [{ type: "public", uri: "*.acme.dev/.tray/signin" }],
       policies: [{ id: s.policies[1]!.id, precedence: 1 }],
     });
 
-    const script = s.scripts.get("tray-thts-app")!;
+    const script = s.scripts.get("tray-acme-dev")!;
     expect(script.source).toBe(WORKER);
     expect((script as any).moduleType).toBe("application/javascript+module");
     expect(script.metadata.main_module).toBe("worker.js");
@@ -267,11 +267,11 @@ describe("tray setup", () => {
     expect(bindings.BUCKET).toEqual({
       type: "r2_bucket",
       name: "BUCKET",
-      bucket_name: "tray-thts-app",
+      bucket_name: "tray-acme-dev",
     });
-    expect(bindings.DOMAIN.text).toBe("thts.app");
+    expect(bindings.DOMAIN.text).toBe("acme.dev");
     expect(bindings.OWNER_EMAIL.text).toBe("sid@acme.com");
-    expect(bindings.WORKER_NAME.text).toBe("tray-thts-app");
+    expect(bindings.WORKER_NAME.text).toBe("tray-acme-dev");
     expect(bindings.ACCESS_TEAM_DOMAIN.text).toBe("acme.cloudflareaccess.com");
     expect(bindings.ACCESS_APPROVE_AUD.text).toBe(approve.aud);
     expect(bindings.ACCESS_SIGNIN_AUD.text).toBe(signin.aud);
@@ -285,15 +285,15 @@ describe("tray setup", () => {
     expect(bindings.TRAY_SETUP_KEY.type).toBe("secret_text");
 
     expect([...s.customDomains.values()]).toEqual([
-      { hostname: "tray.thts.app", service: "tray-thts-app", zone_id: ZONE },
+      { hostname: "tray.acme.dev", service: "tray-acme-dev", zone_id: ZONE },
     ]);
-    expect(s.routes).toMatchObject([{ pattern: "*.thts.app/*", script: "tray-thts-app" }]);
+    expect(s.routes).toMatchObject([{ pattern: "*.acme.dev/*", script: "tray-acme-dev" }]);
     expect(s.dns).toMatchObject([
-      { type: "AAAA", name: "*.thts.app", content: "100::", proxied: true },
+      { type: "AAAA", name: "*.acme.dev", content: "100::", proxied: true },
     ]);
 
     // The key the Worker got (as a hash) is the key this machine saved.
-    const key = keys.data["thts.app"]!;
+    const key = keys.data["acme.dev"]!;
     expect(key).toMatch(/^tray_k_[a-f0-9]{48}$/);
     const record = JSON.parse(bindings.TRAY_SETUP_KEY.text);
     expect(record.hash).toBe(new Bun.CryptoHasher("sha256").update(key).digest("hex"));
@@ -302,32 +302,32 @@ describe("tray setup", () => {
     expect(JSON.stringify(script.metadata)).not.toContain(key);
     expect(s.trayKeys.has(key)).toBe(true); // claimed via the liveness check
 
-    expect(keys.data["cloudflare:thts.app"]).toBe("cf_token");
+    expect(keys.data["cloudflare:acme.dev"]).toBe("cf_token");
     expect(loadAccounts(configDir)).toMatchObject({
-      current: "thts.app",
-      accounts: { "thts.app": { email: "sid@acme.com" } },
+      current: "acme.dev",
+      accounts: { "acme.dev": { email: "sid@acme.com" } },
     });
-    expect(loadSetups(configDir)["thts.app"]).toEqual({
+    expect(loadSetups(configDir)["acme.dev"]).toEqual({
       accountId: ACCOUNT,
       zoneId: ZONE,
-      worker: "tray-thts-app",
-      bucket: "tray-thts-app",
+      worker: "tray-acme-dev",
+      bucket: "tray-acme-dev",
       email: "sid@acme.com",
     });
 
     expect(JSON.parse(out.at(-1)!)).toMatchObject({
-      domain: "thts.app",
-      api: "https://tray.thts.app/v1",
+      domain: "acme.dev",
+      api: "https://tray.acme.dev/v1",
       live: true,
     });
-    expect(err.join("\n")).toContain("R2 bucket: tray-thts-app");
-    expect(err.join("\n")).toContain("Sign-in: *.thts.app/.tray/signin (email code)");
+    expect(err.join("\n")).toContain("R2 bucket: tray-acme-dev");
+    expect(err.join("\n")).toContain("Sign-in: *.acme.dev/.tray/signin (email code)");
   });
 
   test("is idempotent: a re-run updates in place and issues a fresh key", async () => {
     const cf = fakeCloudflare();
     await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
-    const firstKey = keys.data["thts.app"]!;
+    const firstKey = keys.data["acme.dev"]!;
     // A custom host the Worker added to the sign-in app since.
     cf.state.apps[1].destinations.push({ type: "public", uri: "docs.acme.com/.tray/signin" });
 
@@ -339,14 +339,14 @@ describe("tray setup", () => {
     expect(s.apps).toHaveLength(2);
     expect(s.routes).toHaveLength(1);
     expect(s.dns).toHaveLength(1);
-    expect(s.scripts.get("tray-thts-app")!.source).toBe(WORKER + "//v2");
+    expect(s.scripts.get("tray-acme-dev")!.source).toBe(WORKER + "//v2");
     expect(s.apps[1].destinations).toEqual([
-      { type: "public", uri: "*.thts.app/.tray/signin" },
+      { type: "public", uri: "*.acme.dev/.tray/signin" },
       { type: "public", uri: "docs.acme.com/.tray/signin" },
     ]);
     // Email remembered from the first run; a new key, and the old one retired.
     expect(s.policies[0]!.include).toEqual([{ email: { email: "sid@acme.com" } }]);
-    expect(keys.data["thts.app"]).not.toBe(firstKey);
+    expect(keys.data["acme.dev"]).not.toBe(firstKey);
     expect(s.trayKeys.has(firstKey)).toBe(false);
     expect(
       cf.calls.filter((c) => c.method === "POST" && c.path.endsWith("/r2/buckets")),
@@ -363,17 +363,17 @@ describe("tray setup", () => {
 
   test("fixes a route pointing at another Worker, keeps an existing proxied wildcard", async () => {
     const cf = fakeCloudflare();
-    cf.state.routes.push({ id: "r0", pattern: "*.thts.app/*", script: "old" });
+    cf.state.routes.push({ id: "r0", pattern: "*.acme.dev/*", script: "old" });
     cf.state.dns.push({
       id: "d0",
-      name: "*.thts.app",
+      name: "*.acme.dev",
       type: "A",
       content: "192.0.2.1",
       proxied: true,
     });
     await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
     expect(cf.state.routes).toEqual([
-      { id: "r0", pattern: "*.thts.app/*", script: "tray-thts-app" },
+      { id: "r0", pattern: "*.acme.dev/*", script: "tray-acme-dev" },
     ]);
     expect(cf.state.dns).toHaveLength(1);
   });
@@ -382,7 +382,7 @@ describe("tray setup", () => {
     const cf = fakeCloudflare();
     cf.state.dns.push({
       id: "d0",
-      name: "*.thts.app",
+      name: "*.acme.dev",
       type: "A",
       content: "192.0.2.1",
       proxied: false,
@@ -394,18 +394,18 @@ describe("tray setup", () => {
   test("warns about existing subdomains the wildcard route takes over", async () => {
     const cf = fakeCloudflare();
     for (const [name, proxied] of [
-      ["www.thts.app", true],
-      ["blog.thts.app", true],
-      ["mail.thts.app", false], // DNS only: the route never sees it
-      ["thts.app", true],
+      ["www.acme.dev", true],
+      ["blog.acme.dev", true],
+      ["mail.acme.dev", false], // DNS only: the route never sees it
+      ["acme.dev", true],
     ] as const) {
       cf.state.dns.push({ id: name, name, type: "A", content: "192.0.2.1", proxied });
     }
     await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
     const warning = err.find((l) => l.includes("now sends"))!;
-    expect(warning).toContain("blog.thts.app, www.thts.app to Tray");
-    expect(warning).not.toContain("mail.thts.app");
-    expect(warning).not.toContain("*.thts.app,");
+    expect(warning).toContain("blog.acme.dev, www.acme.dev to Tray");
+    expect(warning).not.toContain("mail.acme.dev");
+    expect(warning).not.toContain("*.acme.dev,");
   });
 
   test("no takeover warning on a domain with no other subdomains", async () => {
@@ -447,7 +447,7 @@ describe("tray setup", () => {
 
   test("uses the token saved by an earlier setup when CLOUDFLARE_API_TOKEN is unset", async () => {
     const cf = fakeCloudflare();
-    await keys.set("cloudflare:thts.app", "cf_token");
+    await keys.set("cloudflare:acme.dev", "cf_token");
     await setup(ctxFor(cf.fetch, {}), "sid@acme.com", { workerSource: WORKER });
     expect(cf.state.scripts.size).toBe(1);
   });
@@ -455,12 +455,12 @@ describe("tray setup", () => {
   test("not live yet → still saved, with a warning", async () => {
     const cf = fakeCloudflare();
     const offline = (async (input: string | URL | Request, init?: RequestInit) =>
-      String(input).startsWith("https://tray.thts.app")
+      String(input).startsWith("https://tray.acme.dev")
         ? Promise.reject(new Error("ENOTFOUND"))
         : cf.fetch(input, init)) as typeof fetch;
     await setup(ctxFor(offline), "sid@acme.com", { workerSource: WORKER });
     expect(JSON.parse(out.at(-1)!).live).toBe(false);
-    expect(keys.data["thts.app"]).toMatch(/^tray_k_/);
+    expect(keys.data["acme.dev"]).toMatch(/^tray_k_/);
     expect(err.join("\n")).toContain("can take a few minutes");
   });
 });
@@ -482,7 +482,7 @@ describe("tray setup flags (non-interactive)", () => {
   });
 
   test("missing token exits 2 naming CLOUDFLARE_API_TOKEN", async () => {
-    expect(await run(["setup", "--domain", "thts.app", "--json"])).toBe(2);
+    expect(await run(["setup", "--domain", "acme.dev", "--json"])).toBe(2);
     expect(JSON.parse(out[0]!)).toMatchObject({
       code: "missing_input",
       param: "CLOUDFLARE_API_TOKEN",
@@ -491,7 +491,7 @@ describe("tray setup flags (non-interactive)", () => {
 
   test("missing --email exits 2 naming the flag", async () => {
     expect(
-      await run(["setup", "--domain", "thts.app", "--json"], { CLOUDFLARE_API_TOKEN: "x" }),
+      await run(["setup", "--domain", "acme.dev", "--json"], { CLOUDFLARE_API_TOKEN: "x" }),
     ).toBe(2);
     expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--email" });
   });

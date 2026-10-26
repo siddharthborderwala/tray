@@ -9,7 +9,7 @@ describe("GET /v1/openapi.json", () => {
     const doc = await res.json();
     expect(doc.openapi).toBe("3.1.0");
     expect(doc.servers[0].url).toBe("https://tray.{domain}/v1");
-    expect(doc.servers[0].variables.domain.default).toBe("thts.app");
+    expect(doc.servers[0].variables.domain.default).toBe("acme.dev");
 
     // Every operation has a unique camelCase operationId, a summary and a description.
     const operations = Object.values(doc.paths as Record<string, Record<string, any>>).flatMap(

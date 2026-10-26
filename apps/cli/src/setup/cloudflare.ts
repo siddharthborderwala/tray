@@ -158,7 +158,7 @@ export async function findZone(cf: CloudflareClient, domain: string): Promise<Zo
       `${domain} isn't a zone on this Cloudflare account`,
       "zone_not_found",
       EXIT.failed,
-      "Add the domain to Cloudflare first (the apex, e.g. thts.app), and give the token Zone Read on it.",
+      "Add the domain to Cloudflare first (the apex, e.g. acme.dev), and give the token Zone Read on it.",
       "--domain",
     );
   }

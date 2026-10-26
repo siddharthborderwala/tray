@@ -3,7 +3,7 @@ import { printHelp } from "@bomb.sh/router";
 
 const ROOT_HELP_FOOTER = `
 Environment:
-  TRAY_DOMAIN           Tray to use (e.g. thts.app).
+  TRAY_DOMAIN           Tray to use (e.g. acme.dev).
   TRAY_API_KEY          API key. Overrides saved login.
   CLOUDFLARE_API_TOKEN  Used by \`tray setup\` and \`tray domain add\`.
   NO_COLOR, CI          Respected. CI implies --non-interactive.

@@ -243,7 +243,7 @@ export async function setup(overrides: Partial<Env> = {}) {
   const bucket = new MemoryBucket();
   const env: Env = {
     BUCKET: bucket,
-    DOMAIN: "thts.app",
+    DOMAIN: "acme.dev",
     OWNER_EMAIL: OWNER,
     ACCESS_TEAM_DOMAIN: TEAM,
     ACCESS_APPROVE_AUD: APPROVE_AUD,
@@ -254,7 +254,7 @@ export async function setup(overrides: Partial<Env> = {}) {
   const app = createApp({ cloudflare: () => cf, verifyAccess: createAccessVerifier(certsFetch) });
   const { key } = await createKey(env, "test-machine", OWNER);
 
-  /** Request to the API on tray.thts.app with the owner's key. */
+  /** Request to the API on tray.acme.dev with the owner's key. */
   const api = (path: string, init: RequestInit & { json?: unknown; key?: string | null } = {}) => {
     const { json, key: k = key, ...rest } = init;
     const headers = new Headers(rest.headers);
@@ -262,7 +262,7 @@ export async function setup(overrides: Partial<Env> = {}) {
     if (json !== undefined) headers.set("content-type", "application/json");
     return <Promise<TestResponse>>(
       app.request(
-        `https://tray.thts.app/v1${path}`,
+        `https://tray.acme.dev/v1${path}`,
         { ...rest, headers, ...(json !== undefined ? { body: JSON.stringify(json) } : {}) },
         env,
       )

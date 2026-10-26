@@ -4,7 +4,7 @@
 
 export interface Env {
   BUCKET: R2Bucket;
-  /** The tray's domain, e.g. `thts.app`. API lives at `tray.<DOMAIN>`, sites at `<site>.<DOMAIN>`. */
+  /** The tray's domain, e.g. `acme.dev`. API lives at `tray.<DOMAIN>`, sites at `<site>.<DOMAIN>`. */
   DOMAIN: string;
   /** Only this email may approve logins through `/approve`. Optional (Access already restricts it). */
   OWNER_EMAIL?: string;

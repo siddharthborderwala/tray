@@ -43,7 +43,7 @@ const globals = extend(
     name("domain"),
     label("--domain <DOMAIN>"),
     schema(optional()),
-    description("Use this tray instead of the current account (e.g. thts.app)."),
+    description("Use this tray instead of the current account (e.g. acme.dev)."),
   ),
 );
 
@@ -187,7 +187,7 @@ export const app = route(
       name("loginDomain"),
       label("[DOMAIN]"),
       schema(optional()),
-      description("Tray domain, e.g. thts.app."),
+      description("Tray domain, e.g. acme.dev."),
     ),
     option(
       name("name"),

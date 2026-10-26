@@ -11,7 +11,7 @@ import { EXIT, TrayError } from "./errors.ts";
 import { VERSION } from "./version.ts";
 
 export interface ApiOptions {
-  /** e.g. `https://tray.thts.app` (the `/v1` prefix is added here). */
+  /** e.g. `https://tray.acme.dev` (the `/v1` prefix is added here). */
   baseUrl: string;
   key?: string;
   fetch?: typeof fetch;

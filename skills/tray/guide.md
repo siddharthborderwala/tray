@@ -13,7 +13,7 @@
 
 | Variable | Meaning |
 |---|---|
-| `TRAY_DOMAIN` | Tray to use (e.g. `thts.app`). |
+| `TRAY_DOMAIN` | Tray to use (e.g. `acme.dev`). |
 | `TRAY_API_KEY` | API key (`tray_k_…`). Overrides the saved login. |
 | `CLOUDFLARE_API_TOKEN` | Used by `tray setup`. |
 | `NO_COLOR`, `CI` | Respected. `CI` implies non-interactive. |
@@ -26,37 +26,37 @@ first, then the result). Indented on a terminal, one line when piped.
 
 ```jsonc
 // tray whoami
-{"domain":"thts.app","email":"sid@acme.com","key":"mbp","source":"keychain"} // source: env | keychain | file
+{"domain":"acme.dev","email":"sid@acme.com","key":"mbp","source":"keychain"} // source: env | keychain | file
 
 // tray put
-{"site":"report","url":"https://report.thts.app","visibility":"public",
+{"site":"q3-review","url":"https://q3-review.acme.dev","visibility":"public",
  "deploy":"lq3k2-8f1a","files":42,"uploaded":3,"bytes":3145728}
 
 // tray list
-{"sites":[{"name":"report","url":"…","visibility":"private","currentDeploy":"lq3k2-8f1a",
+{"sites":[{"name":"q3-review","url":"…","visibility":"private","currentDeploy":"lq3k2-8f1a",
   "domains":[],"shareCount":1,"createdAt":"…","updatedAt":"…"}]}
 
 // tray open
-{"site":"report","url":"https://report.thts.app"}
+{"site":"q3-review","url":"https://q3-review.acme.dev"}
 
 // tray edit            → the site object (as in `list`)
 // tray rollback
-{"site":"report","url":"https://report.thts.app","deploy":"lq3k2-8f1a"}
+{"site":"q3-review","url":"https://q3-review.acme.dev","deploy":"lq3k2-8f1a"}
 
 // tray remove
-{"site":"report","removed":true}
+{"site":"q3-review","removed":true}
 
 // tray share / unshare
-{"site":"report","data":[{"entry":"sid@acme.com","owner":true},{"entry":"@acme.com","owner":false}]}
+{"site":"q3-review","data":[{"entry":"sid@acme.com","owner":true},{"entry":"@acme.com","owner":false}]}
 
 // tray domain add      → {"host":"docs.acme.com","site":"docs","createdAt":"…"}
 // tray domain list     → {"data":[{"host","site","createdAt"}]}
 // tray domain remove   → {"host":"docs.acme.com","removed":true}
 
 // tray login           → {"approveUrl":"…","userCode":"QXFT-7K2M"} then {"domain","email","name"}
-// tray logout          → {"domain":"thts.app","loggedOut":true}
-// tray account list    → {"current":"thts.app","data":[{"domain","email","name","current"}]}
-// tray account switch  → {"current":"thts.app"}
+// tray logout          → {"domain":"acme.dev","loggedOut":true}
+// tray account list    → {"current":"acme.dev","data":[{"domain","email","name","current"}]}
+// tray account switch  → {"current":"acme.dev"}
 
 // tray key create      → {"id":"3f9a0c1d2e4b","name":"ci","key":"tray_k_…"} (shown once)
 // tray key list        → {"data":[{"id","name","email","createdAt","lastUsedAt"}]}
@@ -65,7 +65,7 @@ first, then the result). Indented on a terminal, one line when piped.
 // tray skill install   → {"written":["/Users/sid/.agents/skills/tray/SKILL.md", …],"unchanged":[…]}
 
 // any error
-{"error":"report already exists (last put from ~/work/x on mbp)","code":"site_exists",
+{"error":"q3-review already exists (last put from ~/work/x on mbp)","code":"site_exists",
  "hint":"Use --replace to overwrite it, or -s <other> to pick another name.","param":"site"}
 ```
 

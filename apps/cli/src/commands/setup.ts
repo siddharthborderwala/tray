@@ -35,7 +35,7 @@ export interface SetupDeps {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** `label` padded like the spec's output: `◇  R2 bucket            tray-thts-app`. */
+/** `label` padded like the spec's output: `◇  R2 bucket            tray-acme-dev`. */
 function report(ctx: Ctx, label: string, value: string) {
   if (ctx.mode.interactive) step(ctx, `${label.padEnd(21)}${value}`);
   else ctx.stderr(`${label}: ${value}`);
@@ -91,7 +91,7 @@ export async function setup(
       (await askText(ctx, {
         flag: "--domain",
         message: "Domain for your tray (must be on Cloudflare)",
-        placeholder: "thts.app",
+        placeholder: "acme.dev",
       })),
   );
   const token = await askToken(ctx, domain);
