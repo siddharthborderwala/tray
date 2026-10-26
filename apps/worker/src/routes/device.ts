@@ -7,6 +7,7 @@ import {
   DeviceCode,
   DeviceRequest,
   PendingDevice,
+  Sha256,
   Token,
   TokenRequest,
   UserCode,
@@ -15,6 +16,7 @@ import { createKey, decideDevice, deleteDevice, findDevice, startDevice } from "
 import { TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
 import { getJson, now, paths, type PendingDevice as PendingRecord, putJson } from "../storage.ts";
+import { apiHost } from "../domain.ts";
 
 const device = createRoute({
   method: "post",
@@ -72,7 +74,7 @@ export const auth = newRouter()
     const { name } = c.req.valid("json");
     const ip = c.req.header("cf-connecting-ip") ?? "unknown";
     const { deviceCode, userCode } = await startDevice(c.env, name, ip);
-    const verificationUri = `https://tray.${c.env.DOMAIN}/approve`;
+    const verificationUri = `https://${apiHost(c.env)}/approve`;
     return c.json(
       {
         deviceCode,
@@ -88,7 +90,7 @@ export const auth = newRouter()
 
   .openapi(token, async (c) => {
     const { deviceCode } = c.req.valid("json");
-    const key = /^[a-f0-9]{64}$/.test(deviceCode) ? paths.pending(deviceCode) : null;
+    const key = Sha256.safeParse(deviceCode).success ? paths.pending(deviceCode) : null;
     const pending = key ? await getJson<PendingRecord>(c.env.BUCKET, key) : null;
     if (!pending) throw deviceError("expired_token", "this login has expired or was already used");
 

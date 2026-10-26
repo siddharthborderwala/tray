@@ -5,6 +5,7 @@ import { AddDomainRequest, Domain, DomainList, DomainListQuery, Hostname } from 
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
 import { getJson, type HostRecord, listAll, loadSite, now, paths, putJson } from "../storage.ts";
+import { trayDomain } from "../domain.ts";
 
 const listDomains = createRoute({
   method: "get",
@@ -67,7 +68,7 @@ export const domains = newRouter()
   .openapi(addDomain, async (c) => {
     const req = c.req.valid("json");
     const host = req.host.toLowerCase();
-    const domain = c.env.DOMAIN.toLowerCase();
+    const domain = trayDomain(c.env);
     if (host.endsWith(`.${domain}`)) {
       throw new TrayError(400, "invalid_request", `${host} is already served by this tray`, {
         param: "host",

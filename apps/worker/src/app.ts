@@ -18,6 +18,7 @@ import { keys } from "./routes/keys.ts";
 import { shares } from "./routes/shares.ts";
 import { sites } from "./routes/sites.ts";
 import { hostOf, serveSite } from "./serve.ts";
+import { apiHost, trayDomain } from "./domain.ts";
 
 export const VERSION: string = pkg.version;
 
@@ -55,7 +56,7 @@ export function openApiConfig(domain = "example.com") {
   };
 }
 
-api.doc31("/openapi.json", (c) => openApiConfig(c.env.DOMAIN));
+api.doc31("/openapi.json", (c) => openApiConfig(trayDomain(c.env)));
 
 const routes = api
   .route("/", blobs)
@@ -87,7 +88,7 @@ export function createApp(deps: Deps = defaultDeps()) {
 
   // Every host except tray.<domain> is a site.
   app.use(async (c, next) => {
-    if (hostOf(c) !== `tray.${c.env.DOMAIN.toLowerCase()}`) return serveSite(c);
+    if (hostOf(c) !== apiHost(c.env)) return serveSite(c);
     await next();
   });
 
@@ -121,7 +122,7 @@ export function createApp(deps: Deps = defaultDeps()) {
       code: "internal",
       hint: "Check the Worker logs (wrangler tail).",
     };
-    return c.req.path.startsWith("/v1/") || hostOf(c) === `tray.${c.env.DOMAIN.toLowerCase()}`
+    return c.req.path.startsWith("/v1/") || hostOf(c) === apiHost(c.env)
       ? c.json(res, 500)
       : c.text("Internal Server Error", 500);
   });

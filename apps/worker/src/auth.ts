@@ -17,6 +17,7 @@ import {
   safeEqual,
   sha256Hex,
 } from "./storage.ts";
+import { trayDomain } from "./domain.ts";
 
 // --- keys ----------------------------------------------------------------------
 
@@ -117,7 +118,7 @@ export const requireAuth: MiddlewareHandler<Ctx> = async (c, next) => {
       "unauthenticated",
       header ? "invalid or revoked API key" : "missing API key",
       {
-        hint: `Run \`tray login ${c.env.DOMAIN}\` or set TRAY_API_KEY.`,
+        hint: `Run \`tray login ${trayDomain(c.env)}\` or set TRAY_API_KEY.`,
       },
     );
   }

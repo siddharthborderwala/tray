@@ -7,6 +7,8 @@ export const bytes = (s: string) => new TextEncoder().encode(s);
 
 export interface Recorded {
   method: string;
+  /** Full request URL. */
+  url: string;
   path: string;
   headers: Headers;
   body: any;
@@ -31,6 +33,7 @@ export function mockFetch(routes: Record<string, Handler>) {
     }
     const rec: Recorded = {
       method,
+      url: url.href,
       path: url.pathname + url.search,
       headers: new Headers(init?.headers),
       body,

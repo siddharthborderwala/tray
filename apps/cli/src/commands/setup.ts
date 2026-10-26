@@ -3,7 +3,7 @@
 // whatever is missing; it also issues a fresh key for this machine (recovery).
 import * as p from "@clack/prompts";
 import { loadAccounts, saveAccounts, shortHostname } from "../config.ts";
-import { apiBaseUrl, normalizeDomain } from "../credentials.ts";
+import { apiUrl, normalizeDomain } from "../credentials.ts";
 import { askText, info, intro, openBrowser, outro, spinner, step, warn, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError, cancelled } from "../errors.ts";
 import {
@@ -26,6 +26,7 @@ import { tokenTemplateUrl } from "../setup/token.ts";
 import { requireZeroTrust, type ZeroTrustDeps } from "../setup/zero-trust.ts";
 import { loadSetups, resourceName, saveSetup, savedToken, saveToken } from "../setup/state.ts";
 import { offerSkillInstall } from "../skill.ts";
+import { Email } from "@tray-sh/schema";
 
 export { upgrade } from "./upgrade.ts";
 
@@ -33,8 +34,6 @@ export interface SetupDeps extends ZeroTrustDeps {
   /** The Worker bundle; defaults to the one embedded in this binary. */
   workerSource?: string;
 }
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** `label` padded like the spec's output: `◇  R2 bucket            tray-acme-dev`. */
 function report(ctx: Ctx, label: string, value: string) {
@@ -129,10 +128,12 @@ export async function setup(
       flag: "--email",
       message: "Your email",
       placeholder: "you@example.com",
-      validate: (v) => (EMAIL_RE.test(v.trim()) ? undefined : "enter an email"),
+      validate: (v) => (Email.safeParse(v.trim()).success ? undefined : "enter an email"),
     }))
-  ).toLowerCase();
-  if (!EMAIL_RE.test(email))
+  )
+    .trim()
+    .toLowerCase();
+  if (!Email.safeParse(email).success)
     throw new TrayError(
       `invalid email: ${email}`,
       "invalid_usage",
@@ -274,7 +275,7 @@ function fail(spin: { error(msg: string): void }, err: unknown): never {
 
 async function revoke(ctx: Ctx, domain: string, key: string) {
   try {
-    await (ctx.fetch ?? fetch)(`${apiBaseUrl(domain, ctx.env)}/v1/keys/current`, {
+    await (ctx.fetch ?? fetch)(apiUrl(domain, ctx.env, "v1/keys/current"), {
       method: "DELETE",
       headers: { authorization: `Bearer ${key}` },
     });
@@ -284,7 +285,7 @@ async function revoke(ctx: Ctx, domain: string, key: string) {
 /** Use the new key once: proves the Worker is up and moves the key into R2. */
 async function waitForWorker(ctx: Ctx, domain: string, key: string): Promise<boolean> {
   const sleep = ctx.sleep ?? Bun.sleep;
-  const url = `${apiBaseUrl(domain, ctx.env)}/v1/keys`;
+  const url = apiUrl(domain, ctx.env, "v1/keys");
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
       const res = await (ctx.fetch ?? fetch)(url, { headers: { authorization: `Bearer ${key}` } });

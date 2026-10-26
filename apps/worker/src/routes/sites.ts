@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   Deploy,
+  DeployId,
   DeployList,
   DeployListQuery,
   DeployRequest,
@@ -358,7 +359,7 @@ export const sites = newRouter()
     const { to } = c.req.valid("json");
     const { meta, current } = await requireSite(c.env, name);
     if (current !== to) {
-      const target = /^[a-z0-9-]+$/.test(to)
+      const target = DeployId.safeParse(to).success
         ? await c.env.BUCKET.head(paths.deploy(name, to))
         : null;
       if (!target) {

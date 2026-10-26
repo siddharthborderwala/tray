@@ -6,6 +6,7 @@ import { loadAccounts } from "../src/config.ts";
 import type { Ctx } from "../src/ctx.ts";
 import { TrayError } from "../src/errors.ts";
 import { main } from "../src/main.ts";
+import { findZone } from "../src/setup/cloudflare.ts";
 import { loadSetups, resourceName } from "../src/setup/state.ts";
 import { memoryKeyStore, tmp } from "./helpers.ts";
 
@@ -561,5 +562,30 @@ describe("tray setup flags (non-interactive)", () => {
     expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--email" });
     // Only lookups happened before it asked: nothing was created.
     expect(cf.calls.every((c) => c.method === "GET")).toBe(true);
+  });
+});
+
+describe("zone lookup", () => {
+  const cf = (zones: { id: string; name: string }[]) =>
+    ({ list: async () => zones.map((z) => ({ ...z, account: { id: "acct" } })) }) as never;
+
+  test("a subdomain gets a clear error naming the apex (Public Suffix List)", async () => {
+    const err = await findZone(cf([]), "docs.acme.co.uk").catch((e) => e);
+    expect(err).toBeInstanceOf(TrayError);
+    expect(err.message).toBe("docs.acme.co.uk is a subdomain of acme.co.uk, not a Cloudflare zone");
+    expect(err.hint).toContain("tray setup --domain acme.co.uk");
+    expect(err.exit).toBe(2);
+  });
+
+  test("the apex itself, and subdomain zones that do exist, are found", async () => {
+    expect((await findZone(cf([{ id: "z1", name: "tray.sh" }]), "tray.sh")).id).toBe("z1");
+    expect((await findZone(cf([{ id: "z2", name: "docs.acme.dev" }]), "docs.acme.dev")).id).toBe(
+      "z2",
+    );
+  });
+
+  test("a missing apex keeps the 'add it to Cloudflare' error", async () => {
+    const err = await findZone(cf([]), "acme.dev").catch((e) => e);
+    expect(err.message).toBe("acme.dev isn't a zone on this Cloudflare account");
   });
 });

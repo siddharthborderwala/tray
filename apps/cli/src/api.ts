@@ -68,19 +68,13 @@ export function apiError(res: { status: number; headers: Headers }, body: unknow
   );
 }
 
-/** `a < b` for plain semver strings (pre-release tags ignored). */
+/** `a < b` by semver (Bun.semver). Unparseable versions never count as older. */
 export function olderThan(a: string, b: string): boolean {
-  const parse = (v: string) =>
-    v
-      .replace(/^v/, "")
-      .split(/[-+]/)[0]!
-      .split(".")
-      .map((n) => Number.parseInt(n, 10) || 0);
-  const [x, y] = [parse(a), parse(b)];
-  for (let i = 0; i < 3; i++) {
-    if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
+  try {
+    return Bun.semver.order(a, b) < 0;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 const enc = encodeURIComponent;
@@ -108,7 +102,9 @@ export type DeployRequest = InferRequestType<Client["sites"][":site"]["deploys"]
 export type Manifest = DeployRequest["files"];
 
 export function createApi({ baseUrl, key, fetch: fetchImpl, onOutdated }: ApiOptions) {
-  const root = baseUrl.replace(/\/+$/, "") + "/v1";
+  const base = new URL(baseUrl);
+  if (!base.pathname.endsWith("/")) base.pathname += "/";
+  const root = new URL("v1", base).href;
   const client = hc<AppType>(root, {
     headers: key ? { authorization: `Bearer ${key}` } : {},
     ...(fetchImpl ? { fetch: fetchImpl } : {}),

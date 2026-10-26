@@ -391,6 +391,53 @@ describe("whoami and skill", () => {
   });
 });
 
+describe("inputs parsed with the shared schemas", () => {
+  test("--domain accepts URLs and uppercase; tray.sh stays tray.sh", async () => {
+    const { done, calls } = run(
+      ["list", "--domain", "https://TRAY.SH/"],
+      { "GET /v1/sites": () => ({ data: [] }) },
+      { TRAY_API_KEY: "tray_k_x" },
+    );
+    expect(await done).toBe(0);
+    expect(calls[0]!.url).toBe("https://tray.tray.sh/v1/sites");
+  });
+
+  test("an invalid TRAY_DOMAIN is exit 2", async () => {
+    const { done, calls } = run(["list", "--json"], {}, { TRAY_DOMAIN: "co.uk" });
+    expect(await done).toBe(2);
+    expect(calls.length).toBe(0);
+    expect(JSON.parse(out[0]!).error).toStartWith("TRAY_DOMAIN:");
+  });
+
+  test("an invalid --domain is a usage error naming the flag", async () => {
+    expect(await run(["list", "--json", "--domain", "localhost"]).done).toBe(2);
+    expect(JSON.parse(out[0]!)).toMatchObject({ code: "invalid_usage", param: "--domain" });
+  });
+
+  test("domain add normalizes the host", async () => {
+    const { done, calls } = run(["domain", "add", "https://Docs.Acme.com/", "-s", "report"], {
+      "POST /v1/domains": ({ body }) => ({
+        host: body.host,
+        site: body.site,
+        createdAt: "2026-10-26T09:12:03Z",
+      }),
+    });
+    expect(await done).toBe(0);
+    expect(calls[0]!.body).toEqual({ host: "docs.acme.com", site: "report" });
+  });
+
+  test("domain add rejects a bare public suffix", async () => {
+    expect(await run(["domain", "add", "co.uk", "-s", "report", "--json"]).done).toBe(2);
+    expect(JSON.parse(out[0]!)).toMatchObject({ code: "invalid_usage", param: "host" });
+  });
+
+  test("--to must be a deploy id", async () => {
+    const { done, calls } = run(["rollback", "report", "--to", "../../keys/x"]);
+    expect(await done).toBe(2);
+    expect(calls.length).toBe(0);
+  });
+});
+
 describe("--json output", () => {
   test("one compact line when piped", async () => {
     expect(await run(["list", "--json"], { "GET /v1/sites": () => ({ data: [] }) }).done).toBe(0);

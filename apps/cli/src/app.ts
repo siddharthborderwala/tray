@@ -13,6 +13,14 @@ import {
   toggle,
   version,
 } from "@bomb.sh/router";
+import {
+  DeployId,
+  Email,
+  HostnameInput,
+  ShareEntry,
+  SiteName,
+  TrayDomainInput,
+} from "@tray-sh/schema";
 import * as z from "zod";
 import { VERSION } from "./version.ts";
 
@@ -25,6 +33,8 @@ const label = (text: string) =>
 
 const required = (label: string) => z.string({ error: `missing ${label}` });
 const optional = () => z.string().optional();
+/** A required value parsed by a shared schema, with "missing <label>" when absent. */
+const requiredAs = <T>(label: string, s: z.ZodType<T, string>) => required(label).pipe(s);
 
 /** A boolean flag that reads as `--name` (and an optional short form), without `--no-name`. */
 const flag = <const N extends string>(key: N, long: string, desc: string, short?: string) =>
@@ -42,14 +52,14 @@ const globals = extend(
   option(
     name("domain"),
     label("--domain <DOMAIN>"),
-    schema(optional()),
+    schema(TrayDomainInput.optional()),
     description("Use this tray instead of the current account (e.g. acme.dev)."),
   ),
 );
 
 const site = (desc = "Site name.") =>
-  argument(name("site"), schema(required("<site>")), description(desc));
-const siteFlag = (desc: string, s = optional()) =>
+  argument(name("site"), schema(requiredAs("<site>", SiteName)), description(desc));
+const siteFlag = (desc: string, s = SiteName.optional()) =>
   option(
     name("site"),
     cli(["--site", "-s"]),
@@ -110,7 +120,7 @@ export const app = route(
     option(
       name("to"),
       label("--to <DEPLOY>"),
-      schema(optional()),
+      schema(DeployId.optional()),
       description("Deploy id to make live."),
     ),
     globals,
@@ -130,7 +140,7 @@ export const app = route(
       name("entries"),
       label("[EMAIL|@DOMAIN...]"),
       multiple(),
-      schema(z.array(z.string()).default([])),
+      schema(z.array(ShareEntry).default([])),
       description("Emails or @domain."),
     ),
     globals,
@@ -144,7 +154,7 @@ export const app = route(
       label("<EMAIL|@DOMAIN...>"),
       multiple(),
       schema(
-        z.array(z.string(), { error: "missing <email|@domain>" }).min(1, "missing <email|@domain>"),
+        z.array(ShareEntry, { error: "missing <email|@domain>" }).min(1, "missing <email|@domain>"),
       ),
       description("Emails or @domain."),
     ),
@@ -160,7 +170,7 @@ export const app = route(
       description("Attach a custom host to a site."),
       argument(
         name("host"),
-        schema(required("<host>")),
+        schema(requiredAs("<host>", HostnameInput)),
         description("Hostname, e.g. docs.acme.com."),
       ),
       siteFlag("Site to attach the host to."),
@@ -169,7 +179,7 @@ export const app = route(
     command(
       name("remove"),
       description("Detach a custom host. Alias: rm."),
-      argument(name("host"), schema(required("<host>"))),
+      argument(name("host"), schema(requiredAs("<host>", HostnameInput))),
       globals,
     ),
     command(
@@ -186,7 +196,7 @@ export const app = route(
     argument(
       name("loginDomain"),
       label("[DOMAIN]"),
-      schema(optional()),
+      schema(TrayDomainInput.optional()),
       description("Tray domain, e.g. acme.dev."),
     ),
     option(
@@ -209,7 +219,7 @@ export const app = route(
     argument(
       name("logoutDomain"),
       label("[DOMAIN]"),
-      schema(optional()),
+      schema(TrayDomainInput.optional()),
       description("Tray domain. Default: current account."),
     ),
     globals,
@@ -227,7 +237,11 @@ export const app = route(
     command(
       name("switch"),
       description("Set the current account."),
-      argument(name("switchDomain"), label("<DOMAIN>"), schema(required("<domain>"))),
+      argument(
+        name("switchDomain"),
+        label("<DOMAIN>"),
+        schema(requiredAs("<domain>", TrayDomainInput)),
+      ),
       globals,
     ),
   ),
@@ -272,7 +286,7 @@ export const app = route(
     option(
       name("email"),
       label("--email <EMAIL>"),
-      schema(optional()),
+      schema(Email.optional()),
       description("Your email (owner)."),
     ),
     globals,

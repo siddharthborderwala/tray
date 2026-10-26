@@ -46,6 +46,23 @@ export function mergeGlobals(models: Record<string, Partial<Globals>>): Globals 
   return g;
 }
 
+/** The flag (`--site`) or argument (`host`) a validation error is about, for the JSON `param`. */
+function badParam(result: {
+  definition: unknown;
+  issues: readonly { path?: readonly unknown[] }[];
+}) {
+  const key = result.issues[0]?.path?.[0];
+  if (typeof key !== "string") return undefined;
+  const route = result.definition as {
+    phases: {
+      model: { params: Record<string, { cli?: { syntax?: { type: string; label: string } } }> };
+    }[];
+  };
+  const syntax = route.phases.map((p) => p.model.params[key]?.cli?.syntax).find(Boolean);
+  if (syntax?.type !== "option") return key;
+  return syntax.label.split(/[\s,]+/).find((t) => t.startsWith("--")) ?? key;
+}
+
 export async function main(argv: string[], deps: MainDeps = {}): Promise<number> {
   const env = deps.env ?? process.env;
   const stdout = deps.stdout ?? ((t: string) => process.stdout.write(t + "\n"));
@@ -75,6 +92,7 @@ export async function main(argv: string[], deps: MainDeps = {}): Promise<number>
       "invalid_usage",
       EXIT.usage,
       `Run \`tray ${parsed.path.join(" ")}${parsed.path.length ? " " : ""}--help\`.`,
+      parsed.code === "unprocessable-content" ? badParam(parsed) : undefined,
     );
     (wantsJson ? stdout : stderr)(formatError(err, wantsJson, wantsJson && stdoutTTY));
     return err.exit;

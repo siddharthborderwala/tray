@@ -1,7 +1,7 @@
 // Turn a folder, .zip, .tar.gz, single .html file, or stdin into a flat list of
 // files keyed by their path inside the site.
 import { readdirSync, statSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, posix, resolve } from "node:path";
 import { unzipSync } from "fflate";
 import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@tray-sh/schema";
 import { usageError } from "./errors.ts";
@@ -96,11 +96,13 @@ export function stripSingleTopFolder(files: SiteFile[]): SiteFile[] {
 
 /** Normalize an archive entry name to a site path, or undefined if it must be skipped. */
 function archivePath(name: string): string | undefined {
-  const clean = name.replace(/\\/g, "/").replace(/^\.?\/+/, "");
-  if (clean === "" || clean.endsWith("/")) return undefined; // directory entry
-  if (clean.split("/").some((s) => s === "..")) return undefined; // never escape the site root
-  if (shouldSkipPath(clean)) return undefined;
-  return "/" + clean;
+  const unix = name.replaceAll("\\", "/");
+  if (unix.endsWith("/")) return undefined; // directory entry
+  const rel = posix.normalize(unix);
+  if (rel === ".." || rel.startsWith("../")) return undefined; // never escape the site root
+  const path = posix.join("/", rel); // `./a`, `/a`, `a` → `/a`
+  if (path === "/" || shouldSkipPath(path.slice(1))) return undefined;
+  return path;
 }
 
 export function filesFromZip(data: Uint8Array): SiteFile[] {

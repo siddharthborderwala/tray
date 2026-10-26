@@ -1,7 +1,7 @@
 // Serving sites on `<site>.<domain>` and custom hosts (SPEC.md §5 "Serving"
 // and "Private sites").
 import type { Manifest, ManifestEntry } from "@tray-sh/schema";
-import { SITE_NAME_RE } from "@tray-sh/schema";
+import { SiteName } from "@tray-sh/schema";
 import type { Context } from "hono";
 import { accessToken } from "./access.ts";
 import { messagePage, notFoundPage, PAGE_HEADERS } from "./pages.ts";
@@ -14,6 +14,7 @@ import {
   paths,
   type SiteMeta,
 } from "./storage.ts";
+import { trayDomain } from "./domain.ts";
 
 export const SIGNIN_PATH = "/.tray/signin";
 
@@ -22,7 +23,7 @@ const manifests = new Map<string, DeployRecord>();
 const MANIFEST_CACHE_SIZE = 100;
 
 async function loadDeploy(c: Context<Ctx>, site: string, id: string) {
-  const cacheKey = `${c.env.DOMAIN}/${site}/${id}`;
+  const cacheKey = `${trayDomain(c.env)}/${site}/${id}`;
   const hit = manifests.get(cacheKey);
   if (hit) return hit;
   const record = await getJson<DeployRecord>(c.env.BUCKET, paths.deploy(site, id));
@@ -34,15 +35,16 @@ async function loadDeploy(c: Context<Ctx>, site: string, id: string) {
 }
 
 export function hostOf(c: Context): string {
-  return (c.req.header("host") ?? new URL(c.req.url).host).toLowerCase().replace(/:\d+$/, "");
+  const header = c.req.header("host");
+  return (header ? new URL(`http://${header}`) : new URL(c.req.url)).hostname;
 }
 
 /** Site name for a host: `<site>.<domain>` directly, anything else via `hosts/<host>`. */
 async function siteForHost(c: Context<Ctx>, host: string): Promise<string | null> {
-  const suffix = `.${c.env.DOMAIN.toLowerCase()}`;
+  const suffix = `.${trayDomain(c.env)}`;
   if (host.endsWith(suffix)) {
     const label = host.slice(0, -suffix.length);
-    return SITE_NAME_RE.test(label) ? label : null;
+    return SiteName.safeParse(label).success ? label : null;
   }
   const record = await getJson<HostRecord>(c.env.BUCKET, paths.host(host));
   return record?.site ?? null;

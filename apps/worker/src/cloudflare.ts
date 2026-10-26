@@ -13,6 +13,7 @@
 // Per-site Access apps don't exist (SPEC.md §5 "Private sites").
 import type { Env, Fetch } from "./env.ts";
 import { TrayError } from "./errors.ts";
+import { registrableDomain } from "@tray-sh/schema";
 
 export interface CloudflareApi {
   /** Throws 422 `zone_not_in_account` when the host's zone isn't on this account. */
@@ -74,9 +75,13 @@ export function cloudflareApi(
     return data.result;
   }
 
+  /** The zone for a host: the registrable domain (PSL), or a subdomain zone between it and the host. */
   async function findZone(host: string): Promise<string | null> {
+    const apex = registrableDomain(host);
+    if (!apex) return null;
     const labels = host.split(".");
-    for (let i = 0; i < labels.length - 1; i++) {
+    const apexLabels = apex.split(".").length;
+    for (let i = 0; i <= labels.length - apexLabels; i++) {
       const name = labels.slice(i).join(".");
       const zones = await cf<{ id: string; name: string }[]>(
         "GET",

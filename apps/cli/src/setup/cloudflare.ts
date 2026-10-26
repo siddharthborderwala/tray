@@ -15,6 +15,7 @@
 //   GET/POST/PUT /zones/{z}/workers/routes[/{id}]        Workers route
 //   GET/POST /zones/{z}/dns_records                      proxied wildcard record
 import { EXIT, TrayError } from "../errors.ts";
+import { registrableDomain } from "@tray-sh/schema";
 
 export const API = "https://api.cloudflare.com/client/v4";
 
@@ -153,6 +154,17 @@ export async function findZone(cf: CloudflareClient, domain: string): Promise<Zo
     throw err;
   }
   const zone = zones.find((z) => z.name === domain);
+  // A subdomain (docs.acme.dev) isn't a zone of its own; name the apex (Public Suffix List).
+  const apex = registrableDomain(domain);
+  if (!zone && apex && apex !== domain) {
+    throw new TrayError(
+      `${domain} is a subdomain of ${apex}, not a Cloudflare zone`,
+      "zone_not_found",
+      EXIT.usage,
+      `Tray runs on a zone apex: sites at <site>.${apex}, the API at tray.${apex}. Run \`tray setup --domain ${apex}\`.`,
+      "--domain",
+    );
+  }
   if (!zone) {
     throw new TrayError(
       `${domain} isn't a zone on this Cloudflare account`,

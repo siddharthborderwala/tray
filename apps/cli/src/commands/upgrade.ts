@@ -4,7 +4,7 @@
 import { chmodSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { olderThan } from "../api.ts";
-import { apiBaseUrl } from "../credentials.ts";
+import { apiUrl } from "../credentials.ts";
 import { info, result, spinner, success, warn, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError, type ExitCode } from "../errors.ts";
 import { cloudflare, loadWorkerSource, updateWorkerCode } from "../setup/cloudflare.ts";
@@ -125,7 +125,7 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
 
 async function workerVersion(ctx: Ctx, domain: string): Promise<string | null> {
   try {
-    const res = await (ctx.fetch ?? fetch)(`${apiBaseUrl(domain, ctx.env)}/v1/openapi.json`);
+    const res = await (ctx.fetch ?? fetch)(apiUrl(domain, ctx.env, "v1/openapi.json"));
     return res.headers.get("tray-version");
   } catch {
     return null;

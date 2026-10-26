@@ -6,6 +6,7 @@
 // Response objects are plain `z.object`s, which strip unknown keys when
 // parsing, so additive Worker changes don't break older CLIs.
 import * as z from "zod";
+import { Hostname, ShareEntry } from "./hosts.ts";
 
 // ---------------------------------------------------------------------------
 // Limits and primitives
@@ -32,20 +33,15 @@ export const Sha256 = z.string().regex(/^[a-f0-9]{64}$/, "expected a lowercase s
 export const Visibility = z.enum(["public", "private"]);
 export type Visibility = z.infer<typeof Visibility>;
 
-/** An email (`bob@acme.com`) or an email domain (`@acme.com`). */
-export const ShareEntry = z.union([
-  z.email(),
-  z.string().regex(/^@[a-z0-9.-]+\.[a-z]{2,}$/i, "expected an email or @domain"),
-]);
+export * from "./hosts.ts";
 
-/** A DNS hostname such as `docs.acme.com`. */
-export const Hostname = z
+export const Email = z.email();
+
+/** Deploy ids: base36 time + hex suffix, e.g. `mh7q2k1c-8f1a`. */
+export const DeployId = z
   .string()
-  .max(253)
-  .regex(
-    /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i,
-    "expected a hostname like docs.acme.com",
-  );
+  .max(40)
+  .regex(/^[0-9a-z]+-[0-9a-f]+$/, "expected a deploy id like mh7q2k1c-8f1a");
 
 /** Key ids are the first 12 hex chars of sha256(key). */
 export const KeyId = z.string().regex(/^[a-f0-9]{12}$/, "expected a 12-char key id");

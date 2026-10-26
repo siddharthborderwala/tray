@@ -3,6 +3,7 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 import {
   apiBaseUrl,
+  apiUrl,
   defaultKeyStore,
   fileKeyStore,
   normalizeDomain,
@@ -125,11 +126,35 @@ describe("domains", () => {
     expect(normalizeDomain("tray.sh")).toBe("tray.sh");
     expect(normalizeDomain("tray.tray.sh")).toBe("tray.sh");
     expect(normalizeDomain("https://tray.sh/")).toBe("tray.sh");
+    expect(normalizeDomain("ACME.co.uk/")).toBe("acme.co.uk");
+    expect(normalizeDomain("tray.acme.co.uk")).toBe("acme.co.uk");
+  });
+  test("normalizeDomain rejects non-domains with exit 2", () => {
+    for (const bad of ["sh", "co.uk", "localhost", "not a domain", "acme.dev:8080"]) {
+      expect(() => normalizeDomain(bad)).toThrow(TrayError);
+      try {
+        normalizeDomain(bad, "TRAY_DOMAIN");
+      } catch (e: any) {
+        expect(e.exit).toBe(2);
+        expect(e.message).toStartWith("TRAY_DOMAIN:");
+      }
+    }
+  });
+  test("resolveDomain normalizes every source", () => {
+    expect(resolveDomain("https://tray.ACME.dev/", {}, accounts())).toBe("acme.dev");
+    expect(resolveDomain(undefined, { TRAY_DOMAIN: "TRAY.SH" }, accounts())).toBe("tray.sh");
+    expect(resolveDomain(undefined, {}, accounts("tray.tray.sh"))).toBe("tray.sh");
+  });
+  test("apiUrl joins paths with URL", () => {
+    expect(apiUrl("tray.sh", {}, "v1/keys")).toBe("https://tray.tray.sh/v1/keys");
+    expect(apiUrl("acme.dev", { TRAY_API_URL: "http://localhost:8787/base" }, "v1/keys")).toBe(
+      "http://localhost:8787/base/v1/keys",
+    );
   });
   test("apiBaseUrl uses tray.<domain>, TRAY_API_URL overrides", () => {
-    expect(apiBaseUrl("acme.dev", {})).toBe("https://tray.acme.dev");
-    expect(apiBaseUrl("acme.dev", { TRAY_API_URL: "http://localhost:8787/" })).toBe(
-      "http://localhost:8787",
+    expect(apiBaseUrl("acme.dev", {})).toBe("https://tray.acme.dev/");
+    expect(apiBaseUrl("acme.dev", { TRAY_API_URL: "http://localhost:8787" })).toBe(
+      "http://localhost:8787/",
     );
   });
 });

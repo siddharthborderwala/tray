@@ -14,7 +14,7 @@ import {
   fetchBinary,
   replaceableBinary,
   sha256Hex,
-  untarFile,
+  fileFromTarGz,
 } from "../src/setup/release.ts";
 import { saveSetup } from "../src/setup/state.ts";
 import { memoryKeyStore, tmp } from "./helpers.ts";
@@ -242,15 +242,15 @@ describe("release helpers", () => {
     expect(await fetchBinary(w.fetch, "0.2.0", "windows-x64")).toEqual(NEW_BINARY);
   });
 
-  test("untarFile handles ./ prefixes and missing files", () => {
+  test("fileFromTarGz handles ./ prefixes, missing files and junk", async () => {
     const dir = tmp();
     writeFileSync(join(dir, "tray"), "bin");
-    const out = join(tmp(), "t.tar");
-    spawnSync("tar", ["-cf", out, "-C", dir, "./tray"]);
-    const tar = readFileSync(out);
-    expect(new TextDecoder().decode(untarFile(tar, "tray"))).toBe("bin");
-    expect(untarFile(tar, "nope")).toBeUndefined();
-    expect(untarFile(gzipSync(new Uint8Array(0)), "tray")).toBeUndefined();
+    const out = join(tmp(), "t.tar.gz");
+    spawnSync("tar", ["-czf", out, "-C", dir, "./tray"]);
+    const tgz = readFileSync(out);
+    expect(new TextDecoder().decode(await fileFromTarGz(tgz, "tray"))).toBe("bin");
+    expect(await fileFromTarGz(tgz, "nope")).toBeUndefined();
+    expect(await fileFromTarGz(gzipSync(new Uint8Array(0)), "tray")).toBeUndefined();
   });
 
   test("detectTarget mirrors install.sh", () => {

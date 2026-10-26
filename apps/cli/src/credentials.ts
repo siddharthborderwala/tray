@@ -1,7 +1,8 @@
 // Where API keys live and how the CLI picks a domain + key for a command.
 import { join } from "node:path";
 import { readJson, writeJson, type Accounts } from "./config.ts";
-import { noDomain, notLoggedIn } from "./errors.ts";
+import { TrayDomainInput } from "@tray-sh/schema";
+import { noDomain, notLoggedIn, usageError } from "./errors.ts";
 
 export interface KeyStore {
   get(domain: string): Promise<string | null>;
@@ -81,9 +82,10 @@ export function resolveDomain(
   env: Record<string, string | undefined>,
   accounts: Accounts,
 ): string {
-  const domain = flag || env.TRAY_DOMAIN || accounts.current;
-  if (!domain) throw noDomain();
-  return normalizeDomain(domain);
+  if (flag) return normalizeDomain(flag, "--domain");
+  if (env.TRAY_DOMAIN) return normalizeDomain(env.TRAY_DOMAIN, "TRAY_DOMAIN");
+  if (accounts.current) return normalizeDomain(accounts.current, "current account");
+  throw noDomain();
 }
 
 /** `TRAY_API_KEY` → saved key for that domain → error. */
@@ -98,19 +100,35 @@ export async function resolveKey(
   throw notLoggedIn(domain);
 }
 
-/** Accept `acme.dev`, `tray.acme.dev`, `https://tray.acme.dev/` and reduce to `acme.dev`. */
-export function normalizeDomain(input: string): string {
-  const host = input
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/\/.*$/, "");
-  // `tray.acme.dev` (the API host) → `acme.dev`, but `tray.sh` is a domain itself.
-  const rest = host.replace(/^tray\./, "");
-  return rest.includes(".") ? rest : host;
+/**
+ * A tray domain from any input (flag, `TRAY_DOMAIN`, prompt, saved state):
+ * `acme.dev`, `ACME.dev/`, `https://tray.acme.dev/` → `acme.dev`; `tray.sh`
+ * stays `tray.sh`. Parsed with the shared schema (URL + Public Suffix List).
+ */
+export function normalizeDomain(input: string, source = "domain"): string {
+  const parsed = TrayDomainInput.safeParse(input);
+  if (!parsed.success) {
+    throw usageError(
+      `${source}: ${JSON.stringify(input)} isn't a domain`,
+      "Use the domain your tray runs on, e.g. acme.dev.",
+      "--domain",
+    );
+  }
+  return parsed.data;
 }
 
-/** API base URL for a tray. `TRAY_API_URL` overrides it (local Worker development). */
+/**
+ * A URL on a tray's API host, e.g. `apiUrl("acme.dev", env, "v1/keys")` →
+ * `https://tray.acme.dev/v1/keys`. `TRAY_API_URL` overrides the host (local
+ * Worker development); a path in it is kept as the base.
+ */
+export function apiUrl(domain: string, env: Record<string, string | undefined>, path = ""): string {
+  const base = new URL(env.TRAY_API_URL || `https://tray.${domain}`);
+  if (!base.pathname.endsWith("/")) base.pathname += "/";
+  return new URL(path, base).href;
+}
+
+/** The API base URL (ends in `/`). */
 export function apiBaseUrl(domain: string, env: Record<string, string | undefined>): string {
-  return env.TRAY_API_URL?.replace(/\/+$/, "") || `https://tray.${domain}`;
+  return apiUrl(domain, env);
 }

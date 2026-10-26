@@ -1,12 +1,13 @@
-// Cloudflare Access JWT verification.
+// Cloudflare Access JWT verification, with jose.
 //
 // Access signs its JWTs (RS256) with keys published at
 // https://<team>.cloudflareaccess.com/cdn-cgi/access/certs. We check the
 // signature, `exp`/`nbf`, `iss` (the team domain) and `aud` (the app's AUD tag).
+// jose's remote JWKS caches the keys, refetches on an unknown `kid` (rotation),
+// and rate-limits those refetches.
 import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
-import { verifyWithJwks } from "hono/jwt";
-import type { HonoJsonWebKey } from "hono/utils/jwt/jws";
+import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 import type { Fetch } from "./env.ts";
 
 const CERTS_TTL_MS = 60 * 60 * 1000;
@@ -20,47 +21,36 @@ export type AccessVerifier = (
 
 /** `acme`, `acme.cloudflareaccess.com` or `https://acme.cloudflareaccess.com/` → `https://acme.cloudflareaccess.com`. */
 export function teamIssuer(teamDomain: string): string {
-  let host = teamDomain
-    .trim()
-    .replace(/^https?:\/\//, "")
-    .replace(/\/+$/, "");
-  if (!host.includes(".")) host += ".cloudflareaccess.com";
-  return `https://${host}`;
+  const s = teamDomain.trim();
+  const { hostname } = new URL(s.includes("://") ? s : `https://${s}`);
+  return `https://${hostname.includes(".") ? hostname : `${hostname}.cloudflareaccess.com`}`;
 }
 
 export function createAccessVerifier(
   fetchImpl: Fetch = (input, init) => fetch(input, init),
 ): AccessVerifier {
-  const cache = new Map<string, { keys: HonoJsonWebKey[]; at: number }>();
-
-  async function certs(issuer: string, kid: string | undefined): Promise<HonoJsonWebKey[]> {
-    const hit = cache.get(issuer);
-    const age = hit ? Date.now() - hit.at : Infinity;
-    if (
-      hit &&
-      age < CERTS_TTL_MS &&
-      (hit.keys.some((k) => k.kid === kid) || age < CERTS_REFRESH_MS)
-    )
-      return hit.keys;
-    const res = await fetchImpl(`${issuer}/cdn-cgi/access/certs`);
-    if (!res.ok) throw new Error(`Access certs: HTTP ${res.status}`);
-    const { keys } = (await res.json()) as { keys: HonoJsonWebKey[] };
-    cache.set(issuer, { keys, at: Date.now() });
-    return keys;
-  }
+  const jwks = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+  const keysFor = (issuer: string) => {
+    let set = jwks.get(issuer);
+    if (!set) {
+      set = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`), {
+        cacheMaxAge: CERTS_TTL_MS,
+        cooldownDuration: CERTS_REFRESH_MS,
+        [customFetch]: (url, init) => fetchImpl(url, init),
+      });
+      jwks.set(issuer, set);
+    }
+    return set;
+  };
 
   return async (token, { teamDomain, aud }) => {
     if (!token || !teamDomain || !aud) return null;
     try {
       const issuer = teamIssuer(teamDomain);
-      const header = JSON.parse(
-        atob(token.split(".")[0]!.replace(/-/g, "+").replace(/_/g, "/")),
-      ) as { kid?: string };
-      const keys = await certs(issuer, header.kid);
-      const payload = await verifyWithJwks(token, {
-        keys,
-        allowedAlgorithms: ["RS256"],
-        verification: { iss: issuer, aud },
+      const { payload } = await jwtVerify(token, keysFor(issuer), {
+        algorithms: ["RS256"],
+        issuer,
+        audience: aud,
       });
       return typeof payload.email === "string" && payload.email
         ? { email: payload.email.toLowerCase() }

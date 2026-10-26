@@ -15,25 +15,10 @@ import {
 import { VERSION } from "../src/version.ts";
 import { tmp } from "./helpers.ts";
 
-/** Minimal frontmatter reader: top-level `key: value`, `key: >-` blocks and one nested map. */
+/** SKILL.md frontmatter, parsed with Bun's YAML parser. */
 function frontmatter(md: string): Record<string, any> {
-  const block = md.match(/^---\n([\s\S]*?)\n---\n/)![1]!;
-  const out: Record<string, any> = {};
-  let key = "";
-  for (const line of block.split("\n")) {
-    const top = line.match(/^([a-z-]+):\s*(.*)$/);
-    if (top) {
-      key = top[1]!;
-      out[key] = top[2] === ">-" || top[2] === "" ? "" : top[2];
-      continue;
-    }
-    const nested = line.match(/^ {2}([a-z-]+):\s*(.+)$/);
-    if (nested && typeof out[key] !== "string") (out[key] ??= {})[nested[1]!] = nested[2];
-    else if (nested && out[key] === "" && key === "metadata")
-      out[key] = { [nested[1]!]: nested[2] };
-    else out[key] = `${out[key]} ${line.trim()}`.trim();
-  }
-  return out;
+  expect(md.startsWith("---\n")).toBe(true);
+  return Bun.YAML.parse(md.slice(4, md.indexOf("\n---\n", 4))) as Record<string, any>;
 }
 
 describe("SKILL.md", () => {

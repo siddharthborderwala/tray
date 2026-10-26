@@ -2,7 +2,8 @@
 // asset names, SHA256SUMS verification, failing closed on any mismatch.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { gunzipSync, unzipSync } from "fflate";
+import { unzipSync } from "fflate";
+import { posix } from "node:path";
 import { EXIT, TrayError } from "../errors.ts";
 import type { Fetch } from "./cloudflare.ts";
 
@@ -105,26 +106,24 @@ export async function fetchBinary(
   const exe = target.startsWith("windows") ? "tray.exe" : "tray";
   const binary = asset.endsWith(".zip")
     ? unzipSync(archive)[exe]
-    : untarFile(gunzipSync(archive), exe);
+    : await fileFromTarGz(archive, exe);
   if (!binary) throw new TrayError(`${asset} doesn't contain ${exe}`, "bad_archive", EXIT.failed);
   return binary;
 }
 
-/** The contents of `name` in a (ustar) tar archive. */
-export function untarFile(tar: Uint8Array, name: string): Uint8Array | undefined {
-  const text = (start: number, len: number) =>
-    new TextDecoder().decode(tar.subarray(start, start + len)).replace(/\0.*$/s, "");
-  for (let off = 0; off + 512 <= tar.length;) {
-    const header = text(off, 100);
-    if (!header) return undefined; // end-of-archive blocks
-    const prefix = text(off + 345, 155);
-    const path = (prefix ? `${prefix}/` : "") + header;
-    const size = Number.parseInt(text(off + 124, 12).trim() || "0", 8);
-    const type = text(off + 156, 1);
-    const data = off + 512;
-    if ((type === "0" || type === "") && path.replace(/^\.\//, "") === name)
-      return tar.slice(data, data + size);
-    off = data + Math.ceil(size / 512) * 512;
+/** The contents of `name` in a .tar.gz (Bun.Archive), or undefined if it isn't there. */
+export async function fileFromTarGz(
+  archive: Uint8Array,
+  name: string,
+): Promise<Uint8Array | undefined> {
+  let files: Map<string, File>;
+  try {
+    files = await new Bun.Archive(archive).files();
+  } catch {
+    return undefined;
+  }
+  for (const [path, file] of files) {
+    if (posix.normalize(path) === name) return new Uint8Array(await file.arrayBuffer());
   }
   return undefined;
 }

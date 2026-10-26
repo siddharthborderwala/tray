@@ -1,6 +1,7 @@
 // R2 layout (SPEC.md §2) and small helpers around it.
 import type { Manifest, Site, Source, Visibility } from "@tray-sh/schema";
 import type { Env, R2Bucket } from "./env.ts";
+import { trayDomain } from "./domain.ts";
 
 export const paths = {
   blob: (hash: string) => `blobs/${hash}`,
@@ -172,7 +173,7 @@ export async function missingBlobs(bucket: R2Bucket, hashes: readonly string[]) 
 export const now = () => new Date().toISOString();
 
 export function siteUrl(env: Env, site: string) {
-  return `https://${site}.${env.DOMAIN}`;
+  return `https://${site}.${trayDomain(env)}`;
 }
 
 export function toSite(env: Env, name: string, meta: SiteMeta, current: string | null): Site {
