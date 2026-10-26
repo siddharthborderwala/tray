@@ -67,11 +67,17 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          # Runners don't ship Apple's Developer ID intermediate, without which the
+          # identity isn't "valid" (find-identity -v hides it).
+          curl -fsSL https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer -o "$RUNNER_TEMP/DeveloperIDG2CA.cer"
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$keychain"
           # The Developer ID Application identity for our team, by SHA-1 (unambiguous).
           identity="$(security find-identity -v -p codesigning "$keychain" \
             | grep "Developer ID Application: .*($APPLE_TEAM_ID)" | head -1 | awk '{print $2}')"
           if [ -z "$identity" ]; then
-            echo "::error::no 'Developer ID Application' identity for team $APPLE_TEAM_ID in MACOS_CERT_P12"
+            echo "::error::no valid 'Developer ID Application' identity for team $APPLE_TEAM_ID in MACOS_CERT_P12"
+            echo "All identities in the keychain (valid or not):"
+            security find-identity -p codesigning "$keychain" | sed 's/^/  /'
             exit 1
           fi
           {
