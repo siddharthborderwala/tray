@@ -70,6 +70,17 @@ ${who}`,
   );
 }
 
+/** `tray.<domain>/`: the API host has no site, so say what it is. */
+export function apiHomePage(domain: string) {
+  const d = escapeHtml(domain);
+  return page(
+    `Tray on ${d}`,
+    `<h1>Tray on ${d}</h1>
+<p>This is the API for the tray on ${d}. Sites live at <code>&lt;name&gt;.${d}</code>.</p>
+<p><a href="/approve">Approve a login</a> · <a href="/v1/openapi.json">OpenAPI</a> · <a href="https://tray.sh/api">API docs</a></p>`,
+  );
+}
+
 export function messagePage(title: string, message: string) {
   return page(title, `<h1>${escapeHtml(title)}</h1>\n<p>${escapeHtml(message)}</p>`);
 }

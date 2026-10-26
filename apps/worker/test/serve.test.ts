@@ -154,7 +154,11 @@ describe("serving public sites", () => {
   test("the API host is not a site", async () => {
     const { visit } = await setup();
     const res = await visit("https://tray.acme.dev/");
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("This is the API for the tray on acme.dev");
+    const missing = await visit("https://tray.acme.dev/index.html");
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("content-type")).toStartWith("text/html");
   });
 });
 

@@ -19,6 +19,7 @@ import { shares } from "./routes/shares.ts";
 import { sites } from "./routes/sites.ts";
 import { hostOf, serveSite } from "./serve.ts";
 import { apiHost, trayDomain } from "./domain.ts";
+import { apiHomePage, messagePage, PAGE_HEADERS } from "./pages.ts";
 
 export const VERSION: string = pkg.version;
 
@@ -95,9 +96,13 @@ export function createApp(deps: Deps = defaultDeps()) {
   app.route("/v1", api);
   app.route("/approve", approvePage);
 
+  app.get("/", (c) => c.html(apiHomePage(trayDomain(c.env)), 200, PAGE_HEADERS));
+
   app.notFound((c) => {
     const body = { error: `no route for ${c.req.method} ${c.req.path}`, code: "not_found" };
-    return c.req.path.startsWith("/v1/") ? c.json(body, 404) : c.text("Not Found", 404);
+    return c.req.path.startsWith("/v1/")
+      ? c.json(body, 404)
+      : c.html(messagePage("Nothing here", "This page doesn't exist."), 404, PAGE_HEADERS);
   });
 
   app.onError((err, c) => {
