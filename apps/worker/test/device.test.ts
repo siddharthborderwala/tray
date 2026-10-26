@@ -167,6 +167,52 @@ describe("/approve page", () => {
     expect(res.status).toBe(403);
   });
 
+  test("can't be framed, signed in or not (clickjacking)", async () => {
+    const { visit } = await setup();
+    const headers = { "cf-access-jwt-assertion": await accessJwt(OWNER, APPROVE_AUD) };
+    for (const res of [
+      await visit("https://tray.thts.app/approve"),
+      await visit("https://tray.thts.app/approve", { headers }),
+      await visit("https://tray.thts.app/approve?code=BCDF-GHJK", { headers }),
+    ]) {
+      expect(res.headers.get("x-frame-options")).toBe("DENY");
+      expect(res.headers.get("content-security-policy")).toBe("frame-ancestors 'none'");
+    }
+  });
+
+  test("posts from other origins, opaque origins or cross-site fetches are refused", async () => {
+    const { api, visit } = await setup();
+    const dc = await start(api);
+    const post = (extra: Record<string, string>) =>
+      visit("https://tray.thts.app/approve", {
+        method: "POST",
+        headers: {
+          "cf-access-jwt-assertion": "",
+          "content-type": "application/x-www-form-urlencoded",
+          ...extra,
+        },
+        body: `code=${dc.userCode}&action=approve`,
+      });
+    const jwt = await accessJwt(OWNER, APPROVE_AUD);
+    const refused: Record<string, string>[] = [
+      { origin: "null" },
+      { origin: "https://q3-review.thts.app" },
+      { "sec-fetch-site": "same-site" },
+      { "sec-fetch-site": "cross-site", origin: "https://tray.thts.app" },
+    ];
+    for (const extra of refused) {
+      const res = await post({ "cf-access-jwt-assertion": jwt, ...extra });
+      expect(res.status).toBe(403);
+    }
+    expect((await (await poll(api, dc.deviceCode)).json()).code).toBe("authorization_pending");
+    const ok = await post({
+      "cf-access-jwt-assertion": jwt,
+      "sec-fetch-site": "same-origin",
+      origin: "https://tray.thts.app",
+    });
+    expect(ok.status).toBe(200);
+  });
+
   test("shows the code form, then device details, then approves", async () => {
     const { api, visit } = await setup();
     const dc = await start(api, "build-box");

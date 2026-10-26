@@ -1,6 +1,16 @@
 // The few HTML pages the Worker renders: the Tray 404 page and /approve.
 // Plain: system mono, paper background, ink text, blue accents, square corners.
 
+/**
+ * Sent with every page the Worker renders. The approve page mints API keys
+ * with one click, and every site shares the tray's registrable domain, so no
+ * page of ours may be framed (clickjacking).
+ */
+export const PAGE_HEADERS = {
+  "x-frame-options": "DENY",
+  "content-security-policy": "frame-ancestors 'none'",
+} as const;
+
 export function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }

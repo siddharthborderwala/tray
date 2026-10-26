@@ -1,12 +1,29 @@
 // `tray.<domain>/approve`: behind the owner Access app. The signed-in owner
 // approves or denies a device login.
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { decideDevice, findDevice, normalizeUserCode, ownerFromAccess } from "./auth.ts";
 import { TrayError } from "./errors.ts";
-import { approveCodeForm, approveDetails, messagePage } from "./pages.ts";
+import { approveCodeForm, approveDetails, messagePage, PAGE_HEADERS } from "./pages.ts";
 import type { Ctx } from "./router.ts";
 
+/** A form post from this page itself: same-origin by Fetch Metadata and by Origin (when sent). */
+function sameOrigin(c: Context<Ctx>): boolean {
+  const site = c.req.header("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "none") return false;
+  const origin = c.req.header("origin");
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === new URL(c.req.url).host;
+  } catch {
+    return false; // `Origin: null` (sandboxed frames, opaque origins)
+  }
+}
+
 export const approvePage = new Hono<Ctx>()
+  .use(async (c, next) => {
+    await next();
+    for (const [name, value] of Object.entries(PAGE_HEADERS)) c.res.headers.set(name, value);
+  })
   .use(async (c, next) => {
     const owner = await ownerFromAccess(c);
     if (!owner) {
@@ -49,9 +66,7 @@ export const approvePage = new Hono<Ctx>()
   })
 
   .post("/", async (c) => {
-    // Same-origin form posts only.
-    const origin = c.req.header("origin");
-    if (origin && new URL(origin).host !== new URL(c.req.url).host) {
+    if (!sameOrigin(c)) {
       return c.html(messagePage("Forbidden", "Cross-site request refused."), 403);
     }
     const form = await c.req.parseBody();

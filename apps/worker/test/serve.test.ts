@@ -208,6 +208,7 @@ describe("private sites", () => {
     expect(missing.status).toBe(404);
     expect(Object.fromEntries(missing.headers)["cache-control"]).toBeUndefined();
     expect(missing.body).toContain("Sign in to view");
+    expect(Object.fromEntries(missing.headers)["x-frame-options"]).toBe("DENY");
     expect(missing.body).not.toContain("Signed in as");
 
     // Signed in as someone not on the list: missing site vs private site.

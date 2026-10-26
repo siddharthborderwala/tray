@@ -4,7 +4,7 @@ import type { Manifest, ManifestEntry } from "@tray-sh/schema";
 import { SITE_NAME_RE } from "@tray-sh/schema";
 import type { Context } from "hono";
 import { accessToken } from "./access.ts";
-import { messagePage, notFoundPage } from "./pages.ts";
+import { messagePage, notFoundPage, PAGE_HEADERS } from "./pages.ts";
 import type { Ctx } from "./router.ts";
 import {
   type DeployRecord,
@@ -78,7 +78,7 @@ export function resolvePath(files: Manifest, path: string, spa: boolean): Resolv
 function trayNotFound(c: Context<Ctx>, email: string | null) {
   const url = new URL(c.req.url);
   const html = notFoundPage(url.pathname + url.search, email);
-  const headers = { "content-type": "text/html; charset=utf-8" };
+  const headers = { "content-type": "text/html; charset=utf-8", ...PAGE_HEADERS };
   return c.req.method === "HEAD" ? c.body(null, 404, headers) : c.body(html, 404, headers);
 }
 
@@ -114,6 +114,7 @@ async function signin(c: Context<Ctx>) {
         "Cloudflare Access didn't vouch for this request. Try again.",
       ),
       403,
+      PAGE_HEADERS,
     );
   }
   return c.redirect(safeNext(c.req.query("next")), 302);
