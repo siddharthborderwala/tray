@@ -1,10 +1,12 @@
 /** Site-wide constants. One place to change links and names. */
+import cli from "../../../cli/package.json";
 
 export const SITE_URL = "https://tray.sh";
 export const SITE_NAME = "Tray";
 export const TAGLINE = "Artifacts for every agent.";
 export const MOTTO = "Put it on a tray. Pass it around.";
-export const VERSION = "v0.1.0";
+/** The project version (SPEC §6: one version, set in apps/cli/package.json). */
+export const VERSION = `v${cli.version}`;
 export const GITHUB_URL = "https://github.com/siddharthborderwala/tray";
 export const ISSUES_URL = `${GITHUB_URL}/issues`;
 export const SECURITY_URL = `${GITHUB_URL}/security/advisories/new`;

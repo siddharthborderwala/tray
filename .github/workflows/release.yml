@@ -1,6 +1,7 @@
 name: release
 
-# Push a tag like v0.1.0 to release. The tag must match apps/cli/package.json.
+# Push a tag like v0.1.0 to release. The tag must match the version in
+# apps/cli/package.json, apps/worker/package.json and skills/tray/SKILL.md.
 on:
   push:
     tags: ["v*"]
@@ -24,7 +25,11 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - run: bun install --frozen-lockfile
       - name: Check tag matches version
-        run: test "v$(jq -r .version apps/cli/package.json)" = "$GITHUB_REF_NAME"
+        run: |
+          test "v$(jq -r .version apps/cli/package.json)" = "$GITHUB_REF_NAME"
+          test "v$(jq -r .version apps/worker/package.json)" = "$GITHUB_REF_NAME"
+          grep -q "^  version: ${GITHUB_REF_NAME#v}$" skills/tray/SKILL.md
+      - run: bun run test
       - run: bun run --filter @tray-sh/worker build
       - run: bun scripts/build-binaries.ts ${{ matrix.targets }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
