@@ -59,5 +59,5 @@ The skill tells it to keep anything internal or personal private with `--private
 
 ## skill.md
 
-The skill is one Markdown file, [tray.sh/skill.md](/skill.md). It tells your agent when to reach for Tray, how to name and publish a site, when to make it private, and how to recover from errors. `tray skill install` writes this file, and `tray skill` prints a longer guide with every command, flag and exit code.
+The skill is one Markdown file, [tray.sh/skill.md](/skill.md). It tells your agent when to reach for Tray, how to name and publish a site, when to make it private, and how to recover from errors.
 
