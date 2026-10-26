@@ -104,6 +104,19 @@ describe("errors", () => {
     expect((await res.json()).code).toBe("invalid_request");
   });
 
+  test("a body that isn't application/json → 400 invalid_request, not 500", async () => {
+    const { api } = await setup();
+    for (const type of ["text/plain", "application/x-www-form-urlencoded"]) {
+      const res = await api("/keys", {
+        method: "POST",
+        body: '{"name":"ci"}',
+        headers: { "content-type": type },
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ code: "invalid_request", param: "content-type" });
+    }
+  });
+
   test("unknown routes → 404 json", async () => {
     const { api } = await setup();
     const res = await api("/nope");

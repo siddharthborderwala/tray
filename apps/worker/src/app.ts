@@ -101,10 +101,17 @@ export function createApp(deps: Deps = defaultDeps()) {
 
   app.onError((err, c) => {
     if (err instanceof TrayError) return c.json(err.toJSON(), err.status);
-    if (err instanceof HTTPException && err.status === 400) {
-      // e.g. malformed JSON from the body validator
+    if (err instanceof HTTPException && err.status < 500) {
+      // Malformed JSON (400) or a body that isn't application/json (415, from the route's media-type gate).
+      const unsupported = err.status === 415;
       return c.json(
-        { error: err.message || "invalid request body", code: "invalid_request", param: "body" },
+        {
+          error: unsupported
+            ? "content-type must be application/json"
+            : err.message || "invalid request body",
+          code: "invalid_request",
+          param: unsupported ? "content-type" : "body",
+        },
         400,
       );
     }
@@ -114,7 +121,7 @@ export function createApp(deps: Deps = defaultDeps()) {
       code: "internal",
       hint: "Check the Worker logs (wrangler tail).",
     };
-    return c.req.path.startsWith("/v1/") || hostOf(c) === `tray.${c.env.DOMAIN}`
+    return c.req.path.startsWith("/v1/") || hostOf(c) === `tray.${c.env.DOMAIN.toLowerCase()}`
       ? c.json(res, 500)
       : c.text("Internal Server Error", 500);
   });
