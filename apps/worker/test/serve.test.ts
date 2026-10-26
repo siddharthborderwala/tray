@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createAccessVerifier } from "../src/access.ts";
+import { FONT_PATH } from "../src/pages.ts";
 import { resolvePath, safeNext } from "../src/serve.ts";
 import { accessJwt, APPROVE_AUD, certsFetch, OWNER, setup, SIGNIN_AUD } from "./helpers.ts";
 
@@ -159,6 +160,22 @@ describe("serving public sites", () => {
     const missing = await visit("https://tray.acme.dev/index.html");
     expect(missing.status).toBe(404);
     expect(missing.headers.get("content-type")).toStartWith("text/html");
+  });
+
+  test("every host serves the pages' font, and the pages use it and the SVG mark", async () => {
+    const { visit } = await setup();
+    for (const host of ["tray.acme.dev", "missing.acme.dev"]) {
+      const res = await visit(`https://${host}${FONT_PATH}`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toBe("font/woff2");
+      expect(res.headers.get("cache-control")).toContain("immutable");
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      expect(new TextDecoder().decode(bytes.slice(0, 4))).toBe("wOF2");
+    }
+    const html = await (await visit("https://missing.acme.dev/")).text();
+    expect(html).toContain(`src: url("${FONT_PATH}")`);
+    expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"');
+    expect(html).toContain('aria-label="tray"');
   });
 });
 

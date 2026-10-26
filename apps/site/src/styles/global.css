@@ -165,21 +165,11 @@ button {
 /* Wordmark */
 
 .wordmark {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 3px;
-  font-size: 28px;
-  line-height: 24px;
-  font-weight: 700;
-  letter-spacing: var(--track-mark);
+  display: inline-block;
   color: var(--ink);
 }
-.wordmark .period {
-  width: 5px;
-  height: 5px;
-  border-radius: 1px;
-  flex-shrink: 0;
-  background: var(--blue);
+.wordmark svg {
+  display: block;
 }
 
 /* ------------------------------------------------------------------ */

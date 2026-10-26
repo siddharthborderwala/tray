@@ -1,5 +1,10 @@
 // The few HTML pages the Worker renders: the Tray 404 page and /approve.
-// Plain: system mono, paper background, ink text, blue accents, square corners.
+// Plain: JetBrains Mono (served by the Worker at FONT_PATH), paper background,
+// ink text, blue accents, square corners.
+import { markSvg } from "./mark.ts";
+
+/** Where every host of the tray serves the pages' font. Named by content hash, so it can be cached forever. */
+export const FONT_PATH = "/.tray/font-18be452724.woff2";
 
 /**
  * Sent with every page the Worker renders. The approve page mints API keys
@@ -23,15 +28,17 @@ export function page(title: string, content: string) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>${escapeHtml(title)}</title>
+<link rel="preload" href="${FONT_PATH}" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face { font-family: "JetBrains Mono"; src: url("${FONT_PATH}") format("woff2"); font-weight: 100 800; font-display: swap; }
 :root { --paper: #FAF9F0; --ink: #242424; --blue: #356BE5; }
 * { box-sizing: border-box; border-radius: 0; }
 body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
-  font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 15px/1.6 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
 main { width: 100%; max-width: 440px; }
-.mark { display: inline-flex; align-items: flex-end; gap: 3px; font-size: 28px; line-height: 24px; font-weight: 700; letter-spacing: -0.1em; margin: 0 0 32px; }
-.mark i { width: 5px; height: 5px; border-radius: 1px; background: var(--blue); }
+.mark { display: block; margin: 0 0 32px; color: var(--ink); }
+.mark svg { display: block; }
 h1 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
 p { margin: 0 0 16px; }
 a { color: var(--blue); }
@@ -45,7 +52,7 @@ button.primary { background: var(--blue); border-color: var(--blue); color: var(
 .foot { margin-top: 32px; opacity: .7; }
 </style>
 </head>
-<body><main><p class="mark">tray<i aria-hidden="true"></i></p>
+<body><main><p class="mark">${markSvg()}</p>
 ${content}
 </main></body>
 </html>

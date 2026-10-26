@@ -19,7 +19,8 @@ import { shares } from "./routes/shares.ts";
 import { sites } from "./routes/sites.ts";
 import { hostOf, serveSite } from "./serve.ts";
 import { apiHost, trayDomain } from "./domain.ts";
-import { apiHomePage, messagePage, PAGE_HEADERS } from "./pages.ts";
+import { fontBytes } from "./assets/font.ts";
+import { apiHomePage, FONT_PATH, messagePage, PAGE_HEADERS } from "./pages.ts";
 
 export const VERSION: string = pkg.version;
 
@@ -86,6 +87,14 @@ export function createApp(deps: Deps = defaultDeps()) {
     await next();
     c.res.headers.set("tray-version", VERSION);
   });
+
+  // The pages' font, on every host (sites included: their 404 and sign-in pages use it).
+  app.get(FONT_PATH, (c) =>
+    c.body(fontBytes() as Uint8Array<ArrayBuffer>, 200, {
+      "content-type": "font/woff2",
+      "cache-control": "public, max-age=31536000, immutable",
+    }),
+  );
 
   // Every host except tray.<domain> is a site.
   app.use(async (c, next) => {
