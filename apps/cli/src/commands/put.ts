@@ -41,7 +41,7 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
   intro(ctx);
 
   // 1. Collect, hash, size-check.
-  const collected = await collect(args.paths);
+  const collected = await collect(args.paths, { title: args.site });
   if (collected.files.length === 0)
     throw usageError(
       `nothing to put: ${args.paths[0]} has no files`,

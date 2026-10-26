@@ -36,10 +36,10 @@ body{margin:0;padding:48px 24px;font:15px/1.5 "JetBrains Mono",ui-monospace,SFMo
 main{max-width:960px;margin:0 auto}
 h1{font-size:15px;font-weight:600;margin:0 0 24px}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:24px}
-ul.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+ul.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));align-items:start}
 a{color:#356be5;text-decoration:none;overflow-wrap:anywhere}
 a:hover{text-decoration:underline}
-img{display:block;width:100%;height:auto;margin-bottom:8px;background:#ecebe3}
+img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;margin-bottom:8px;background:#ecebe3}
 @media (prefers-color-scheme:dark){body{background:#1b1b1b;color:#e8e8e2}a{color:#7b9bff}img{background:#2a2a2a}}
 </style>
 </head>

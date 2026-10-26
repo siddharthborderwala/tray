@@ -196,6 +196,8 @@ export function htmlFile(data: Uint8Array): SiteFile[] {
 export interface CollectOptions {
   cwd?: string;
   readStdin?: () => Promise<Uint8Array>;
+  /** Heading of a generated list page (the site name). Defaults to the input's default name. */
+  title?: string;
 }
 
 /**
@@ -207,17 +209,17 @@ export async function collect(
   opts: CollectOptions = {},
 ): Promise<Collected> {
   const inputs = typeof input === "string" ? [input] : input;
-  if (inputs.length > 1) return indexed(await collectFiles(inputs, opts));
+  if (inputs.length > 1) return indexed(await collectFiles(inputs, opts), opts.title);
   const first = inputs[0]!;
   if (first === "-") {
     const read = opts.readStdin ?? (() => Bun.stdin.bytes());
     return { files: htmlFile(await read()), source: "-" };
   }
-  return indexed(await collectOne(first, opts));
+  return indexed(await collectOne(first, opts), opts.title);
 }
 
-function indexed(c: Collected): Collected {
-  const files = withIndex(c.files, c.defaultSite);
+function indexed(c: Collected, title?: string): Collected {
+  const files = withIndex(c.files, title ?? c.defaultSite);
   if (files === c.files) return c;
   return { ...c, files, generatedIndex: c.files.length === 1 ? "redirect" : "list" };
 }

@@ -236,6 +236,15 @@ describe("several files", () => {
     expect(html).not.toContain('<img src="/c.txt"');
   });
 
+  test("the list page is headed by the site name when one is given", async () => {
+    const dir = tmp();
+    for (const n of ["a.png", "b.png"]) writeFileSync(join(dir, n), "x");
+    const files = [join(dir, "a.png"), join(dir, "b.png")];
+    expect(text(await collect(files), "/index.html")).toContain("<h1>Files</h1>");
+    const named = await collect(files, { title: "figures" });
+    expect(text(named, "/index.html")).toContain("<h1>figures</h1>");
+  });
+
   test("a folder, stdin, a dotfile, or a repeated name is a usage error", async () => {
     const root = tmp();
     mkdirSync(join(root, "sub"));
