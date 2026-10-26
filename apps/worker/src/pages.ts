@@ -30,7 +30,8 @@ body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink)
   font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
 main { width: 100%; max-width: 440px; }
-.mark { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 32px; }
+.mark { display: inline-flex; align-items: flex-end; gap: 3px; font-size: 28px; line-height: 24px; font-weight: 700; letter-spacing: -0.1em; margin: 0 0 32px; }
+.mark i { width: 5px; height: 5px; border-radius: 1px; background: var(--blue); }
 h1 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
 p { margin: 0 0 16px; }
 a { color: var(--blue); }
@@ -44,7 +45,7 @@ button.primary { background: var(--blue); border-color: var(--blue); color: var(
 .foot { margin-top: 32px; opacity: .7; }
 </style>
 </head>
-<body><main><p class="mark">tray</p>
+<body><main><p class="mark">tray<i aria-hidden="true"></i></p>
 ${content}
 </main></body>
 </html>
