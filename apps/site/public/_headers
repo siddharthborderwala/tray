@@ -4,3 +4,8 @@
 
 /.well-known/api-catalog
   Content-Type: application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"
+
+# The font never changes under the same name (rename it if it does), so the
+# browser can use its cached copy on every reload without asking again.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
