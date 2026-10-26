@@ -1,9 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CreatedKey, CreateKeyRequest, type Key, KeyId, KeyList } from "@tray-sh/schema";
 import { createKey } from "../auth.ts";
+import type { R2Bucket } from "../env.ts";
 import { TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
-import { getJson, type KeyRecord, listAll, mapLimit, paths } from "../storage.ts";
+import { getJson, getText, type KeyRecord, listAll, mapLimit, paths } from "../storage.ts";
 
 const listKeys = createRoute({
   method: "get",
@@ -49,21 +50,30 @@ const revokeKey = createRoute({
   responses: { 204: { description: "Revoked" }, ...errors(404) },
 });
 
-const toKey = (r: KeyRecord): Key => ({
+const toKey = (r: KeyRecord, lastUsedAt: string | null): Key => ({
   id: r.id,
   name: r.name,
   email: r.email,
   createdAt: r.createdAt,
-  lastUsedAt: r.lastUsedAt,
+  lastUsedAt: lastUsedAt ?? r.lastUsedAt,
 });
+
+/** Revoke: the record first (that's what stops the key), then its "last used" marker. */
+async function deleteKey(bucket: R2Bucket, id: string) {
+  await bucket.delete(paths.key(id));
+  await bucket.delete(paths.keyUsed(id));
+}
 
 export const keys = newRouter()
   .openapi(listKeys, async (c) => {
     const objects = await listAll(c.env.BUCKET, paths.keysPrefix);
-    const records = await mapLimit(objects, 50, (o) => getJson<KeyRecord>(c.env.BUCKET, o.key));
-    const data = records
-      .filter((r): r is KeyRecord => r !== null)
-      .map(toKey)
+    const data = (
+      await mapLimit(objects, 50, async (o) => {
+        const r = await getJson<KeyRecord>(c.env.BUCKET, o.key);
+        return r && toKey(r, await getText(c.env.BUCKET, paths.keyUsed(r.id)));
+      })
+    )
+      .filter((k): k is Key => k !== null)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     return c.json({ data }, 200);
   })
@@ -77,7 +87,7 @@ export const keys = newRouter()
     const { keyId } = c.var.identity;
     if (!keyId)
       throw new TrayError(400, "invalid_request", "this request wasn't made with an API key");
-    await c.env.BUCKET.delete(paths.key(keyId));
+    await deleteKey(c.env.BUCKET, keyId);
     return c.body(null, 204);
   })
 
@@ -89,6 +99,6 @@ export const keys = newRouter()
         hint: "Run `tray key list` to see keys.",
       });
     }
-    await c.env.BUCKET.delete(paths.key(id));
+    await deleteKey(c.env.BUCKET, id);
     return c.body(null, 204);
   });

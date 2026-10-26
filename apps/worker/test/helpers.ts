@@ -141,6 +141,11 @@ export class MemoryBucket implements R2Bucket {
     };
   }
 
+  async text(key: string): Promise<string | null> {
+    const s = this.objects.get(key);
+    return s ? new TextDecoder().decode(s.data) : null;
+  }
+
   async json<T>(key: string): Promise<T | null> {
     const s = this.objects.get(key);
     return s ? (JSON.parse(new TextDecoder().decode(s.data)) as T) : null;

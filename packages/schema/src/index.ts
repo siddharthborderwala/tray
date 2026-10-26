@@ -217,7 +217,13 @@ export const Key = z
   .meta({ id: "Key" });
 export type Key = z.infer<typeof Key>;
 export const KeyList = list(Key);
-export const KeyName = z.string().trim().min(1).max(64);
+/** No control or format characters, so a name can't fake lines in `tray approve`. */
+export const KeyName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+$/u, "no control characters");
 export const CreateKeyRequest = z.object({ name: KeyName });
 /** `key` is only ever returned here. */
 export const CreatedKey = z.object({

@@ -15,6 +15,8 @@ export const paths = {
   host: (host: string) => `hosts/${host}`,
   keysPrefix: "keys/",
   key: (id: string) => `keys/${id}.json`,
+  /** When a key was last used. Kept apart from keys/<id>.json so a late write can't undo a revoke. */
+  keyUsed: (id: string) => `auth/key-used/${id}`,
   pending: (deviceCode: string) => `auth/pending/${deviceCode}.json`,
   code: (userCode: string) => `auth/codes/${userCode}`,
   /** Marks a setup key as claimed, so revoking it later can't be undone by the secret. */

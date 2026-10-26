@@ -30,9 +30,20 @@ describe("auth", () => {
     const res = await api("/sites");
     expect(res.status).toBe(200);
     const id = (await sha256(key)).slice(0, 12);
-    expect(
-      (await bucket.json<{ lastUsedAt: string | null }>(`keys/${id}.json`))!.lastUsedAt,
-    ).not.toBeNull();
+    expect(await bucket.text(`auth/key-used/${id}`)).not.toBeNull();
+    const keys = await (await api("/keys")).json();
+    expect(keys.data[0].lastUsedAt).not.toBeNull();
+  });
+
+  test("revoking a key in use doesn't come undone (the last-used write never touches the record)", async () => {
+    const { api, bucket, key } = await setup();
+    const id = (await sha256(key)).slice(0, 12);
+    const before = await bucket.text(`keys/${id}.json`);
+    expect((await api("/sites")).status).toBe(200);
+    expect(await bucket.text(`keys/${id}.json`)).toBe(before);
+    expect((await api(`/keys/${id}`, { method: "DELETE" })).status).toBe(204);
+    expect(await bucket.text(`auth/key-used/${id}`)).toBeNull();
+    expect((await api("/sites")).status).toBe(401);
   });
 
   test("the TRAY_SETUP_KEY secret is accepted once, then lives in R2; revoking it sticks", async () => {

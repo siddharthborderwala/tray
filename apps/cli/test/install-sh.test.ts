@@ -49,10 +49,16 @@ function install(opts: { tamper?: boolean; version?: string } = {}) {
   writeFileSync(join(release, "SHA256SUMS"), `${sum}  ${archive}\n`);
   if (opts.tamper) writeFileSync(join(release, archive), "not the archive");
 
-  // curl -fsSL <url> -o <file>: copy the URL's last path segment from the release dir.
+  // curl --proto =https ... <url> -o <file>: copy the URL's last path segment from the
+  // release dir. Refuses to run without https-only flags, so the script must pass them.
   writeFileSync(
     join(stubs, "curl"),
-    `#!/bin/sh\nurl="$2"; out="$4"\necho "$url" >> "${root}/urls"\ncp "${release}/\${url##*/}" "$out"\n`,
+    `#!/bin/sh
+case " $* " in *" --proto =https --proto-redir =https "*) ;; *) exit 1 ;; esac
+prev=; for a; do [ "$prev" = -o ] && out="$a"; case "$a" in https://*) url="$a" ;; esac; prev="$a"; done
+echo "$url" >> "${root}/urls"
+cp "${release}/\${url##*/}" "$out"
+`,
   );
   chmodSync(join(stubs, "curl"), 0o755);
 

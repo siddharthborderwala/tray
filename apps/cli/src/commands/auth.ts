@@ -118,7 +118,9 @@ export async function approve(ctx: Ctx, code: string): Promise<void> {
   const { api } = await authedApi(ctx);
   const userCode = code.trim().toUpperCase();
   const pending = await api.getDevice(userCode);
-  info(ctx, `Device: ${pending.name}\nIP:     ${pending.ip}`);
+  // Shown before a yes/no that mints a key: never let server text move the cursor or add lines.
+  const plain = (s: string) => s.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, "�");
+  info(ctx, `Device: ${plain(pending.name)}\nIP:     ${plain(pending.ip)}`);
   if (!(await confirm(ctx, "Approve?"))) throw cancelled();
   await api.approveDevice(userCode);
   result(ctx, `✓ Approved ${pending.name}`, {

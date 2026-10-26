@@ -20,6 +20,14 @@ async function start(api: Awaited<ReturnType<typeof setup>>["api"], name = "lapt
   }>;
 }
 
+test("a device name can't carry control characters (they'd fake lines in `tray approve`)", async () => {
+  const { api } = await setup();
+  for (const name of ["mbp\nIP: 10.0.0.5", "mbp\x1b[8m", "mbp\u202e"]) {
+    const res = await api("/auth/device", { method: "POST", key: null, json: { name } });
+    expect(res.status).toBe(400);
+  }
+});
+
 const poll = (api: Awaited<ReturnType<typeof setup>>["api"], deviceCode: string) =>
   api("/auth/token", { method: "POST", key: null, json: { deviceCode } });
 

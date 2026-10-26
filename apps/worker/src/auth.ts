@@ -42,8 +42,9 @@ export async function createKey(env: Env, name: string, email: string) {
   return { id, name, key };
 }
 
-/** Don't rewrite keys/<id>.json on every request; once a minute is plenty for "last used". */
+/** Don't write "last used" on every request; once a minute (per isolate) is plenty. */
 const LAST_USED_RESOLUTION_MS = 60_000;
+const lastUsedWrites = new Map<string, number>();
 
 async function identityFromKey(c: Context<Ctx>, header: string): Promise<Identity | null> {
   const key = header.slice("Bearer ".length).trim();
@@ -53,10 +54,10 @@ async function identityFromKey(c: Context<Ctx>, header: string): Promise<Identit
     (await getJson<KeyRecord>(c.env.BUCKET, paths.key(id))) ?? (await claimSetupKey(c.env, id));
   if (!record || !safeEqual(record.hash, hash)) return null;
 
-  const stale =
-    !record.lastUsedAt || Date.now() - Date.parse(record.lastUsedAt) > LAST_USED_RESOLUTION_MS;
-  if (stale) {
-    const write = putJson(c.env.BUCKET, paths.key(id), { ...record, lastUsedAt: now() });
+  // Never rewrite keys/<id>.json here: a write that lands after a revoke would bring the key back.
+  if (Date.now() - (lastUsedWrites.get(id) ?? 0) > LAST_USED_RESOLUTION_MS) {
+    lastUsedWrites.set(id, Date.now());
+    const write = c.env.BUCKET.put(paths.keyUsed(id), now()).then(() => {});
     try {
       c.executionCtx.waitUntil(write);
     } catch {
