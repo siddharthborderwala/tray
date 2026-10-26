@@ -5,7 +5,7 @@ description: Set up Tray in Claude Code, Codex, Cursor, Gemini CLI, OpenCode or 
 
 Claude has Artifacts and ChatGPT has sites, but each works only inside its own app. Tray works with any agent that can run a command, and every link it makes is on your own domain.
 
-## Set up in one line
+## Set up
 
 Tell your agent:
 
