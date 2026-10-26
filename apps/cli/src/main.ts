@@ -50,6 +50,9 @@ Environment:
   TRAY_API_KEY          API key. Overrides saved login.
   CLOUDFLARE_API_TOKEN  Used by \`tray setup\` and \`tray domain add\`.
   NO_COLOR, CI          Respected. CI implies --non-interactive.
+  AGENT, AI_AGENT       Agent detected (also CLAUDECODE, CURSOR_AGENT, GEMINI_CLI,
+                        CODEX_THREAD_ID): non-interactive, like CI.
+  TRAY_INTERACTIVE      1 forces interactive mode (TTYs still required).
 
 Exit codes: 0 ok · 1 failed · 2 bad usage / missing input · 4 not authenticated · 130 cancelled`;
 

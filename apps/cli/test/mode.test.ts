@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { detectMode, isCI } from "../src/mode.ts";
+import { AGENT_ENV_VARS, detectMode, isAgent, isCI } from "../src/mode.ts";
 
 const tty = { json: false, nonInteractive: false, stdinTTY: true, stdoutTTY: true, env: {} };
 
@@ -30,5 +30,56 @@ describe("detectMode", () => {
     expect(isCI({ CI: "0" })).toBe(false);
     expect(isCI({ CI: "" })).toBe(false);
     expect(isCI({ CI: "1" })).toBe(true);
+  });
+});
+
+describe("agent detection", () => {
+  test("the variable list", () => {
+    expect([...AGENT_ENV_VARS]).toEqual([
+      "AGENT",
+      "AI_AGENT",
+      "CLAUDECODE",
+      "CURSOR_AGENT",
+      "GEMINI_CLI",
+      "CODEX_THREAD_ID",
+    ]);
+  });
+
+  test.each(AGENT_ENV_VARS.map((v) => [v]))("%s set → non-interactive, like CI", (name) => {
+    expect(isAgent({ [name]: "1" })).toBe(true);
+    expect(detectMode({ ...tty, env: { [name]: "1" } }).interactive).toBe(false);
+  });
+
+  test("empty values don't count", () => {
+    expect(isAgent({ AGENT: "", CLAUDECODE: "" })).toBe(false);
+    expect(detectMode({ ...tty, env: { AGENT: "" } }).interactive).toBe(true);
+  });
+
+  test("--json stays opt-in under an agent", () => {
+    expect(detectMode({ ...tty, env: { CLAUDECODE: "1" } }).json).toBe(false);
+  });
+
+  test("TRAY_INTERACTIVE=1 forces interactive under an agent or CI", () => {
+    expect(
+      detectMode({ ...tty, env: { CLAUDECODE: "1", TRAY_INTERACTIVE: "1" } }).interactive,
+    ).toBe(true);
+    expect(detectMode({ ...tty, env: { CI: "true", TRAY_INTERACTIVE: "1" } }).interactive).toBe(
+      true,
+    );
+    expect(detectMode({ ...tty, env: { AGENT: "1", TRAY_INTERACTIVE: "0" } }).interactive).toBe(
+      false,
+    );
+  });
+
+  test("TRAY_INTERACTIVE=1 still needs both TTYs", () => {
+    const env = { TRAY_INTERACTIVE: "1" };
+    expect(detectMode({ ...tty, env, stdinTTY: false }).interactive).toBe(false);
+    expect(detectMode({ ...tty, env, stdoutTTY: false }).interactive).toBe(false);
+  });
+
+  test("--non-interactive and --json win over TRAY_INTERACTIVE=1", () => {
+    const env = { TRAY_INTERACTIVE: "1" };
+    expect(detectMode({ ...tty, env, nonInteractive: true }).interactive).toBe(false);
+    expect(detectMode({ ...tty, env, json: true }).interactive).toBe(false);
   });
 });
