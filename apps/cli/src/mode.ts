@@ -3,6 +3,8 @@ export interface Mode {
   interactive: boolean;
   /** Print exactly one JSON object to stdout. */
   json: boolean;
+  /** Indent JSON output: stdout is a terminal. Piped or redirected output stays one compact line. */
+  prettyJson: boolean;
 }
 
 export interface ModeInput {
@@ -25,5 +27,5 @@ export function isCI(env: Record<string, string | undefined>): boolean {
 export function detectMode(input: ModeInput): Mode {
   const interactive =
     input.stdinTTY && input.stdoutTTY && !isCI(input.env) && !input.json && !input.nonInteractive;
-  return { interactive, json: input.json };
+  return { interactive, json: input.json, prettyJson: input.json && input.stdoutTTY };
 }

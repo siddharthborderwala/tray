@@ -40,14 +40,22 @@ export function formatTable(headers: string[], rows: string[][]): string {
   return [line(headers), ...rows.map(line)].join("\n");
 }
 
-export function formatError(err: TrayError, json: boolean): string {
+/** `--json` output: 2-space indented for a terminal, one compact line when piped or redirected. */
+export function toJson(value: unknown, pretty: boolean): string {
+  return pretty ? JSON.stringify(value, null, 2) : JSON.stringify(value);
+}
+
+export function formatError(err: TrayError, json: boolean, pretty = false): string {
   if (json) {
-    return JSON.stringify({
-      error: err.message,
-      code: err.code,
-      ...(err.hint ? { hint: err.hint } : {}),
-      ...(err.param ? { param: err.param } : {}),
-    });
+    return toJson(
+      {
+        error: err.message,
+        code: err.code,
+        ...(err.hint ? { hint: err.hint } : {}),
+        ...(err.param ? { param: err.param } : {}),
+      },
+      pretty,
+    );
   }
   return err.hint ? `error: ${err.message}\n${err.hint}` : `error: ${err.message}`;
 }

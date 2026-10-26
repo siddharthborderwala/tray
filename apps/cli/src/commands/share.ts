@@ -1,7 +1,8 @@
 import type { Api } from "../api.ts";
 import { authedApi, result, type Ctx } from "../ctx.ts";
 import { usageError } from "../errors.ts";
-import { ShareEntry, type Share } from "../wire.ts";
+import { ShareEntry } from "@traysh/schema";
+import type { Share } from "../api.ts";
 
 export function validateEntries(entries: string[]): string[] {
   const clean = entries.map((e) => e.trim().toLowerCase());

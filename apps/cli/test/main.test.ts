@@ -55,12 +55,13 @@ function run(
   argv: string[],
   routes: Parameters<typeof mockFetch>[0] = {},
   env: Record<string, string> = {},
+  stdoutTTY = false,
 ) {
   const m = mockFetch(routes);
   const done = main(argv, {
     env: { XDG_CONFIG_HOME: configHome, ...env },
     stdinTTY: false,
-    stdoutTTY: false,
+    stdoutTTY,
     stdout: (t) => out.push(t),
     stderr: (t) => err.push(t),
     keyStore: keys,
@@ -347,6 +348,22 @@ describe("other commands", () => {
     expect(await run(["setup", "--json"]).done).toBe(1);
     expect(JSON.parse(out[0]!).code).toBe("not_implemented");
     expect(await run(["upgrade"]).done).toBe(1);
+  });
+});
+
+describe("--json output", () => {
+  test("one compact line when piped", async () => {
+    expect(await run(["list", "--json"], { "GET /v1/sites": () => ({ data: [] }) }).done).toBe(0);
+    expect(out).toEqual(['{"sites":[]}']);
+  });
+
+  test("indented when stdout is a terminal (results and errors)", async () => {
+    expect(
+      await run(["list", "--json"], { "GET /v1/sites": () => ({ data: [] }) }, {}, true).done,
+    ).toBe(0);
+    expect(out[0]).toBe('{\n  "sites": []\n}');
+    expect(await run(["put", "--json"], {}, {}, true).done).toBe(2);
+    expect(out[1]).toStartWith('{\n  "error": ');
   });
 });
 

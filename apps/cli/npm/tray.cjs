@@ -5,7 +5,8 @@ const { spawnSync } = require("node:child_process");
 
 const os = { darwin: "darwin", linux: "linux", win32: "windows" }[process.platform];
 const arch = { x64: "x64", arm64: "arm64" }[process.arch];
-const musl = process.platform === "linux" && !process.report?.getReport().header.glibcVersionRuntime;
+const musl =
+  process.platform === "linux" && !process.report?.getReport().header.glibcVersionRuntime;
 const target = `${os}-${arch}${musl ? "-musl" : ""}`;
 const exe = process.platform === "win32" ? "tray.exe" : "tray";
 

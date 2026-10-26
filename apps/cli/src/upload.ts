@@ -1,5 +1,6 @@
 // Hash, size-check, and upload collected files, then build the deploy manifest.
-import { CHECK_BATCH_SIZE, MAX_DEPLOY_BYTES, type Manifest } from "./wire.ts";
+import { CHECK_BATCH_SIZE, MAX_DEPLOY_BYTES } from "@traysh/schema";
+import type { Manifest } from "./api.ts";
 import type { Api } from "./api.ts";
 import type { SiteFile } from "./collect.ts";
 import { EXIT, TrayError } from "./errors.ts";
@@ -55,7 +56,7 @@ export async function mapLimit<T, R>(
   limit: number,
   fn: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  const results = Array.from<R>({ length: items.length });
   let next = 0;
   const worker = async () => {
     while (next < items.length) {

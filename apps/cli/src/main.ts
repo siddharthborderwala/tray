@@ -70,6 +70,7 @@ export async function main(argv: string[], deps: MainDeps = {}): Promise<number>
   const args = rewriteAliases(argv);
   // Errors before the router has bound --json still need to honour it.
   const wantsJson = args.includes("--json");
+  const stdoutTTY = deps.stdoutTTY ?? !!process.stdout.isTTY;
 
   const parsed = parse(app, { argv: args });
   if (!parsed.ok) {
@@ -92,7 +93,7 @@ export async function main(argv: string[], deps: MainDeps = {}): Promise<number>
       EXIT.usage,
       `Run \`tray ${parsed.path.join(" ")}${parsed.path.length ? " " : ""}--help\`.`,
     );
-    (wantsJson ? stdout : stderr)(formatError(err, wantsJson));
+    (wantsJson ? stdout : stderr)(formatError(err, wantsJson, wantsJson && stdoutTTY));
     return err.exit;
   }
   if (parsed.method === "help") {
@@ -111,7 +112,7 @@ export async function main(argv: string[], deps: MainDeps = {}): Promise<number>
       json: g.json,
       nonInteractive: g.nonInteractive,
       stdinTTY: deps.stdinTTY ?? !!process.stdin.isTTY,
-      stdoutTTY: deps.stdoutTTY ?? !!process.stdout.isTTY,
+      stdoutTTY,
       env,
     }),
     yes: g.yes,
@@ -133,7 +134,7 @@ export async function main(argv: string[], deps: MainDeps = {}): Promise<number>
       e instanceof TrayError
         ? e
         : new TrayError((e as Error)?.message ?? String(e), "internal", EXIT.failed);
-    (ctx.mode.json ? stdout : stderr)(formatError(err, ctx.mode.json));
+    (ctx.mode.json ? stdout : stderr)(formatError(err, ctx.mode.json, ctx.mode.prettyJson));
     return err.exit;
   }
 }

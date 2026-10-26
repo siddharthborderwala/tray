@@ -14,8 +14,8 @@ import {
   type Ctx,
 } from "../ctx.ts";
 import { EXIT, TrayError, cancelled, notLoggedIn } from "../errors.ts";
-import { formatTable } from "../format.ts";
-import type { Token } from "../wire.ts";
+import { formatTable, toJson } from "../format.ts";
+import type { Token } from "../api.ts";
 
 /**
  * Poll POST /auth/token (RFC 8628 semantics): `authorization_pending` keeps
@@ -73,7 +73,8 @@ export async function login(
 
   const device = await api.startDevice(nameFlag ?? shortHostname());
   const url = device.verificationUriComplete;
-  if (ctx.mode.json) ctx.stdout(JSON.stringify({ approveUrl: url, userCode: device.userCode }));
+  if (ctx.mode.json)
+    ctx.stdout(toJson({ approveUrl: url, userCode: device.userCode }, ctx.mode.prettyJson));
   const how = `${url}\n  or on a logged-in machine: tray approve ${device.userCode}`;
   if (ctx.mode.interactive) {
     info(ctx, `Opening ${how}`);

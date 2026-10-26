@@ -3,7 +3,7 @@ import { setSiteRecord } from "../config.ts";
 import { askSelect, authedApi, confirm, openBrowser, result, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError, cancelled } from "../errors.ts";
 import { formatTable, relativeTime } from "../format.ts";
-import type { Deploy, Site, Visibility } from "../wire.ts";
+import type { Deploy, Site, Visibility } from "../api.ts";
 
 export async function list(ctx: Ctx): Promise<void> {
   const { api } = await authedApi(ctx);

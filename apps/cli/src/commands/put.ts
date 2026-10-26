@@ -25,7 +25,8 @@ import {
   uploadMissing,
   type HashedFile,
 } from "../upload.ts";
-import { SiteName, type DeployRequest } from "../wire.ts";
+import { SiteName } from "@traysh/schema";
+import type { DeployRequest } from "../api.ts";
 
 export interface PutArgs {
   path: string;

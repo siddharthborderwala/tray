@@ -3,7 +3,7 @@
 // The Worker is authoritative: it compares the deploy's `source` with the one
 // stored for the site and answers `409 site_exists` when they differ and
 // `replace` isn't set. The CLI decides what to send and what to do on 409.
-import type { Visibility } from "./wire.ts";
+import type { Visibility } from "./api.ts";
 
 export interface DeployFlagsInput {
   /** Site exists already (GET /sites/{site} answered 200). */

@@ -237,8 +237,8 @@ describe("errors", () => {
     expect(err.message).toContain("tray.thts.app");
   });
 
-  test("a response that doesn't match the schema is bad_response", async () => {
-    const { api } = make({ "GET /v1/sites": () => ({ sites: [] }) });
+  test("a 2xx response that isn't JSON is bad_response", async () => {
+    const { api } = make({ "GET /v1/sites": () => new Response("<html>proxy page</html>") });
     expect((await api.listSites().catch((e) => e)).code).toBe("bad_response");
   });
 });

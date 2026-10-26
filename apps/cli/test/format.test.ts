@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { TrayError } from "../src/errors.ts";
-import { formatBytes, formatError, formatTable, relativeTime, tildify } from "../src/format.ts";
+import {
+  formatBytes,
+  formatError,
+  formatTable,
+  relativeTime,
+  tildify,
+  toJson,
+} from "../src/format.ts";
 
 describe("format", () => {
   test("formatBytes", () => {
@@ -30,6 +37,14 @@ describe("format", () => {
         "\n",
       ),
     );
+  });
+
+  test("toJson: indented for a terminal, one line otherwise", () => {
+    expect(toJson({ a: 1, b: [2] }, false)).toBe('{"a":1,"b":[2]}');
+    expect(toJson({ a: 1 }, true)).toBe('{\n  "a": 1\n}');
+    const err = new TrayError("x", "y");
+    expect(formatError(err, true, true)).toBe('{\n  "error": "x",\n  "code": "y"\n}');
+    expect(formatError(err, true)).toBe('{"error":"x","code":"y"}');
   });
 
   test("formatError: text and JSON shapes", () => {

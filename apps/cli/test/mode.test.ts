@@ -16,8 +16,14 @@ describe("detectMode", () => {
   ])("%s → non-interactive", (_, patch) => {
     expect(detectMode({ ...tty, ...patch }).interactive).toBe(false);
   });
-  test("--json is reported", () => {
-    expect(detectMode({ ...tty, json: true })).toEqual({ interactive: false, json: true });
+  test("--json is reported; pretty only when stdout is a TTY", () => {
+    expect(detectMode({ ...tty, json: true })).toEqual({
+      interactive: false,
+      json: true,
+      prettyJson: true,
+    });
+    expect(detectMode({ ...tty, json: true, stdoutTTY: false }).prettyJson).toBe(false);
+    expect(detectMode(tty).prettyJson).toBe(false);
   });
   test("CI=false / CI=0 / empty don't count", () => {
     expect(isCI({ CI: "false" })).toBe(false);

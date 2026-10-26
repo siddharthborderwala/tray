@@ -4,6 +4,7 @@ import { createApi, type Api } from "./api.ts";
 import { loadAccounts } from "./config.ts";
 import { apiBaseUrl, resolveDomain, resolveKey, type KeyStore } from "./credentials.ts";
 import { EXIT, TrayError, cancelled, missingFlag } from "./errors.ts";
+import { toJson } from "./format.ts";
 import type { Mode } from "./mode.ts";
 import { VERSION } from "./version.ts";
 
@@ -28,7 +29,7 @@ const ui = { output: process.stderr };
 
 /** Print the command's result: `json` with --json, otherwise `text`. */
 export function result(ctx: Ctx, text: string, json: unknown): void {
-  ctx.stdout(ctx.mode.json ? JSON.stringify(json) : text);
+  ctx.stdout(ctx.mode.json ? toJson(json, ctx.mode.prettyJson) : text);
 }
 
 /** Like `result`, but closes the Clack frame (└  text) in interactive mode. The result still goes to stdout. */

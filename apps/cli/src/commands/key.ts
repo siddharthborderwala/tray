@@ -1,7 +1,7 @@
 import { authedApi, askText, info, result, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError } from "../errors.ts";
 import { formatTable, relativeTime } from "../format.ts";
-import type { Key } from "../wire.ts";
+import type { Key } from "../api.ts";
 
 export async function keyCreate(ctx: Ctx, nameFlag: string | undefined): Promise<void> {
   const { api } = await authedApi(ctx);
