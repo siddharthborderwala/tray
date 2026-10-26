@@ -5,6 +5,8 @@ description: Tray turns a folder or an HTML file into a link you can share. Self
 
 Tray turns a folder or an HTML file into a link you can share. Put it on a tray, pass it around. For you, your agents and your friends.
 
+It runs on your own Cloudflare account, on Workers, R2 and Access. Setup takes about 60 seconds.
+
 ## Install
 
 ```sh tabs="curl,bun,npm"
@@ -54,7 +56,7 @@ $ tray put ./dist -s q3-review --json
 
 ## Your Cloudflare
 
-Tray runs on your own Cloudflare account. One Worker, one R2 bucket, your domain. Set it up once. Use a domain just for Tray: every subdomain of it becomes a site.
+Tray runs on your own Cloudflare account. A Worker serves your sites, R2 stores the files and Cloudflare Access signs people in to private ones. Setup takes about 60 seconds. Use a domain just for Tray: every subdomain of it becomes a site.
 
 ```sh
 $ tray setup --domain acme.dev

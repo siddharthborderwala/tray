@@ -7,7 +7,7 @@ Tray turns a folder or an HTML file into a link you can share. Put it on a tray,
   <img alt="tray. Artifacts for every agent. Put it on a tray. Pass it around." src=".github/assets/banner-light.png">
 </picture>
 
-Tray runs on your own Cloudflare account (one Worker, one R2 bucket), so your sites and data stay yours.
+Tray runs on your own Cloudflare account, on Workers, R2 and Access, so your sites and data stay yours. Setup takes about 60 seconds.
 
 ## Install
 
