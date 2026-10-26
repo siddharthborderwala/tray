@@ -11,7 +11,7 @@ import {
   TokenRequest,
   UserCode,
 } from "@tray-sh/schema";
-import { decideDevice, deleteDevice, findDevice, startDevice } from "../auth.ts";
+import { createKey, decideDevice, deleteDevice, findDevice, startDevice } from "../auth.ts";
 import { TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
 import { getJson, now, paths, type PendingDevice as PendingRecord, putJson } from "../storage.ts";
@@ -100,9 +100,10 @@ export const auth = newRouter()
       await deleteDevice(c.env, deviceCode, pending.userCode);
       throw deviceError("access_denied", "the login was denied");
     }
-    if (pending.status === "approved" && pending.key && pending.email) {
-      await deleteDevice(c.env, deviceCode, pending.userCode); // single use
-      return c.json({ key: pending.key, email: pending.email, name: pending.name }, 200);
+    if (pending.status === "approved" && pending.email) {
+      await deleteDevice(c.env, deviceCode, pending.userCode); // single use: delete, then mint
+      const { key } = await createKey(c.env, pending.name, pending.email);
+      return c.json({ key, email: pending.email, name: pending.name }, 200);
     }
 
     // RFC 8628 §3.5: polling faster than `interval` → slow_down (1s grace for clock jitter).

@@ -63,8 +63,7 @@ export interface PendingDevice {
   expiresAt: string;
   status: "pending" | "approved" | "denied";
   lastPollAt?: string;
-  /** Set on approval; handed out once by `POST /auth/token`. */
-  key?: string;
+  /** The approver, set on approval. `POST /auth/token` mints the key for it once. */
   email?: string;
 }
 

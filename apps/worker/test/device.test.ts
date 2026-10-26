@@ -79,6 +79,19 @@ describe("device flow", () => {
     expect(keys.find((k: { name: string }) => k.name === "laptop")).toMatchObject({ email: OWNER });
   });
 
+  test("an approval nobody collects leaves no key behind and no secret at rest", async () => {
+    const { api, bucket } = await setup();
+    const before = (await (await api("/keys")).json()).data.length;
+    const dc = await start(api, "abandoned");
+    await api("/auth/approve", { method: "POST", json: { userCode: dc.userCode } });
+    const stored = new TextDecoder().decode(
+      bucket.objects.get(`auth/pending/${dc.deviceCode}.json`)!.data,
+    );
+    expect(stored).toContain('"approved"');
+    expect(stored).not.toContain("tray_k_");
+    expect((await (await api("/keys")).json()).data.length).toBe(before);
+  });
+
   test("deny → access_denied", async () => {
     const { api } = await setup();
     const dc = await start(api);

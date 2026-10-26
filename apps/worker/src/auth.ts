@@ -188,19 +188,19 @@ export async function findDevice(env: Env, userCodeInput: string) {
   return { deviceCode, pending };
 }
 
-/** Approve (mint a key for `email`) or deny. Repeating the same decision is a no-op. */
+/**
+ * Approve or deny. The key isn't minted here but when `POST /auth/token`
+ * hands it out, so no plaintext key sits in R2 and an approval nobody collects
+ * leaves no live key behind. Repeating the same decision is a no-op.
+ */
 export async function decideDevice(env: Env, userCode: string, approve: boolean, email: string) {
   const { deviceCode, pending } = await findDevice(env, userCode);
   const decision = approve ? "approved" : "denied";
   if (pending.status === decision) return pending;
   if (pending.status !== "pending") throw expired();
 
-  if (approve) {
-    const { key } = await createKey(env, pending.name, email);
-    Object.assign(pending, { status: "approved", key, email: email.toLowerCase() });
-  } else {
-    pending.status = "denied";
-  }
+  pending.status = decision;
+  if (approve) pending.email = email.toLowerCase();
   await putJson(env.BUCKET, paths.pending(deviceCode), pending);
   return pending;
 }
