@@ -16,6 +16,14 @@ $ tray login acme.dev
 $ export TRAY_API_KEY=tray_k_…
 ```
 
+## Zero Trust isn’t enabled
+
+```text
+error: Cloudflare Zero Trust isn't enabled on this account
+```
+
+Tray uses Zero Trust for sign-in. Open [one.dash.cloudflare.com](https://one.dash.cloudflare.com/), choose a team name and pick the Free plan. Cloudflare asks for payment details even on the Free plan, but doesn’t charge it. Then run `tray setup` again. In a terminal, setup waits for you instead.
+
 ## Site already exists
 
 ```text

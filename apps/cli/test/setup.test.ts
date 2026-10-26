@@ -32,6 +32,7 @@ function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: s
     trayKeys: new Set<string>(),
   };
   const calls: Call[] = [];
+  let zeroTrustOff = opts.zeroTrust === false;
   let n = 0;
   const id = (p: string) => `${p}${++n}`;
   const ok = (result: unknown, info?: unknown) =>
@@ -94,7 +95,7 @@ function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: s
       return ok(zones, { page: 1, total_pages: 1 });
     }
     if (route === `GET ${a}/access/organizations`) {
-      return opts.zeroTrust === false
+      return zeroTrustOff
         ? fail(404, 9999, "access.api.error.not_enabled")
         : ok({ auth_domain: "acme.cloudflareaccess.com", name: "acme" });
     }
@@ -185,7 +186,14 @@ function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: s
     }
     return fail(404, 7003, `no fake for ${route}`);
   };
-  return { fetch: fetchImpl as typeof fetch, state, calls };
+  return {
+    fetch: fetchImpl as typeof fetch,
+    state,
+    calls,
+    enableZeroTrust: () => {
+      zeroTrustOff = false;
+    },
+  };
 }
 
 let configDir: string;
@@ -422,8 +430,59 @@ describe("tray setup", () => {
     expect(e).toBeInstanceOf(TrayError);
     expect(e.code).toBe("zero_trust_disabled");
     expect(e.exit).toBe(1);
-    expect(e.hint).toContain(`https://one.dash.cloudflare.com/${ACCOUNT}/`);
+    expect(e.hint).toContain("https://one.dash.cloudflare.com/");
+    expect(e.hint).toContain("team name");
+    expect(e.hint).toContain("Free plan");
+    expect(e.hint).toContain("payment details");
+    expect(e.hint).toContain("tray setup");
     expect(cf.state.buckets.size).toBe(0);
+    expect(err.join("\n")).toContain("Zero Trust: not enabled");
+  });
+
+  test("Zero Trust is checked right after the token, before asking for --email", async () => {
+    const cf = fakeCloudflare({ zeroTrust: false });
+    const e = await setup(ctxFor(cf.fetch), undefined, { workerSource: WORKER }).catch((x) => x);
+    expect(e.code).toBe("zero_trust_disabled");
+  });
+
+  test("interactive: waits for Enter, re-checks, and carries on", async () => {
+    const { requireZeroTrust } = await import("../src/setup/zero-trust.ts");
+    const { cloudflare } = await import("../src/setup/cloudflare.ts");
+    const cf = fakeCloudflare({ zeroTrust: false });
+    const ctx = {
+      ...ctxFor(cf.fetch),
+      mode: { interactive: true, json: false, prettyJson: false },
+    };
+    const opened: string[] = [];
+    let presses = 0;
+    const team = await requireZeroTrust(ctx, cloudflare("cf_token", cf.fetch), ACCOUNT, {
+      open: (url) => opened.push(url),
+      waitForEnter: async () => {
+        presses++;
+        if (presses === 2) cf.enableZeroTrust(); // enabled before the second Enter
+      },
+    });
+    expect(team).toBe("acme.cloudflareaccess.com");
+    expect(opened).toEqual(["https://one.dash.cloudflare.com/"]);
+    expect(presses).toBe(2);
+  });
+
+  test("interactive: Esc / Ctrl-C at the wait exits 130", async () => {
+    const { requireZeroTrust } = await import("../src/setup/zero-trust.ts");
+    const { cloudflare } = await import("../src/setup/cloudflare.ts");
+    const { cancelled } = await import("../src/errors.ts");
+    const cf = fakeCloudflare({ zeroTrust: false });
+    const ctx = {
+      ...ctxFor(cf.fetch),
+      mode: { interactive: true, json: false, prettyJson: false },
+    };
+    const e = await requireZeroTrust(ctx, cloudflare("cf_token", cf.fetch), ACCOUNT, {
+      open: () => {},
+      waitForEnter: async () => {
+        throw cancelled();
+      },
+    }).catch((x) => x);
+    expect(e.exit).toBe(130);
   });
 
   test("domain not on the account → zone_not_found naming --domain", async () => {
@@ -466,8 +525,11 @@ describe("tray setup", () => {
 });
 
 describe("tray setup flags (non-interactive)", () => {
+  // Never the real API: a fake Cloudflare that knows acme.dev and accepts token "x".
+  const cf = fakeCloudflare({ zones: ["acme.dev"], token: "x" });
   const run = (argv: string[], env: Record<string, string> = {}) =>
     main(argv, {
+      fetch: cf.fetch,
       env: { XDG_CONFIG_HOME: tmp(), ...env },
       stdout: (t) => out.push(t),
       stderr: (t) => err.push(t),
@@ -483,6 +545,9 @@ describe("tray setup flags (non-interactive)", () => {
 
   test("missing token exits 2 naming CLOUDFLARE_API_TOKEN", async () => {
     expect(await run(["setup", "--domain", "acme.dev", "--json"])).toBe(2);
+    expect(JSON.parse(out[0]!).hint).toContain(
+      "https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=",
+    );
     expect(JSON.parse(out[0]!)).toMatchObject({
       code: "missing_input",
       param: "CLOUDFLARE_API_TOKEN",
@@ -494,5 +559,7 @@ describe("tray setup flags (non-interactive)", () => {
       await run(["setup", "--domain", "acme.dev", "--json"], { CLOUDFLARE_API_TOKEN: "x" }),
     ).toBe(2);
     expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--email" });
+    // Only lookups happened before it asked: nothing was created.
+    expect(cf.calls.every((c) => c.method === "GET")).toBe(true);
   });
 });

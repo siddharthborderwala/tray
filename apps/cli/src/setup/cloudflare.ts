@@ -166,24 +166,20 @@ export async function findZone(cf: CloudflareClient, domain: string): Promise<Zo
 }
 
 /** The Zero Trust team domain, e.g. `acme.cloudflareaccess.com`. Exits with the enable link when Zero Trust is off. */
-export async function zeroTrustTeam(cf: CloudflareClient, accountId: string): Promise<string> {
-  const enable = `https://one.dash.cloudflare.com/${accountId}/`;
-  let org: { auth_domain?: string } | null = null;
+/** The Zero Trust team domain (e.g. `acme.cloudflareaccess.com`), or null when Zero Trust isn't enabled. */
+export async function zeroTrustTeam(
+  cf: CloudflareClient,
+  accountId: string,
+): Promise<string | null> {
   try {
-    org = await cf.get<{ auth_domain?: string }>(`/accounts/${accountId}/access/organizations`);
+    const org = await cf.get<{ auth_domain?: string }>(
+      `/accounts/${accountId}/access/organizations`,
+    );
+    return org?.auth_domain || null;
   } catch (err) {
     if (err instanceof CloudflareError && err.status === 403) throw err;
-    org = null;
+    return null;
   }
-  if (!org?.auth_domain) {
-    throw new TrayError(
-      "Cloudflare Zero Trust isn't enabled on this account",
-      "zero_trust_disabled",
-      EXIT.failed,
-      `Enable it once (the Free plan is fine): ${enable}\nThen run \`tray setup\` again.`,
-    );
-  }
-  return org.auth_domain;
 }
 
 export async function ensureBucket(

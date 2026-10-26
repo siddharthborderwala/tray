@@ -4,7 +4,7 @@
 import * as p from "@clack/prompts";
 import { loadAccounts, saveAccounts, shortHostname } from "../config.ts";
 import { apiBaseUrl, normalizeDomain } from "../credentials.ts";
-import { askText, info, intro, outro, spinner, step, warn, type Ctx } from "../ctx.ts";
+import { askText, info, intro, openBrowser, outro, spinner, step, warn, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError, cancelled } from "../errors.ts";
 import {
   type Binding,
@@ -21,14 +21,15 @@ import {
   loadWorkerSource,
   TOKEN_PERMISSIONS,
   uploadWorker,
-  zeroTrustTeam,
 } from "../setup/cloudflare.ts";
+import { tokenTemplateUrl } from "../setup/token.ts";
+import { requireZeroTrust, type ZeroTrustDeps } from "../setup/zero-trust.ts";
 import { loadSetups, resourceName, saveSetup, savedToken, saveToken } from "../setup/state.ts";
 import { offerSkillInstall } from "../skill.ts";
 
 export { upgrade } from "./upgrade.ts";
 
-export interface SetupDeps {
+export interface SetupDeps extends ZeroTrustDeps {
   /** The Worker bundle; defaults to the one embedded in this binary. */
   workerSource?: string;
 }
@@ -41,22 +42,28 @@ function report(ctx: Ctx, label: string, value: string) {
   else ctx.stderr(`${label}: ${value}`);
 }
 
-async function askToken(ctx: Ctx, domain: string): Promise<string> {
+async function askToken(ctx: Ctx, domain: string, deps: SetupDeps): Promise<string> {
   const fromEnv = ctx.env.CLOUDFLARE_API_TOKEN?.trim();
   if (fromEnv) return fromEnv;
   const saved = await savedToken(ctx.keyStore, domain);
   if (saved) return saved;
+  const link = tokenTemplateUrl(domain);
   if (!ctx.mode.interactive) {
     throw new TrayError(
       "missing Cloudflare API token",
       "missing_input",
       EXIT.usage,
-      `Set CLOUDFLARE_API_TOKEN. The token needs ${TOKEN_PERMISSIONS}`,
+      `Create one with everything pre-filled: ${link}\nThen set CLOUDFLARE_API_TOKEN. It needs ${TOKEN_PERMISSIONS}`,
       "CLOUDFLARE_API_TOKEN",
     );
   }
+  info(
+    ctx,
+    `Create a Cloudflare API token (this link pre-fills everything; click Continue, then Create):\n${link}`,
+  );
+  (deps.open ?? openBrowser)(link);
   const answer = await p.password({
-    message: "Cloudflare API token (needs: Workers, R2, DNS, Access)",
+    message: "Paste the token",
     validate: (v) => (v?.trim() ? undefined : "required"),
     output: process.stderr,
   });
@@ -94,8 +101,27 @@ export async function setup(
         placeholder: "acme.dev",
       })),
   );
-  const token = await askToken(ctx, domain);
+  const token = await askToken(ctx, domain, deps);
   const previous = loadSetups(ctx.configDir)[domain];
+  const cf = cloudflare(token, ctx.fetch ?? fetch);
+  const spin = spinner(ctx);
+
+  // Verify the token (zone lookup), then Zero Trust, before asking for
+  // anything else or creating anything.
+  spin.start("Checking Cloudflare…");
+  let accountId: string;
+  let zoneId: string;
+  try {
+    const zone = await findZone(cf, domain);
+    accountId = zone.account.id;
+    zoneId = zone.id;
+  } catch (err) {
+    spin.error("Cloudflare check failed");
+    throw err;
+  }
+  spin.stop(`Cloudflare account ${accountId}`);
+  const team = await requireZeroTrust(ctx, cf, accountId, deps);
+
   const email = (
     emailFlag ??
     previous?.email ??
@@ -115,26 +141,9 @@ export async function setup(
       "--email",
     );
 
-  const cf = cloudflare(token, ctx.fetch ?? fetch);
-  const spin = spinner(ctx);
   const name = previous?.worker ?? resourceName(domain);
   const bucket = previous?.bucket ?? resourceName(domain);
   const api = `tray.${domain}`;
-
-  spin.start("Checking Cloudflare…");
-  let accountId: string;
-  let zoneId: string;
-  let team: string;
-  try {
-    const zone = await findZone(cf, domain);
-    accountId = zone.account.id;
-    zoneId = zone.id;
-    team = await zeroTrustTeam(cf, accountId);
-  } catch (err) {
-    spin.error("Cloudflare check failed");
-    throw err;
-  }
-  spin.stop(`Cloudflare account ${accountId} · Zero Trust ${team}`);
 
   // R2
   spin.start("R2 bucket…");

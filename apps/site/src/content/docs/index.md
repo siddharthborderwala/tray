@@ -59,3 +59,5 @@ Tray runs on your own Cloudflare account. One Worker, one R2 bucket, your domain
 ```sh
 $ tray setup --domain acme.dev
 ```
+
+Setup opens a Cloudflare link that pre-fills the API token with everything Tray needs. You only click Create.
