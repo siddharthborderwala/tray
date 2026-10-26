@@ -1,6 +1,6 @@
-import { parse, printErrors, printHelp, printVersion } from "@bomb.sh/router";
+import { parse, printErrors, printVersion } from "@bomb.sh/router";
 import { app, rewriteAliases } from "./app.ts";
-import { accountList, accountSwitch, approve, login, logout } from "./commands/auth.ts";
+import { accountList, accountSwitch, approve, login, logout, whoami } from "./commands/auth.ts";
 import { domainAdd, domainList, domainRemove } from "./commands/domain.ts";
 import { keyCreate, keyList, keyRevoke } from "./commands/key.ts";
 import { put } from "./commands/put.ts";
@@ -12,7 +12,9 @@ import { defaultKeyStore, type KeyStore } from "./credentials.ts";
 import type { Ctx } from "./ctx.ts";
 import { EXIT, TrayError } from "./errors.ts";
 import { formatError } from "./format.ts";
+import { helpText } from "./help.ts";
 import { detectMode } from "./mode.ts";
+import { printGuide, skillInstall } from "./skill.ts";
 
 export interface MainDeps {
   env?: Record<string, string | undefined>;
@@ -42,28 +44,6 @@ export function mergeGlobals(models: Record<string, Partial<Globals>>): Globals 
     if (m.domain) g.domain = m.domain;
   }
   return g;
-}
-
-const ROOT_HELP_FOOTER = `
-Environment:
-  TRAY_DOMAIN           Tray to use (e.g. thts.app).
-  TRAY_API_KEY          API key. Overrides saved login.
-  CLOUDFLARE_API_TOKEN  Used by \`tray setup\` and \`tray domain add\`.
-  NO_COLOR, CI          Respected. CI implies --non-interactive.
-  AGENT, AI_AGENT       Agent detected (also CLAUDECODE, CURSOR_AGENT, GEMINI_CLI,
-                        CODEX_THREAD_ID): non-interactive, like CI.
-  TRAY_INTERACTIVE      1 forces interactive mode (TTYs still required).
-
-Exit codes: 0 ok · 1 failed · 2 bad usage / missing input · 4 not authenticated · 130 cancelled`;
-
-/** The router prints sub-routes as `put …`; show them as `tray put …`. */
-function helpText(intent: Parameters<typeof printHelp>[0]): string {
-  const text = printHelp(intent);
-  if (intent.route === "/") return text + "\n" + ROOT_HELP_FOOTER;
-  const path = intent.path.join(" ");
-  return text
-    .replace(new RegExp(`^${path}`), `tray ${path}`)
-    .replace(`Usage:\n  ${path}`, `Usage:\n  tray ${path}`);
 }
 
 export async function main(argv: string[], deps: MainDeps = {}): Promise<number> {
@@ -182,6 +162,12 @@ async function run(ctx: Ctx, intent: Execute): Promise<void> {
       return approve(ctx, intent.model.code);
     case "/logout":
       return logout(ctx, intent.model.logoutDomain);
+    case "/whoami":
+      return whoami(ctx);
+    case "/skill":
+      return printGuide(ctx);
+    case "/skill/install":
+      return skillInstall(ctx, intent.model.project);
     case "/account/list":
       return accountList(ctx);
     case "/account/switch":

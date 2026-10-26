@@ -351,6 +351,47 @@ describe("other commands", () => {
   });
 });
 
+describe("whoami and skill", () => {
+  test("whoami --json: domain, email, key name, source", async () => {
+    expect(await run(["whoami", "--json"]).done).toBe(0);
+    expect(JSON.parse(out[0]!)).toEqual({
+      domain: "thts.app",
+      email: "sid@acme.com",
+      key: "mbp",
+      source: "keychain",
+    });
+  });
+
+  test("whoami reports TRAY_API_KEY as source env", async () => {
+    keys = memoryKeyStore();
+    expect(await run(["whoami", "--json"], {}, { TRAY_API_KEY: "tray_k_x" }).done).toBe(0);
+    expect(JSON.parse(out[0]!)).toMatchObject({ domain: "thts.app", source: "env" });
+  });
+
+  test("whoami exits 4 when not logged in, with no network calls", async () => {
+    keys = memoryKeyStore();
+    const { done, calls } = run(["whoami"]);
+    expect(await done).toBe(4);
+    expect(calls.length).toBe(0);
+    expect(err.join("\n")).toContain("tray login thts.app");
+  });
+
+  test("tray skill prints the guide", async () => {
+    expect(await run(["skill"]).done).toBe(0);
+    expect(out[0]).toContain("# Tray agent guide");
+  });
+
+  test("tray skill install --json lists the files", async () => {
+    const home = tmp();
+    expect(await run(["skill", "install", "--json"], {}, { HOME: home }).done).toBe(0);
+    const res = JSON.parse(out[0]!);
+    expect(res.written).toEqual([
+      join(home, ".agents/skills/tray/SKILL.md"),
+      join(home, ".claude/skills/tray/SKILL.md"),
+    ]);
+  });
+});
+
 describe("--json output", () => {
   test("one compact line when piped", async () => {
     expect(await run(["list", "--json"], { "GET /v1/sites": () => ({ data: [] }) }).done).toBe(0);

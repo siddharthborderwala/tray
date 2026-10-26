@@ -7,6 +7,8 @@ export interface KeyStore {
   get(domain: string): Promise<string | null>;
   set(domain: string, key: string): Promise<void>;
   delete(domain: string): Promise<void>;
+  /** Where the saved key for `domain` lives, for `tray whoami`. */
+  source?(domain: string): Promise<"keychain" | "file" | null>;
 }
 
 const SERVICE = "sh.tray.cli";
@@ -18,6 +20,9 @@ export function fileKeyStore(dir: string): KeyStore {
   return {
     async get(domain) {
       return read()[domain] ?? null;
+    },
+    async source(domain) {
+      return read()[domain] ? "file" : null;
     },
     async set(domain, key) {
       writeJson(file, { ...read(), [domain]: key }, 0o600);
@@ -37,13 +42,20 @@ export function defaultKeyStore(
   secrets: typeof Bun.secrets | undefined = Bun.secrets,
 ): KeyStore {
   const file = fileKeyStore(dir);
+  const fromKeychain = async (domain: string) => {
+    try {
+      return (await secrets?.get({ service: SERVICE, name: domain })) || null;
+    } catch {
+      return null;
+    }
+  };
   return {
     async get(domain) {
-      try {
-        const v = await secrets?.get({ service: SERVICE, name: domain });
-        if (v) return v;
-      } catch {}
-      return file.get(domain);
+      return (await fromKeychain(domain)) ?? file.get(domain);
+    },
+    async source(domain) {
+      if (await fromKeychain(domain)) return "keychain";
+      return (await file.get(domain)) ? "file" : null;
     },
     async set(domain, key) {
       try {

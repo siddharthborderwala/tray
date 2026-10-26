@@ -3,6 +3,7 @@ import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { zipSync } from "fflate";
 import {
+  defaultSiteName,
   collect,
   filesFromTarGz,
   filesFromZip,
@@ -175,5 +176,25 @@ describe("helpers", () => {
     expect(paths(stripSingleTopFolder([f("/a/x"), f("/b/y")]))).toEqual(["/a/x", "/b/y"]);
     expect(paths(stripSingleTopFolder([f("/a"), f("/a2/x")]))).toEqual(["/a", "/a2/x"]);
     expect(paths(stripSingleTopFolder([f("/index.html")]))).toEqual(["/index.html"]);
+  });
+});
+
+describe("generic folder names", () => {
+  test.each(["dist", "out", "build", "public", "site", "_site", "www"])(
+    "%s falls back to the parent folder",
+    (name) => {
+      expect(defaultSiteName(`/Users/sid/work/q3-review/${name}`, true)).toBe("q3-review");
+    },
+  );
+  test("other names, and files, keep their own name", () => {
+    expect(defaultSiteName("/Users/sid/work/q3-review/docs", true)).toBe("docs");
+    expect(defaultSiteName("/Users/sid/work/q3-review/dist.zip", false)).toBe("dist");
+    expect(defaultSiteName("/Users/sid/work/site.html", false)).toBe("site");
+  });
+  test("collect() uses it", async () => {
+    const parent = join(tmp(), "launch-page");
+    mkdirSync(join(parent, "dist"), { recursive: true });
+    writeFileSync(join(parent, "dist/index.html"), "x");
+    expect((await collect(join(parent, "dist"))).defaultSite).toBe("launch-page");
   });
 });

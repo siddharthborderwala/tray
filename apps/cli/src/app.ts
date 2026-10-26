@@ -72,7 +72,9 @@ export const app = route(
       schema(required("<path>")),
       description("Folder, .zip, .tar.gz, .html, or - for stdin."),
     ),
-    siteFlag("Site name. Default: slug of the folder or file name."),
+    siteFlag(
+      "Site name. Default: slug of the folder or file name (the parent folder for dist, out, build, public, site, _site, www).",
+    ),
     flag(
       "private",
       "--private",
@@ -212,6 +214,11 @@ export const app = route(
     ),
     globals,
   ),
+  command(
+    name("whoami"),
+    description("Show the tray, account and credential in use. Never prompts."),
+    globals,
+  ),
   route(
     name("account"),
     description("Trays you are logged in to. Alias: accounts."),
@@ -244,6 +251,21 @@ export const app = route(
     ),
   ),
 
+  command(
+    name("skill"),
+    description("Print the full agent guide for this version of tray."),
+    globals,
+    command(
+      name("install"),
+      description("Install the Tray skill for coding agents (~/.agents, ~/.claude)."),
+      flag(
+        "project",
+        "--project",
+        "Write .agents/ and .claude/ skills in the current folder instead.",
+      ),
+      globals,
+    ),
+  ),
   command(
     name("setup"),
     description("Provision a tray on your Cloudflare account."),

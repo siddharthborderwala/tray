@@ -1,7 +1,7 @@
 // Turn a folder, .zip, .tar.gz, single .html file, or stdin into a flat list of
 // files keyed by their path inside the site.
 import { readdirSync, statSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { unzipSync } from "fflate";
 import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@tray-sh/schema";
 import { usageError } from "./errors.ts";
@@ -63,6 +63,25 @@ export function slugify(name: string): string | undefined {
     .replace(/-+$/, "");
   if (!SITE_NAME_RE.test(slug) || RESERVED_SITE_NAMES.includes(slug)) return undefined;
   return slug;
+}
+
+/** Build-output folder names that say nothing about the site. */
+export const GENERIC_FOLDER_NAMES = new Set([
+  "dist",
+  "out",
+  "build",
+  "public",
+  "site",
+  "_site",
+  "www",
+]);
+
+/** `~/work/q3-review/dist` → `q3-review`; `~/work/report.html` → `report`. */
+export function defaultSiteName(absPath: string, isDirectory: boolean): string | undefined {
+  const name = basename(absPath);
+  if (isDirectory && GENERIC_FOLDER_NAMES.has(name.toLowerCase()))
+    return slugify(basename(dirname(absPath)));
+  return slugify(name);
 }
 
 /** If every file lives under one shared top-level folder, drop that folder. */
@@ -168,7 +187,7 @@ export async function collect(input: string, opts: CollectOptions = {}): Promise
     throw usageError(`no such file or folder: ${input}`);
   }
   const kind = inputKind(abs, isDirectory);
-  const defaultSite = slugify(basename(abs));
+  const defaultSite = defaultSiteName(abs, isDirectory);
   switch (kind) {
     case "folder":
       return { files: await filesFromFolder(abs), defaultSite, source: abs };

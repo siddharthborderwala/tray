@@ -16,6 +16,7 @@ import {
 import { EXIT, TrayError, cancelled, notLoggedIn } from "../errors.ts";
 import { formatTable, toJson } from "../format.ts";
 import type { Token } from "../api.ts";
+import { offerSkillInstall } from "../skill.ts";
 
 /**
  * Poll POST /auth/token (RFC 8628 semantics): `authorization_pending` keeps
@@ -107,6 +108,7 @@ export async function login(
     email: token.email,
     name: token.name,
   });
+  await offerSkillInstall(ctx);
 }
 
 export async function approve(ctx: Ctx, code: string): Promise<void> {
@@ -145,6 +147,33 @@ export async function logout(ctx: Ctx, domainArg: string | undefined): Promise<v
   if (accounts.current === domain) accounts.current = Object.keys(accounts.accounts)[0];
   saveAccounts(ctx.configDir, accounts);
   result(ctx, `Logged out of ${domain}`, { domain, loggedOut: true });
+}
+
+/** `tray whoami`: domain, email, key name, and where the credential came from. Never prompts. */
+export async function whoami(ctx: Ctx): Promise<void> {
+  const accounts = loadAccounts(ctx.configDir);
+  const domain = resolveDomain(ctx.domainFlag, ctx.env, accounts);
+  const account = accounts.accounts[domain];
+  let source: "env" | "keychain" | "file";
+  if (ctx.env.TRAY_API_KEY) source = "env";
+  else {
+    const saved =
+      (await ctx.keyStore.source?.(domain)) ??
+      ((await ctx.keyStore.get(domain)) ? "keychain" : null);
+    if (!saved) throw notLoggedIn(domain);
+    source = saved;
+  }
+  const me = {
+    domain,
+    email: source === "env" ? null : (account?.email ?? null),
+    key: source === "env" ? "TRAY_API_KEY" : (account?.keyName ?? null),
+    source,
+  };
+  const text = [
+    `${me.email ?? "(API key)"} on ${domain}`,
+    `key: ${me.key ?? "unknown"} (${source === "env" ? "TRAY_API_KEY" : source})`,
+  ].join("\n");
+  result(ctx, text, me);
 }
 
 export async function accountList(ctx: Ctx): Promise<void> {
