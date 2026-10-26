@@ -43,24 +43,16 @@ Some agents run commands in a sandbox that blocks the network. Allow your tray's
 An agent without skills can still use Tray. Point it at [tray.sh/skill.md](/skill.md), or add a line to your `AGENTS.md`:
 
 ```text
-To share something, run `tray put <path> -s <name> --json` and reply with the url.
+To share something, run `tray put <path> -s <name>` and reply with the URL it prints.
 ```
 
 ## What your agent does
 
-It runs the same CLI you do, picks a name for the site and prints one line: the link. With `--json` it gets everything else too.
+It runs the same CLI you do, picks a name for the site and prints one line: the link.
 
 ```sh
-$ tray put ./dist -s q3-review --json
-{
-  "site": "q3-review",
-  "url": "https://q3-review.acme.dev",
-  "visibility": "public",
-  "deploy": "lq3m9-2c7e",
-  "files": 12,
-  "uploaded": 12,
-  "bytes": 482133
-}
+$ tray put ./dist -s q3-review
+https://q3-review.acme.dev
 ```
 
 The skill tells it to keep anything internal or personal private with `--private`, and never to put secrets or a whole repo. You can also ask it for a private link. Every command and flag is on the [CLI](/cli) page.

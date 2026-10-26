@@ -50,14 +50,13 @@ describe("SKILL.md", () => {
     const body = skillBody();
     expect(body.split("\n").length).toBeLessThan(85);
     for (const s of [
-      "tray whoami --json",
+      "tray whoami",
       "tray skill install",
       "tray setup",
       "tray put",
       "-s ",
       "--private",
       "--spa",
-      "site_exists",
       "tray skill",
       "https://tray.sh/llms.txt",
     ]) {

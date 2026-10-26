@@ -27,7 +27,7 @@ lost (`tray rollback` always works).
 
 If the user asks you to set them up: install the CLI if `tray` is missing
 (`curl -fsSL https://tray.sh/install | sh`), run `tray skill install`, then
-`tray whoami --json`. If that fails, ask them to run one of these in their own
+`tray whoami`. If that fails, ask them to run one of these in their own
 terminal (in Claude Code: `! <command>`), since both need them in a browser:
 `tray setup` for a new tray (asks for a Cloudflare domain, an API token via a
 pre-filled link, and their email; about a minute), or `tray login <domain>`.
@@ -35,7 +35,7 @@ pre-filled link, and their email; about a minute), or `tray login <domain>`.
 ## 1. Check state
 
 ```sh
-tray whoami --json   # {"domain","email","key","source"}
+tray whoami   # your domain and email
 ```
 
 - Exit 0: you're good, so go to step 2.
@@ -46,7 +46,7 @@ tray whoami --json   # {"domain","email","key","source"}
 ## 2. Publish
 
 ```sh
-tray put ./dist -s q3-revenue-report --json
+tray put ./dist -s q3-revenue-report   # prints the URL
 ```
 
 - Always pass `-s` with a specific kebab-case name for this content. The
@@ -60,14 +60,14 @@ tray put ./dist -s q3-revenue-report --json
 
 ## 3. Reply
 
-Give the user the `url` from the JSON, and say whether it's public or private
-(`visibility`). One line is enough.
+Give the user the URL, and say it's private if you passed `--private`. One
+line is enough.
 
 ## When it fails
 
-Errors are JSON on stdout: `{"error","code","hint"}`. Follow the `hint`.
+Errors print `error: <message>` and a hint on the next line. Follow the hint.
 
-- `site_exists`: that name was last put from somewhere else. Pick a new `-s`.
+- "already exists (last put from …)": that name belongs to another folder. Pick a new `-s`.
   Use `--replace` only if the user asked to overwrite it; the old deploy stays
   available to `tray rollback`.
 - Exit 4: not logged in or the key was revoked (see step 1).
@@ -91,5 +91,5 @@ Errors are JSON on stdout: `{"error","code","hint"}`. Follow the `hint`.
 - Don't curl the URL to verify it. Private sites sit behind a login, and the
   CLI only prints the URL after the deploy is live.
 
-For the full guide (every command, flag, JSON shape and exit code), run
+For the full guide (every command, flag and exit code), run
 `tray skill`. Docs: https://tray.sh/llms.txt
