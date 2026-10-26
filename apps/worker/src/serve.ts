@@ -99,7 +99,9 @@ export function safeNext(next: string | undefined): string {
   if ([...next].some((ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f)) return "/";
   const base = "https://tray.invalid";
   const url = new URL(next, base);
-  if (url.origin !== base || url.pathname === SIGNIN_PATH) return "/";
+  // Dot segments normalise away (`/.//evil.com` → `//evil.com`), so check the result too.
+  if (url.origin !== base || url.pathname.startsWith("//") || url.pathname === SIGNIN_PATH)
+    return "/";
   return url.pathname + url.search + url.hash;
 }
 

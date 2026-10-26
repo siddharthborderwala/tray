@@ -50,6 +50,16 @@ describe("path resolution", () => {
     expect(safeNext("/\tevil")).toBe("/");
     expect(safeNext("javascript:alert(1)")).toBe("/");
     expect(safeNext("/.tray/signin?next=/x")).toBe("/");
+    // Dot segments that normalise to a protocol-relative `//host`.
+    for (const n of [
+      "/.//evil.com",
+      "/..//evil.com",
+      "/a/..//evil.com",
+      "/%2e//evil.com",
+      "/%2e%2e//evil.com",
+    ])
+      expect(safeNext(n)).toBe("/");
+    expect(safeNext("/docs/../deck")).toBe("/deck");
   });
 });
 
@@ -235,6 +245,9 @@ describe("private sites", () => {
     res = await visit("https://secret.thts.app/.tray/signin?next=https://evil.example", {
       headers,
     });
+    expect(res.headers.get("location")).toBe("/");
+
+    res = await visit("https://secret.thts.app/.tray/signin?next=/.//evil.example", { headers });
     expect(res.headers.get("location")).toBe("/");
 
     res = await visit("https://secret.thts.app/.tray/signin?next=/x");
