@@ -59,7 +59,7 @@ ${content}
 export function notFoundPage(next: string, email: string | null) {
   const signin = `/.tray/signin?next=${encodeURIComponent(next)}`;
   const who = email
-    ? `<p class="foot">Signed in as ${escapeHtml(email)} · <a href="/cdn-cgi/access/logout">Sign out</a></p>`
+    ? `<p class="foot">Signed in as ${escapeHtml(email)} · <a href="/.tray/signout">Sign out</a></p>`
     : "";
   return page(
     "Not found",

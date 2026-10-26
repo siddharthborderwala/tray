@@ -3,6 +3,7 @@
 import type { Manifest, ManifestEntry } from "@tray-sh/schema";
 import { SiteName } from "@tray-sh/schema";
 import type { Context } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { accessToken } from "./access.ts";
 import { messagePage, notFoundPage, PAGE_HEADERS } from "./pages.ts";
 import type { Ctx } from "./router.ts";
@@ -18,6 +19,14 @@ import {
 import { trayDomain } from "./domain.ts";
 
 export const SIGNIN_PATH = "/.tray/signin";
+export const SIGNOUT_PATH = "/.tray/signout";
+/**
+ * Who's signed in, as `__Host-tray_signin`: set by this Worker, for this host
+ * only, HttpOnly. `CF_Authorization` isn't trusted on site pages, because a
+ * sibling site's script can set one for the whole domain (and pick who you are).
+ */
+const SIGNIN_COOKIE = "tray_signin";
+const SIGNIN_MAX_AGE = 24 * 60 * 60; // Access's default session; the JWT's own exp still applies
 
 // Deploys are immutable, so manifests can be cached per isolate.
 const manifests = new Map<string, DeployRecord>();
@@ -83,9 +92,11 @@ function trayNotFound(c: Context<Ctx>, email: string | null) {
   return c.req.method === "HEAD" ? c.body(null, 404, headers) : c.body(html, 404, headers);
 }
 
-/** Who's signed in on this host, via the sign-in Access app's `CF_Authorization` cookie. */
-async function viewer(c: Context<Ctx>): Promise<string | null> {
-  const token = accessToken(c);
+/** Who's signed in on this host: our own sign-in cookie, or (on /.tray/signin) what Access passed in. */
+async function viewer(
+  c: Context<Ctx>,
+  token: string | undefined = getCookie(c, SIGNIN_COOKIE, "host"),
+): Promise<string | null> {
   if (!token) return null;
   const verified = await c.var.deps.verifyAccess(token, {
     teamDomain: c.env.ACCESS_TEAM_DOMAIN,
@@ -101,14 +112,15 @@ export function safeNext(next: string | undefined): string {
   const base = "https://tray.invalid";
   const url = new URL(next, base);
   // Dot segments normalise away (`/.//evil.com` → `//evil.com`), so check the result too.
-  if (url.origin !== base || url.pathname.startsWith("//") || url.pathname === SIGNIN_PATH)
+  if (url.origin !== base || url.pathname.startsWith("//") || url.pathname.startsWith("/.tray/"))
     return "/";
   return url.pathname + url.search + url.hash;
 }
 
 /** `/.tray/signin` sits behind the sign-in Access app; once Access lets the visitor through, send them on. */
 async function signin(c: Context<Ctx>) {
-  if (!(await viewer(c))) {
+  const token = accessToken(c);
+  if (!(await viewer(c, token))) {
     return c.html(
       messagePage(
         "Sign-in didn't complete",
@@ -118,7 +130,21 @@ async function signin(c: Context<Ctx>) {
       PAGE_HEADERS,
     );
   }
+  setCookie(c, SIGNIN_COOKIE, token!, {
+    prefix: "host",
+    path: "/",
+    secure: true,
+    httpOnly: true,
+    sameSite: "Lax",
+    maxAge: SIGNIN_MAX_AGE,
+  });
   return c.redirect(safeNext(c.req.query("next")), 302);
+}
+
+/** Forget our cookie, then let Access end its session too. */
+function signout(c: Context<Ctx>) {
+  deleteCookie(c, SIGNIN_COOKIE, { prefix: "host", path: "/", secure: true });
+  return c.redirect("/cdn-cgi/access/logout", 302);
 }
 
 export async function serveSite(c: Context<Ctx>): Promise<Response> {
@@ -127,6 +153,7 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   }
   const url = new URL(c.req.url);
   if (url.pathname === SIGNIN_PATH) return signin(c);
+  if (url.pathname === SIGNOUT_PATH) return signout(c);
 
   // The same lookups happen whether or not the site exists or is private, so
   // a missing site, a private one without sign-in, and one not shared with

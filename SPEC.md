@@ -599,12 +599,16 @@ A visitor must not be able to tell a private site from one that doesn't exist.
   `tray setup`: destination `*.<domain>/.tray/signin` plus each custom host,
   policy "anyone with an email code". Access only proves who the visitor is.
   The Worker decides what they can see.
-- After sign-in Access sets its `CF_Authorization` cookie for that host and the
-  Worker redirects to `next`. On every request to a private site the Worker
-  reads that cookie, verifies the JWT (team certs, sign-in app `aud`), and
-  checks the email against the owner and `sharedWith[]`.
+- After sign-in Access passes the visitor's JWT to `/.tray/signin`; the Worker
+  verifies it, stores it in its own `__Host-tray_signin` cookie (this host
+  only, Secure, HttpOnly, SameSite=Lax) and redirects to `next`. On every
+  request to a private site the Worker reads that cookie, verifies the JWT
+  (team certs, sign-in app `aud`), and checks the email against the owner
+  (`OWNER_EMAIL`) and `sharedWith[]`. `CF_Authorization` isn't trusted on
+  site pages: a sibling site's script could set one for the whole domain.
 - Signed-in visitors see "Signed in as <email> · Sign out" on the 404 page,
-  whether or not the site exists. Sign out goes to `/cdn-cgi/access/logout`.
+  whether or not the site exists. Sign out (`/.tray/signout`) clears the
+  cookie, then goes to `/cdn-cgi/access/logout`.
 - Public sites never touch Access.
 - Every person who signs in uses a Cloudflare Zero Trust seat (Free plan: 50).
   `tray setup` mentions this.

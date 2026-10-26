@@ -4,7 +4,7 @@ import { resolvePath, safeNext } from "../src/serve.ts";
 import { accessJwt, APPROVE_AUD, certsFetch, OWNER, setup, SIGNIN_AUD } from "./helpers.ts";
 
 const cookie = async (email: string, aud = SIGNIN_AUD) => ({
-  cookie: `CF_Authorization=${await accessJwt(email, aud)}`,
+  cookie: `__Host-tray_signin=${await accessJwt(email, aud)}`,
 });
 
 describe("path resolution", () => {
@@ -205,7 +205,7 @@ describe("private sites", () => {
     ];
     for (const token of bad) {
       const res = await visit("https://secret.acme.dev/", {
-        headers: { cookie: `CF_Authorization=${token}` },
+        headers: { cookie: `__Host-tray_signin=${token}` },
       });
       expect(res.status).toBe(404);
     }
@@ -239,7 +239,7 @@ describe("private sites", () => {
     const notShared = await snapshot(await visit("https://secret.acme.dev/page", { headers: eve }));
     expect(notShared).toEqual(missingSigned);
     expect(missingSigned.body).toContain("Signed in as eve@elsewhere.org");
-    expect(missingSigned.body).toContain('href="/cdn-cgi/access/logout"');
+    expect(missingSigned.body).toContain('href="/.tray/signout"');
 
     // A private custom host behaves the same as an unmapped one.
     expect(await snapshot(await visit("https://nothing.acme.com/page"))).toEqual(missing);
@@ -273,6 +273,34 @@ describe("private sites", () => {
 
     res = await visit("https://secret.acme.dev/.tray/signin?next=/x");
     expect(res.status).toBe(403);
+  });
+
+  test("sign-in sets a host-only cookie; a CF_Authorization cookie alone isn't trusted on pages", async () => {
+    const { deploy, visit } = await setup();
+    await deploy("secret", { "/index.html": "classified" }, { visibility: "private" });
+    const jwt = await accessJwt(OWNER, SIGNIN_AUD);
+    // A sibling site's script can set CF_Authorization for the whole domain.
+    expect(
+      (await visit("https://secret.acme.dev/", { headers: { cookie: `CF_Authorization=${jwt}` } }))
+        .status,
+    ).toBe(404);
+    // Access passes the visitor's token to /.tray/signin; the Worker keeps it in its own cookie.
+    const res = await visit("https://secret.acme.dev/.tray/signin?next=/", {
+      headers: { "cf-access-jwt-assertion": jwt },
+    });
+    const set = res.headers.get("set-cookie")!;
+    expect(set).toStartWith(`__Host-tray_signin=${jwt};`);
+    for (const attr of ["Path=/", "Secure", "HttpOnly", "SameSite=Lax"])
+      expect(set).toContain(attr);
+    expect(set).not.toContain("Domain");
+    const page = await visit("https://secret.acme.dev/", {
+      headers: { cookie: `__Host-tray_signin=${jwt}` },
+    });
+    expect(page.status).toBe(200);
+    // Sign out clears it, then ends the Access session.
+    const out = await visit("https://secret.acme.dev/.tray/signout");
+    expect(out.headers.get("location")).toBe("/cdn-cgi/access/logout");
+    expect(out.headers.get("set-cookie")).toContain("__Host-tray_signin=;");
   });
 
   test("public sites ignore Access entirely", async () => {
