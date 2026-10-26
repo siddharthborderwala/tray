@@ -34,7 +34,7 @@ Don't use it for secrets you wouldn't put on a website, or for files over 50 MB 
 ## Project
 
 - [About](${SITE_URL}/about.md): who makes Tray and how it is hosted
-- [Privacy](${SITE_URL}/privacy.md): no cookies, no analytics, no telemetry
+- [Privacy](${SITE_URL}/privacy.md): no cookies, cookieless page counts, no telemetry
 - [Contact](${SITE_URL}/contact.md): bugs, security reports, and everything else
 - [Source on GitHub](${GITHUB_URL}): the CLI, the Worker and this website
 `;

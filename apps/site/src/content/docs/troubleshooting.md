@@ -77,3 +77,13 @@ Private sites look like they don’t exist until you sign in. Ask them to click 
 $ tray share q3-review
 $ tray share q3-review bob@acme.com
 ```
+
+## A script you didn’t add
+
+```html
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" …></script>
+```
+
+That’s Cloudflare Web Analytics. When it’s on for your domain, Cloudflare adds this script to HTML pages, including your sites. It reports to your own Cloudflare account and sets no cookies. Tray doesn’t add it and doesn’t block it.
+
+Don’t want it? In the Cloudflare dashboard, open Web Analytics, find your domain and turn off automatic setup. Want it on only some sites? Turn off automatic setup and add the snippet to those sites yourself.
