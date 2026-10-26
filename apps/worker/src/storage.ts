@@ -35,6 +35,15 @@ export interface SiteMeta {
   updatedAt: string;
 }
 
+/**
+ * Who owns a site: the tray's owner (`OWNER_EMAIL`, set by `tray setup --email`)
+ * when set, so changing it moves every site with it and the old mailbox loses
+ * access. `createdBy` is only the fallback for trays without one.
+ */
+export function siteOwner(meta: Pick<SiteMeta, "createdBy">, env: Pick<Env, "OWNER_EMAIL">) {
+  return (env.OWNER_EMAIL || meta.createdBy).toLowerCase();
+}
+
 export interface DeployRecord {
   id: string;
   files: Manifest;

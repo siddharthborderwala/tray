@@ -144,6 +144,12 @@ export async function setup(
       "--email",
     );
 
+  if (previous?.email && previous.email !== email)
+    warn(
+      ctx,
+      `The owner changes from ${previous.email} to ${email}: every site, private ones included, moves to ${email}, and ${previous.email} loses access unless you share with it.`,
+    );
+
   const name = previous?.worker ?? resourceName(domain);
   const bucket = previous?.bucket ?? resourceName(domain);
   const api = `tray.${domain}`;

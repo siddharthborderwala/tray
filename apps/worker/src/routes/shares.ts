@@ -5,7 +5,7 @@ import { AddSharesRequest, type Share, ShareEntry, ShareList, SiteName } from "@
 import type { Env } from "../env.ts";
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
-import { loadSite, now, paths, putJson, type SiteMeta } from "../storage.ts";
+import { loadSite, now, paths, putJson, siteOwner, type SiteMeta } from "../storage.ts";
 
 const siteParam = z.object({ site: SiteName });
 
@@ -45,10 +45,10 @@ const removeShare = createRoute({
   responses: { 204: { description: "Removed (or wasn't shared)" }, ...errors(404, 409) },
 });
 
-function shareList(meta: SiteMeta): { data: Share[] } {
+function shareList(meta: SiteMeta, env: Env): { data: Share[] } {
   return {
     data: [
-      { entry: meta.createdBy, owner: true },
+      { entry: siteOwner(meta, env), owner: true },
       ...meta.sharedWith.map((entry) => ({ entry, owner: false })),
     ],
   };
@@ -69,13 +69,13 @@ async function privateSite(env: Env, name: string) {
 export const shares = newRouter()
   .openapi(listShares, async (c) => {
     const meta = await privateSite(c.env, c.req.valid("param").site);
-    return c.json(shareList(meta), 200);
+    return c.json(shareList(meta, c.env), 200);
   })
 
   .openapi(addShares, async (c) => {
     const { site: name } = c.req.valid("param");
     const meta = await privateSite(c.env, name);
-    const owner = meta.createdBy.toLowerCase();
+    const owner = siteOwner(meta, c.env);
     const added = c.req
       .valid("json")
       .entries.map((e) => e.toLowerCase())
@@ -85,14 +85,14 @@ export const shares = newRouter()
       meta.updatedAt = now();
       await putJson(c.env.BUCKET, paths.meta(name), meta);
     }
-    return c.json(shareList(meta), 200);
+    return c.json(shareList(meta, c.env), 200);
   })
 
   .openapi(removeShare, async (c) => {
     const { site: name, entry: raw } = c.req.valid("param");
     const entry = raw.toLowerCase();
     const meta = await privateSite(c.env, name);
-    if (entry === meta.createdBy.toLowerCase()) {
+    if (entry === siteOwner(meta, c.env)) {
       throw new TrayError(400, "invalid_request", "the owner can't be removed", { param: "entry" });
     }
     if (meta.sharedWith.includes(entry)) {

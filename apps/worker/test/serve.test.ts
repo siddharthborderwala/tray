@@ -184,6 +184,16 @@ describe("private sites", () => {
     }
   });
 
+  test("after `tray setup --email` changes the owner, sites move to the new owner", async () => {
+    // Sites were put by OWNER; the tray's owner is now someone else.
+    const { deploy, visit } = await setup({ OWNER_EMAIL: "new@acme.io" });
+    await deploy("secret", { "/index.html": "classified" }, { visibility: "private" });
+    const as = async (email: string) =>
+      (await visit("https://secret.acme.dev/", { headers: await cookie(email) })).status;
+    expect(await as("new@acme.io")).toBe(200);
+    expect(await as(OWNER)).toBe(404);
+  });
+
   test("tokens with the wrong aud, wrong issuer, or expired are ignored", async () => {
     const { deploy, visit } = await setup();
     await deploy("secret", { "/index.html": "classified" }, { visibility: "private" });

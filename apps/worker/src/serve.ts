@@ -12,6 +12,7 @@ import {
   getText,
   type HostRecord,
   paths,
+  siteOwner,
   type SiteMeta,
 } from "./storage.ts";
 import { trayDomain } from "./domain.ts";
@@ -50,13 +51,11 @@ async function siteForHost(c: Context<Ctx>, host: string): Promise<string | null
   return record?.site ?? null;
 }
 
-export function canView(meta: SiteMeta, email: string) {
+export function canView(meta: SiteMeta, email: string, owner: string = meta.createdBy) {
   const e = email.toLowerCase();
   const domain = "@" + e.split("@").pop();
   return (
-    meta.createdBy.toLowerCase() === e ||
-    meta.sharedWith.includes(e) ||
-    meta.sharedWith.includes(domain)
+    owner.toLowerCase() === e || meta.sharedWith.includes(e) || meta.sharedWith.includes(domain)
   );
 }
 
@@ -141,7 +140,8 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   let email: string | null = null;
   if (!meta || meta.visibility === "private") {
     email = await viewer(c);
-    if (!meta || !current || !email || !canView(meta, email)) return trayNotFound(c, email);
+    if (!meta || !current || !email || !canView(meta, email, siteOwner(meta, c.env)))
+      return trayNotFound(c, email);
   }
   if (!meta || !current) return trayNotFound(c, email);
 
