@@ -17,6 +17,7 @@ import {
   ensureRoute,
   ensureWildcardDns,
   findZone,
+  subdomainsTakenOver,
   loadWorkerSource,
   TOKEN_PERMISSIONS,
   uploadWorker,
@@ -206,6 +207,13 @@ export async function setup(
   spin.stop("Routes + DNS ready");
   report(ctx, "Routes + DNS", `*.${domain}, ${api}`);
   if (dnsWarning) warn(ctx, dnsWarning);
+  const takenOver = await subdomainsTakenOver(cf, zoneId, domain);
+  if (takenOver.length) {
+    warn(
+      ctx,
+      `*.${domain}/* now sends ${takenOver.join(", ")} to Tray, so they show the Tray 404. Tray works best on a domain of its own.`,
+    );
+  }
   report(ctx, "Access", `${approveUri} → ${email}`);
   report(ctx, "Sign-in", `${signinUri} (email code)`);
 

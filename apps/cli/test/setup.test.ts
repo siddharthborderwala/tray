@@ -169,8 +169,12 @@ function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: s
       return ok({});
     }
     if (route === `GET /zones/${ZONE}/dns_records`) {
+      const name = url.searchParams.get("name");
+      const proxied = url.searchParams.get("proxied");
       return ok(
-        state.dns.filter((r) => r.name === url.searchParams.get("name")),
+        state.dns.filter(
+          (r) => (!name || r.name === name) && (!proxied || String(r.proxied) === proxied),
+        ),
         { total_pages: 1 },
       );
     }
@@ -385,6 +389,29 @@ describe("tray setup", () => {
     });
     await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
     expect(err.join("\n")).toContain("isn't proxied");
+  });
+
+  test("warns about existing subdomains the wildcard route takes over", async () => {
+    const cf = fakeCloudflare();
+    for (const [name, proxied] of [
+      ["www.thts.app", true],
+      ["blog.thts.app", true],
+      ["mail.thts.app", false], // DNS only: the route never sees it
+      ["thts.app", true],
+    ] as const) {
+      cf.state.dns.push({ id: name, name, type: "A", content: "192.0.2.1", proxied });
+    }
+    await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
+    const warning = err.find((l) => l.includes("now sends"))!;
+    expect(warning).toContain("blog.thts.app, www.thts.app to Tray");
+    expect(warning).not.toContain("mail.thts.app");
+    expect(warning).not.toContain("*.thts.app,");
+  });
+
+  test("no takeover warning on a domain with no other subdomains", async () => {
+    const cf = fakeCloudflare();
+    await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
+    expect(err.join("\n")).not.toContain("now sends");
   });
 
   test("Zero Trust off → exit 1 with the enable link, before creating anything", async () => {

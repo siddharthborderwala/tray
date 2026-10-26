@@ -375,6 +375,29 @@ export async function ensureRoute(
 }
 
 /**
+ * Proxied hostnames under `<domain>` that the `*.<domain>/*` route now sends
+ * to Tray (so they show the Tray 404). Best effort: `[]` if listing fails.
+ */
+export async function subdomainsTakenOver(
+  cf: CloudflareClient,
+  zoneId: string,
+  domain: string,
+): Promise<string[]> {
+  try {
+    const records = await cf.list<{ name: string; proxied?: boolean }>(
+      `/zones/${zoneId}/dns_records?proxied=true`,
+    );
+    const ours = new Set([`*.${domain}`, `tray.${domain}`]);
+    const names = records
+      .filter((r) => r.proxied && r.name.endsWith(`.${domain}`) && !ours.has(r.name))
+      .map((r) => r.name);
+    return [...new Set(names)].sort();
+  } catch {
+    return [];
+  }
+}
+
+/**
  * `*.<domain>` must resolve through Cloudflare's proxy for the route to run.
  * Creates a proxied placeholder AAAA (100::) if no wildcard record exists.
  * Returns a warning when an existing wildcard record isn't proxied.
