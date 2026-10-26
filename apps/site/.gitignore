@@ -1,4 +1,4 @@
-public/install
-
 # Berkeley Mono is licensed per person. Never commit it; see README.md.
 public/fonts/
+
+.wrangler/

@@ -11,6 +11,7 @@ interface Props {
   current?: string;
   sections?: { id: string; label: string }[];
   noindex?: boolean;
+  home?: boolean;
 }
 const { current, sections, ...head } = Astro.props;
 ---
@@ -19,10 +20,12 @@ const { current, sections, ...head } = Astro.props;
   <a class="skip" href="#main">Skip to content</a>
   <div class="shell">
     <Sidebar current={current} sections={sections} />
-    <main id="main" class="main">
-      <slot />
+    <div class="column">
+      <main id="main" class="main">
+        <slot />
+      </main>
       <Footer />
-    </main>
+    </div>
   </div>
   <div class="toast" role="status" aria-live="polite"></div>
   <Behavior />

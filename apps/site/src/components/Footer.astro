@@ -1,6 +1,6 @@
 ---
 import Wordmark from "./Wordmark.astro";
-import { AUTHOR_NAME, AUTHOR_URL, MOTTO } from "../lib/site";
+import { AUTHOR_NAME, AUTHOR_URL, FOOTER_PAGES, MOTTO } from "../lib/site";
 ---
 
 <footer class="footer">
@@ -9,10 +9,24 @@ import { AUTHOR_NAME, AUTHOR_URL, MOTTO } from "../lib/site";
       <Wordmark period="blue" />
       <p>{MOTTO}</p>
     </div>
-    <p class="made">
-      Made with <span class="heart" aria-hidden="true">♥</span><span class="sr-only">love</span>{" "}by{" "}<a href={AUTHOR_URL} rel="author noopener" target="_blank"
-        >{AUTHOR_NAME}&nbsp;↗<span class="sr-only"> (opens in a new tab)</span></a
-      >
-    </p>
+    <div class="footer-end">
+      <nav aria-label="About Tray">
+        <ul class="footer-links">
+          {
+            FOOTER_PAGES.map((p) => (
+              <li>
+                <a href={p.href}>{p.label}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+      <p class="made">
+        Made with <span class="heart" role="img" aria-label="love">♥</span> by{" "}<a
+          href={AUTHOR_URL}
+          rel="author">{AUTHOR_NAME}&nbsp;↗</a
+        >
+      </p>
+    </div>
   </div>
 </footer>

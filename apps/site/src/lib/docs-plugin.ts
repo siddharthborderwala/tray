@@ -69,8 +69,10 @@ const hasFlag = (meta: string, key: string) =>
 // ---------------------------------------------------------------------------
 // Code blocks
 
-const copyButton = (text: string) =>
-  h("button", { type: "button", className: ["copy"], dataCopy: text }, [t("copy")]);
+const copyButton = (text: string, label = "copy code") =>
+  h("button", { type: "button", className: ["copy"], ariaLabel: label, dataCopy: text }, [
+    t("copy"),
+  ]);
 
 const prompt = () => h("span", { className: ["prompt"], ariaHidden: "true" }, [t("›")]);
 
@@ -113,6 +115,11 @@ function codeBlock(code: Element): Element {
   }
 
   const copyText = hasPrompt ? commands.join("\n") : raw;
+  const copyLabel = hasPrompt
+    ? commands.length > 1
+      ? "copy commands"
+      : "copy command"
+    : "copy code";
   const body: Node[] = [];
   if (title) body.push(h("span", { className: ["code-title"] }, [t(title)]));
   body.push(...out);
@@ -125,7 +132,7 @@ function codeBlock(code: Element): Element {
 
   return h("div", { className: classes }, [
     h("pre", { tabIndex: 0 }, [h("code", {}, body)]),
-    ...(lang === "text" ? [] : [copyButton(copyText)]),
+    ...(lang === "text" ? [] : [copyButton(copyText, copyLabel)]),
   ]);
 }
 
@@ -170,7 +177,7 @@ function tabsBlock(labels: string[], lines: string[]): Element {
             ]),
           ]),
         ]),
-        copyButton(first),
+        copyButton(first, "copy command"),
       ],
     ),
   ]);
@@ -213,14 +220,30 @@ function transform(node: Element | Root): void {
 
     if (child.tagName === "table") {
       child.properties.className = [tableClass(child)];
+      // No visible header row in the design: drop <thead> and make each row's
+      // first cell its header, so the table still reads well.
+      child.children = child.children.filter((part) => !isEl(part, "thead"));
       for (const part of child.children) {
-        if (isEl(part, "thead")) part.properties.className = ["sr-only"];
+        if (!isEl(part, "tbody")) continue;
+        for (const row of part.children) {
+          if (!isEl(row, "tr")) continue;
+          const first = row.children.find((c) => isEl(c, "td"));
+          if (isEl(first)) {
+            first.tagName = "th";
+            first.properties = { ...first.properties, scope: "row" };
+          }
+        }
       }
       return h("div", { className: ["table"] }, [child]);
     }
 
     if (child.tagName === "h3") {
+      // `### \`tray list\` (alias \`ls\`)` is a command signature; plain text is a small label.
       const text = textOf(child).trim();
+      if (!child.children.some((c) => isEl(c, "code"))) {
+        child.properties.className = ["label"];
+        return child;
+      }
       const m = /^(.*?)\s*\(alias (\S+)\)$/.exec(text);
       child.properties.className = ["signature"];
       child.children = m

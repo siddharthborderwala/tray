@@ -1,7 +1,7 @@
 #!/bin/sh
-# Converts your licensed Berkeley Mono Variable to woff2 for the site.
+# Subsets your licensed Berkeley Mono Variable to woff2 for the site.
 #   bun run font [path/to/Berkeley Mono Variable.otf]
-# Needs woff2_compress (brew install woff2). The output is gitignored.
+# Needs fonttools with brotli (brew install fonttools). The output is gitignored.
 set -eu
 
 src="${1:-$HOME/Library/Fonts/Berkeley Mono Variable.otf}"
@@ -12,12 +12,13 @@ if [ ! -f "$src" ]; then
   echo "Pass the path: bun run font /path/to/BerkeleyMonoVariable.otf" >&2
   exit 1
 fi
-command -v woff2_compress >/dev/null || { echo "error: woff2_compress not found (brew install woff2)" >&2; exit 1; }
+command -v pyftsubset >/dev/null || { echo "error: pyftsubset not found (brew install fonttools)" >&2; exit 1; }
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-cp "$src" "$tmp/font.otf"
-woff2_compress "$tmp/font.otf" >/dev/null
+# Latin, Latin-1, and the punctuation, arrows and symbols the site uses.
 mkdir -p public/fonts
-mv "$tmp/font.woff2" "$out"
-echo "wrote $out"
+pyftsubset "$src" \
+  --unicodes="U+0020-007E,U+00A0-00FF,U+2013-2014,U+2018-201D,U+2022,U+2026,U+203A,U+2190-2193,U+2197,U+2665" \
+  --layout-features="*" \
+  --flavor=woff2 \
+  --output-file="$out"
+echo "wrote $out ($(wc -c < "$out" | tr -d ' ') bytes)"

@@ -1,24 +1,23 @@
 ---
-import type { GetStaticPaths } from "astro";
-import { getCollection, render } from "astro:content";
+// Docs pages are rendered on demand so the middleware can answer
+// `Accept: text/markdown` on the same URL. Their Markdown twins are prerendered.
+import { getEntry, render } from "astro:content";
 import Docs from "../layouts/Docs.astro";
 import Hero from "../components/Hero.astro";
 import PageHeader from "../components/PageHeader.astro";
-import { PAGES, SITE_NAME, TAGLINE, markdownHref } from "../lib/site";
+import { ALL_PAGES, PAGES, SITE_NAME, TAGLINE, markdownHref } from "../lib/site";
 
-export const getStaticPaths = (async () => {
-  const docs = await getCollection("docs");
-  return docs.map((doc) => ({
-    params: { slug: doc.id === "index" ? undefined : doc.id },
-    props: { doc },
-  }));
-}) satisfies GetStaticPaths;
+const path = `/${Astro.params.slug ?? ""}`;
+const entry = ALL_PAGES.find((p) => p.href === path);
+const doc = entry && (await getEntry("docs", entry.id));
+if (!doc) return Astro.rewrite("/404");
 
-const { doc } = Astro.props;
 const { Content, headings } = await render(doc);
-const page = PAGES.find((p) => p.id === doc.id);
 const overview = doc.id === "index";
-const sections = headings.filter((h) => h.depth === 2).map((h) => ({ id: h.slug, label: h.text }));
+const inSidebar = PAGES.some((p) => p.id === doc.id);
+const sections = inSidebar
+  ? headings.filter((h) => h.depth === 2).map((h) => ({ id: h.slug, label: h.text }))
+  : [];
 const title = overview ? `${SITE_NAME} · ${TAGLINE}` : `${doc.data.title} · ${SITE_NAME}`;
 ---
 
@@ -26,8 +25,9 @@ const title = overview ? `${SITE_NAME} · ${TAGLINE}` : `${doc.data.title} · ${
   title={title}
   description={doc.data.description}
   markdown={markdownHref(doc.id)}
-  current={page?.id}
+  current={doc.id}
   sections={sections}
+  home={overview}
 >
   {
     overview ? (

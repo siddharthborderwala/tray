@@ -66,7 +66,7 @@ Uploads are content-addressed, so unchanged files are never sent twice. Publishi
 
 ## Endpoints
 
-#### Sites
+### Sites
 
 | Method   | Path                      | What                                       |
 | -------- | ------------------------- | ------------------------------------------ |
@@ -80,7 +80,7 @@ Uploads are content-addressed, so unchanged files are never sent twice. Publishi
 | `GET`    | `/sites/<site>/deploys`   | Recent versions.                           |
 | `POST`   | `/sites/<site>/rollback`  | Go back a version.                         |
 
-#### Sharing, domains, keys
+### Sharing, domains, keys
 
 | Method | Path                   | What                                                       |
 | ------ | ---------------------- | ---------------------------------------------------------- |
@@ -88,7 +88,7 @@ Uploads are content-addressed, so unchanged files are never sent twice. Publishi
 | `GET`  | `/domains`             | Custom domains. POST to add, DELETE to remove.             |
 | `GET`  | `/keys`                | API keys. POST to create, DELETE to revoke.                |
 
-#### Login
+### Login
 
 | Method | Path                       | What                                     |
 | ------ | -------------------------- | ---------------------------------------- |

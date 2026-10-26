@@ -1,13 +1,15 @@
 /* Tray: four colors, one typeface, square corners. */
 
+/* Berkeley Mono's @font-face is inlined by Base.astro when the font is present.
+   This fallback is metric-matched (600/1000 advance, 956/244 ascent/descent),
+   so swapping in the webfont doesn't shift the layout. */
 @font-face {
-  font-family: "Berkeley Mono Variable";
-  src:
-    url("/fonts/BerkeleyMonoVariable.woff2") format("woff2-variations"),
-    url("/fonts/BerkeleyMonoVariable.woff2") format("woff2");
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
+  font-family: "Berkeley Mono Fallback";
+  src: local("Menlo"), local("DejaVu Sans Mono"), local("Liberation Mono"), local("Courier New");
+  size-adjust: 99.7%;
+  ascent-override: 95.9%;
+  descent-override: 24.5%;
+  line-gap-override: 0%;
 }
 
 :root {
@@ -20,8 +22,13 @@
   --hairline: #dddbd0;
   --gray-1: #5a5a5a;
   --gray-2: #6b6b6b;
-  --gray-comment: #8c8c8c;
-  --gray-3: #9a9a9a;
+  --gray-3: #727272;
+
+  /* On the gray code background, text must stay at 4.5:1 or better:
+     deep blue becomes #235EE3 (4.64), grays step down to #5A5A5A and #666666. */
+  --blue-on-gray: #235ee3;
+  --gray-on-gray: #5a5a5a;
+  --comment-on-gray: #666666;
 
   --mono:
     "Berkeley Mono Variable", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
@@ -139,10 +146,15 @@ button {
   padding-right: 24px;
 }
 
-.main {
+.column {
   width: var(--content);
   min-width: 0;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+.main {
   padding-top: 52px;
   display: flex;
   flex-direction: column;
@@ -304,7 +316,12 @@ button {
   -webkit-text-stroke: 1.5px var(--blue);
   user-select: none;
 }
-.hero-mark .period {
+/* Drawn with generated content so it isn't page text. */
+.hero-mark::before {
+  content: "tray";
+}
+.hero-mark::after {
+  content: "";
   width: 0.18em;
   height: 0.18em;
   border: 1.5px solid var(--blue);
@@ -394,10 +411,10 @@ button {
   font-size: 12px;
   line-height: 16px;
   font-weight: 400;
-  color: var(--gray-2);
+  color: var(--gray-on-gray);
 }
 
-.prose h4 {
+.prose h3.label {
   font-size: 12px;
   line-height: 16px;
   font-weight: 400;
@@ -482,7 +499,7 @@ button {
   gap: 12px;
 }
 .prompt {
-  color: var(--blue);
+  color: var(--blue-on-gray);
   flex-shrink: 0;
 }
 .line.cont {
@@ -490,23 +507,23 @@ button {
 }
 .line.out {
   padding-left: 22px;
-  color: var(--gray-2);
+  color: var(--gray-on-gray);
 }
 .line.comment {
-  color: var(--gray-comment);
+  color: var(--comment-on-gray);
 }
 .line.gap {
   height: 10px;
 }
 .code.response .line.plain {
-  color: var(--blue);
+  color: var(--blue-on-gray);
 }
 .code-title {
   display: block;
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.04em;
-  color: var(--gray-2);
+  color: var(--gray-on-gray);
 }
 
 /* Copy button */
@@ -519,7 +536,7 @@ button {
   border: 1px solid var(--hairline);
   font-size: 12px;
   line-height: 16px;
-  color: var(--gray-2);
+  color: var(--gray-on-gray);
 }
 .copy:hover {
   color: var(--ink);
@@ -534,7 +551,7 @@ button {
   width: 5px;
   height: 5px;
   border-radius: 1px;
-  background: var(--blue);
+  background: var(--blue-on-gray);
 }
 
 /* Install tabs */
@@ -556,10 +573,10 @@ button {
   color: var(--ink);
 }
 .tablist [role="tab"]:hover {
-  color: var(--blue);
+  color: var(--blue-on-gray);
 }
 .tablist [role="tab"][aria-selected="true"] {
-  color: var(--blue);
+  color: var(--blue-on-gray);
   font-weight: 600;
 }
 .tabpanel {
@@ -570,7 +587,7 @@ button {
 }
 
 /* ------------------------------------------------------------------ */
-/* Tables: hairline rows */
+/* Tables: hairline rows. The first cell of a row is its <th scope="row">. */
 
 .table {
   max-width: 100%;
@@ -578,40 +595,41 @@ button {
 .prose table {
   width: 100%;
   border-collapse: collapse;
+  border-top: 1px solid var(--hairline);
   font-size: 14px;
   line-height: 22px;
 }
+.prose tr {
+  border-bottom: 1px solid var(--hairline);
+}
+.prose th,
 .prose td {
   padding: 11px 0;
-  border-bottom: 1px solid var(--hairline);
   vertical-align: top;
   text-align: left;
+  font-weight: 400;
   color: var(--gray-1);
 }
-.prose table:not(.t-endpoints) tbody tr:first-child td,
-.prose .t-endpoints tbody tr:first-child {
-  border-top: 1px solid var(--hairline);
-}
-.prose td + td {
+.prose td {
   padding-left: 16px;
 }
-.prose td:first-child {
+.prose th {
   color: var(--ink);
   font-weight: 500;
   overflow-wrap: normal;
 }
-.t-flags td:first-child {
-  width: 216px; /* 200px + the 16px gap */
+.t-flags th {
+  width: 200px;
 }
-.t-wide td:first-child {
-  width: 236px;
+.t-wide th {
+  width: 220px;
 }
-.t-narrow td:first-child {
-  width: 76px;
+.t-narrow th {
+  width: 60px;
 }
 
-.t-steps td:first-child {
-  width: 40px;
+.t-steps th {
+  width: 24px;
   color: var(--blue);
   font-weight: 600;
 }
@@ -627,16 +645,12 @@ button {
   column-gap: 16px;
   row-gap: 2px;
   padding: 11px 0;
-  border-bottom: 1px solid var(--hairline);
 }
+.t-endpoints th,
 .t-endpoints td {
   padding: 0;
-  border: 0;
 }
-.t-endpoints td + td {
-  padding-left: 0;
-}
-.t-endpoints td:first-child {
+.t-endpoints th {
   grid-row: span 2;
   font-size: 13px;
   font-weight: 600;
@@ -674,6 +688,29 @@ button {
   font-size: 13px;
   line-height: 16px;
   color: var(--gray-2);
+}
+.footer-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.footer-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  line-height: 16px;
+}
+.footer-links a {
+  display: inline-block;
+  padding-block: 4px;
+  color: var(--gray-2);
+}
+.footer-links a:hover {
+  color: var(--ink);
 }
 .made .heart {
   color: var(--blue);
@@ -755,9 +792,13 @@ button {
     padding-block: 4px;
   }
 
-  .main {
+  .column {
     width: auto;
-    padding: 32px 16px 0;
+    padding: 0 16px;
+    gap: 48px;
+  }
+  .main {
+    padding-top: 32px;
     gap: 48px;
   }
 
@@ -790,34 +831,33 @@ button {
   }
 
   /* Rows stack: name above its meaning. */
-  .prose table:not(.t-endpoints) tr {
+  .prose table:not(.t-endpoints):not(.t-steps) tr {
     display: flex;
     flex-direction: column;
     gap: 2px;
     padding: 11px 0;
-    border-bottom: 1px solid var(--hairline);
   }
-  .prose table:not(.t-endpoints) tbody tr td {
+  .prose table:not(.t-endpoints):not(.t-steps) :is(th, td) {
     width: auto;
     padding: 0;
-    border: 0;
-  }
-  .prose table:not(.t-endpoints) tbody tr:first-child {
-    border-top: 1px solid var(--hairline);
-  }
-  .prose table:not(.t-endpoints) tbody tr:first-child td {
-    border-top: 0;
   }
   .t-steps tr {
-    display: grid !important;
+    display: grid;
     grid-template-columns: 24px 1fr;
     column-gap: 12px;
+    padding: 11px 0;
   }
-  .t-steps td:first-child {
+  .t-steps th,
+  .t-steps td {
+    width: auto !important;
+    padding: 0;
+  }
+  .t-steps th {
     grid-row: span 2;
   }
 
-  .footer-row {
+  .footer-row,
+  .footer-end {
     flex-direction: column;
     align-items: flex-start;
   }

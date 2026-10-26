@@ -6,6 +6,10 @@ export const TAGLINE = "Artifacts for every agent.";
 export const MOTTO = "Put it on a tray. Pass it around.";
 export const VERSION = "v0.1.0";
 export const GITHUB_URL = "https://github.com/siddharthborderwala/tray";
+export const ISSUES_URL = `${GITHUB_URL}/issues`;
+export const SECURITY_URL = `${GITHUB_URL}/security/advisories/new`;
+export const DESCRIPTION =
+  "Tray turns a folder or an HTML file into a link you can share. Open source and self-hosted on your own Cloudflare account. For you, your agents and your friends.";
 
 /** Footer "Made with ♥ by Sid ↗". */
 export const AUTHOR_NAME = "Sid";
@@ -19,7 +23,14 @@ export const PAGES = [
   { id: "troubleshooting", label: "Troubleshooting", href: "/troubleshooting" },
 ] as const;
 
-export type PageId = (typeof PAGES)[number]["id"];
+/** Linked from the footer only. */
+export const FOOTER_PAGES = [
+  { id: "about", label: "About", href: "/about" },
+  { id: "contact", label: "Contact", href: "/contact" },
+  { id: "privacy", label: "Privacy", href: "/privacy" },
+] as const;
+
+export const ALL_PAGES = [...PAGES, ...FOOTER_PAGES];
 
 /** `/` → `/index.md`, `/cli` → `/cli.md`. */
 export const markdownHref = (id: string) => `/${id}.md`;

@@ -11,7 +11,7 @@ interface Props {
 const { current, sections = [] } = Astro.props;
 ---
 
-<aside class="sidebar">
+<header class="sidebar">
   <div class="sidebar-top">
     <Wordmark href="/" />
     <button class="menu" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
@@ -45,4 +45,4 @@ const { current, sections = [] } = Astro.props;
       <span>{VERSION}</span> · <a href={GITHUB_URL}>GitHub</a> · <a href="/llms.txt">llms.txt</a>
     </p>
   </div>
-</aside>
+</header>

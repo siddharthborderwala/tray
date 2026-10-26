@@ -2,11 +2,17 @@
 import Docs from "../layouts/Docs.astro";
 import PageHeader from "../components/PageHeader.astro";
 import { SITE_NAME } from "../lib/site";
+
+Astro.response.status = 404;
 ---
 
-<Docs title={`Not found · ${SITE_NAME}`} description="Nothing on this tray." noindex>
+<Docs title={`Not found · ${SITE_NAME}`} description="Nothing on this tray at that address." noindex>
   <PageHeader title="404" description="Nothing on this tray. The page moved, or never existed." />
   <div class="prose">
-    <p class="more"><a href="/">Back to the overview →</a></p>
+    <p>
+      Try the <a href="/">overview</a>, or the <a href="/cli">CLI</a> and <a href="/api">API</a> docs.
+      Agents can start from <a href="/llms.txt">llms.txt</a>, and every page is listed in the
+      <a href="/sitemap.xml">sitemap</a>.
+    </p>
   </div>
 </Docs>

@@ -1,8 +1,13 @@
 ---
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import "../styles/global.css";
-import { SITE_NAME, SITE_URL } from "../lib/site";
+import {
+  DESCRIPTION,
+  GITHUB_URL,
+  ISSUES_URL,
+  SITE_NAME,
+  SITE_URL,
+  TAGLINE,
+} from "../lib/site";
 
 interface Props {
   title: string;
@@ -10,13 +15,49 @@ interface Props {
   /** Markdown version of this page, e.g. /cli.md. */
   markdown?: string;
   noindex?: boolean;
+  /** The homepage carries the JSON-LD. */
+  home?: boolean;
 }
 
-const { title, description, markdown, noindex = false } = Astro.props;
+const { title, description, markdown, noindex = false, home = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), SITE_URL).href;
-// Berkeley Mono is licensed and not in the repo. Only preload it when it was provided.
+const ogImage = `${SITE_URL}/og.png`;
+
+// Berkeley Mono is licensed and not in the repo. Vite resolves this glob at build
+// time, so the @font-face and preload only exist when the file was provided.
 const FONT = "/fonts/BerkeleyMonoVariable.woff2";
-const hasFont = existsSync(join(process.cwd(), "public", FONT));
+const hasFont = Object.keys(import.meta.glob("../../public/fonts/BerkeleyMonoVariable.woff2")).length > 0;
+const fontFace = `@font-face{font-family:"Berkeley Mono Variable";src:url("${FONT}") format("woff2");font-weight:400 700;font-style:normal;font-display:swap}`;
+
+const jsonLd = home
+  ? JSON.stringify([
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: SITE_NAME,
+        description: DESCRIPTION,
+        url: `${SITE_URL}/`,
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "macOS, Linux, Windows",
+        offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+        license: "https://opensource.org/licenses/MIT",
+        sameAs: [GITHUB_URL],
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        name: SITE_NAME,
+        url: `${SITE_URL}/`,
+        logo: `${SITE_URL}/og.png`,
+        sameAs: [GITHUB_URL],
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "technical support",
+          url: ISSUES_URL,
+        },
+      },
+    ])
+  : undefined;
 ---
 
 <!doctype html>
@@ -28,20 +69,29 @@ const hasFont = existsSync(join(process.cwd(), "public", FONT));
     <meta name="description" content={description} />
     <meta name="theme-color" content="#FAF9F0" />
     <meta name="color-scheme" content="light" />
+    <meta name="is-agentic-site-type" content="content" />
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     {markdown && <link rel="alternate" type="text/markdown" href={markdown} />}
     <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
     <link rel="sitemap" href="/sitemap.xml" />
     {hasFont && <link rel="preload" href={FONT} as="font" type="font/woff2" crossorigin />}
+    {hasFont && <style is:inline set:html={fontFace} />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${SITE_NAME}: ${TAGLINE}`} />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={`${SITE_NAME}: ${TAGLINE}`} />
+    {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
     <script is:inline>document.documentElement.classList.add("js");</script>
   </head>
   <body>
