@@ -24,7 +24,7 @@ export interface ZeroTrustDeps {
   waitForEnter?: (message: string) => Promise<void>;
 }
 
-async function pressEnter(message: string): Promise<void> {
+export async function pressEnter(message: string): Promise<void> {
   const answer = await p.text({ message, placeholder: "Enter", output: process.stderr });
   if (p.isCancel(answer)) throw cancelled();
 }
@@ -59,8 +59,9 @@ export async function requireZeroTrust(
   }
 
   p.log.info(`Tray uses Zero Trust for sign-in. ${ZERO_TRUST_STEPS}`, { output: process.stderr });
-  (deps.open ?? openBrowser)(ZERO_TRUST_URL);
   const wait = deps.waitForEnter ?? pressEnter;
+  await wait("Press Enter to open Cloudflare");
+  (deps.open ?? openBrowser)(ZERO_TRUST_URL);
   while (!team) {
     await wait("Press Enter once it's enabled");
     team = await zeroTrustTeam(cf, accountId);

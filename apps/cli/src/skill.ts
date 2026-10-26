@@ -3,10 +3,12 @@
 import * as p from "@clack/prompts";
 import { parse } from "@bomb.sh/router";
 import {
+  closeSync,
   constants,
   existsSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
   realpathSync,
   writeFileSync,
@@ -109,7 +111,12 @@ function writeSkillFile(file: string, content: string, root?: string): boolean {
     if (real !== base && !real.startsWith(base + sep)) return false;
   }
   const { O_WRONLY, O_CREAT, O_TRUNC, O_NOFOLLOW } = constants;
-  writeFileSync(file, content, { flag: O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW });
+  const fd = openSync(file, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0o644);
+  try {
+    writeFileSync(fd, content);
+  } finally {
+    closeSync(fd);
+  }
   return true;
 }
 

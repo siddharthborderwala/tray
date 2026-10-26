@@ -23,7 +23,7 @@ import {
   uploadWorker,
 } from "../setup/cloudflare.ts";
 import { tokenTemplateUrl } from "../setup/token.ts";
-import { requireZeroTrust, type ZeroTrustDeps } from "../setup/zero-trust.ts";
+import { pressEnter, requireZeroTrust, type ZeroTrustDeps } from "../setup/zero-trust.ts";
 import { loadSetups, resourceName, saveSetup, savedToken, saveToken } from "../setup/state.ts";
 import { offerSkillInstall } from "../skill.ts";
 import { Email } from "@tray-sh/schema";
@@ -60,6 +60,8 @@ async function askToken(ctx: Ctx, domain: string, deps: SetupDeps): Promise<stri
     ctx,
     `Create a Cloudflare API token (this link pre-fills everything; click Continue, then Create):\n${link}`,
   );
+  // Let them read the instructions first; open the browser when they're ready.
+  await (deps.waitForEnter ?? pressEnter)("Press Enter to open Cloudflare");
   (deps.open ?? openBrowser)(link);
   const answer = await p.password({
     message: "Paste the token",

@@ -460,12 +460,13 @@ describe("tray setup", () => {
       open: (url) => opened.push(url),
       waitForEnter: async () => {
         presses++;
-        if (presses === 2) cf.enableZeroTrust(); // enabled before the second Enter
+        expect(opened.length).toBe(presses === 1 ? 0 : 1); // opens only after the first Enter
+        if (presses === 3) cf.enableZeroTrust(); // enabled before the third Enter
       },
     });
     expect(team).toBe("acme.cloudflareaccess.com");
     expect(opened).toEqual(["https://one.dash.cloudflare.com/"]);
-    expect(presses).toBe(2);
+    expect(presses).toBe(3);
   });
 
   test("interactive: Esc / Ctrl-C at the wait exits 130", async () => {
