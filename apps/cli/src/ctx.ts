@@ -159,14 +159,25 @@ export function apiFor(ctx: Ctx, domain: string, key?: string): Api {
   });
 }
 
-/** Open a URL in the default browser. Best effort. */
+/**
+ * Open an http(s) URL in the default browser. Best effort. Anything else (an
+ * `-a App` option, a `file:` URL, shell metacharacters for `cmd`) is ignored.
+ */
 export function openBrowser(url: string): void {
+  let href: string;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return;
+    href = parsed.href;
+  } catch {
+    return;
+  }
   const cmd =
     process.platform === "darwin"
-      ? ["open", url]
+      ? ["open", href]
       : process.platform === "win32"
-        ? ["cmd", "/c", "start", "", url]
-        : ["xdg-open", url];
+        ? ["rundll32", "url.dll,FileProtocolHandler", href]
+        : ["xdg-open", href];
   try {
     Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore" }).unref();
   } catch {}

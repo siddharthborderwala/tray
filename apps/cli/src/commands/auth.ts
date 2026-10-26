@@ -1,6 +1,6 @@
 import { ApiFailure, type Api } from "../api.ts";
 import { loadAccounts, saveAccounts, shortHostname } from "../config.ts";
-import { normalizeDomain, resolveDomain } from "../credentials.ts";
+import { apiUrl, normalizeDomain, resolveDomain } from "../credentials.ts";
 import {
   apiFor,
   askText,
@@ -76,7 +76,8 @@ export async function login(
   const api = apiFor(ctx, domain);
 
   const device = await api.startDevice(nameFlag ?? shortHostname());
-  const url = device.verificationUriComplete;
+  // Built here, not taken from the server, so a bad Worker can't choose what we open.
+  const url = apiUrl(domain, ctx.env, `approve?code=${encodeURIComponent(device.userCode)}`);
   if (ctx.mode.json)
     ctx.stdout(toJson({ approveUrl: url, userCode: device.userCode }, ctx.mode.prettyJson));
   const how = `${url}\n  or on a logged-in machine: tray approve ${device.userCode}`;

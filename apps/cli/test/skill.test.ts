@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   SKILL_MD,
@@ -140,6 +140,27 @@ describe("tray skill install", () => {
     mkdirSync(join(home, ".claude/skills/tray"), { recursive: true });
     writeFileSync(file, "old");
     expect(installSkill({ home, cwd: "/x", project: false }).written).toContain(file);
+  });
+
+  test("never writes through a symlink or outside the project", () => {
+    const home = tmp();
+    const outside = tmp();
+    writeFileSync(join(outside, "bashrc"), "mine");
+    // A cloned repo whose SKILL.md is a link to a file outside it…
+    const repo = tmp();
+    mkdirSync(join(repo, ".claude/skills/tray"), { recursive: true });
+    symlinkSync(join(outside, "bashrc"), join(repo, ".claude/skills/tray/SKILL.md"));
+    // …and whose .agents/skills is a link to a folder outside it.
+    mkdirSync(join(outside, "skills"));
+    mkdirSync(join(repo, ".agents"));
+    symlinkSync(join(outside, "skills"), join(repo, ".agents/skills"));
+    const res = installSkill({ home, cwd: repo, project: true });
+    expect(res.written).toEqual([]);
+    expect(res.skipped.length).toBe(2);
+    expect(readFileSync(join(outside, "bashrc"), "utf8")).toBe("mine");
+    expect(existsSync(join(outside, "skills/tray/SKILL.md"))).toBe(false);
+    expect(refreshInstalledSkills(home, repo)).toEqual([]);
+    expect(readFileSync(join(outside, "bashrc"), "utf8")).toBe("mine");
   });
 
   test("refreshInstalledSkills only touches copies that exist", () => {

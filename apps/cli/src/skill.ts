@@ -2,9 +2,17 @@
 // installed into coding agents' skill folders by `tray skill install`.
 import * as p from "@clack/prompts";
 import { parse } from "@bomb.sh/router";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  constants,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import skillMd from "../../../skills/tray/SKILL.md" with { type: "text" };
 import guideMd from "../../../skills/tray/guide.md" with { type: "text" };
 import { app } from "./app.ts";
@@ -86,24 +94,53 @@ export function skillDirs({ home, cwd, project }: InstallTargets): string[] {
   return dirs;
 }
 
+/**
+ * Write `file` only if it's a regular file (or missing), never through a symlink,
+ * and, for a project install, only inside the project. A cloned repo can't
+ * point `.claude/skills/tray/SKILL.md` at `~/.bashrc` and have us overwrite it.
+ */
+function writeSkillFile(file: string, content: string, root?: string): boolean {
+  try {
+    if (lstatSync(file).isSymbolicLink()) return false;
+  } catch {} // missing is fine
+  if (root) {
+    const real = realpathSync(dirname(file));
+    const base = realpathSync(root);
+    if (real !== base && !real.startsWith(base + sep)) return false;
+  }
+  const { O_WRONLY, O_CREAT, O_TRUNC, O_NOFOLLOW } = constants;
+  writeFileSync(file, content, { flag: O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW });
+  return true;
+}
+
+/** The regular file at `file`, or null (missing or a symlink). */
+function readSkillFile(file: string): string | null {
+  try {
+    return lstatSync(file).isFile() ? readFileSync(file, "utf8") : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Write SKILL.md into each directory as a real file. Idempotent; returns the files written or already current. */
 export function installSkill(
   targets: InstallTargets,
   content: string = SKILL_MD,
-): { written: string[]; unchanged: string[] } {
+): { written: string[]; unchanged: string[]; skipped: string[] } {
   const written: string[] = [];
   const unchanged: string[] = [];
+  const skipped: string[] = [];
+  const root = targets.project ? targets.cwd : undefined;
   for (const dir of skillDirs(targets)) {
     const file = join(dir, "SKILL.md");
-    if (existsSync(file) && readFileSync(file, "utf8") === content) {
+    if (readSkillFile(file) === content) {
       unchanged.push(file);
       continue;
     }
     mkdirSync(dir, { recursive: true });
-    writeFileSync(file, content);
-    written.push(file);
+    (writeSkillFile(file, content, root) ? written : skipped).push(file);
   }
-  return { written, unchanged };
+  return { written, unchanged, skipped };
 }
 
 /** One line for agents whose sandboxes block the network by default. */
@@ -125,15 +162,17 @@ export async function skillInstall(ctx: Ctx, project: boolean): Promise<void> {
   const res = installSkill({ home, cwd: process.cwd(), project });
   const hint = networkHint(home, domainOf(ctx));
   if (hint && !ctx.mode.json) ctx.stderr(hint);
-  const files = [...res.written, ...res.unchanged];
-  result(
-    ctx,
-    files.map((f) => `${res.written.includes(f) ? "wrote" : "up to date"}  ${f}`).join("\n"),
-    {
-      ...res,
-      ...(hint ? { hint } : {}),
-    },
-  );
+  const files = [...res.written, ...res.unchanged, ...res.skipped];
+  const label = (f: string) =>
+    res.written.includes(f)
+      ? "wrote"
+      : res.unchanged.includes(f)
+        ? "up to date"
+        : "skipped (a symlink, or outside this project)";
+  result(ctx, files.map((f) => `${label(f)}  ${f}`).join("\n"), {
+    ...res,
+    ...(hint ? { hint } : {}),
+  });
 }
 
 /**
@@ -161,16 +200,15 @@ export async function offerSkillInstall(ctx: Ctx): Promise<void> {
 /** For `tray upgrade`: rewrite copies that are already installed, without adding new ones. */
 export function refreshInstalledSkills(home: string, cwd: string): string[] {
   const dirs = [
-    ...skillDirs({ home, cwd, project: false }),
-    ...skillDirs({ home, cwd, project: true }),
+    ...skillDirs({ home, cwd, project: false }).map((dir) => ({ dir, root: undefined })),
+    ...skillDirs({ home, cwd, project: true }).map((dir) => ({ dir, root: cwd })),
   ];
   const refreshed: string[] = [];
-  for (const dir of dirs) {
+  for (const { dir, root } of dirs) {
     const file = join(dir, "SKILL.md");
-    if (existsSync(file) && readFileSync(file, "utf8") !== SKILL_MD) {
-      writeFileSync(file, SKILL_MD);
+    const current = readSkillFile(file);
+    if (current !== null && current !== SKILL_MD && writeSkillFile(file, SKILL_MD, root))
       refreshed.push(file);
-    }
   }
   return refreshed;
 }

@@ -17,19 +17,21 @@ export async function keyList(ctx: Ctx): Promise<void> {
   const { api } = await authedApi(ctx);
   const { data } = await api.listKeys();
   const rows = data.map((k) => [
+    k.id,
     k.name,
     k.email,
     relativeTime(k.createdAt),
     relativeTime(k.lastUsedAt),
   ]);
-  result(ctx, formatTable(["NAME", "EMAIL", "CREATED", "LAST USED"], rows), { data });
+  result(ctx, formatTable(["ID", "NAME", "EMAIL", "CREATED", "LAST USED"], rows), { data });
 }
 
 /** Map a key name (or id) to its id. Errors when nothing matches or the name is ambiguous. */
 export function keyIdFor(keys: Key[], nameOrId: string): string {
   const byId = keys.find((k) => k.id === nameOrId);
-  if (byId) return byId.id;
-  const matches = keys.filter((k) => k.name === nameOrId);
+  // A key can be *named* like another key's id. Never guess which one is meant.
+  const matches = keys.filter((k) => k.name === nameOrId || k.id === nameOrId);
+  if (byId && matches.length === 1) return byId.id;
   if (matches.length === 1) return matches[0]!.id;
   if (matches.length === 0)
     throw new TrayError(
@@ -40,7 +42,7 @@ export function keyIdFor(keys: Key[], nameOrId: string): string {
       "name",
     );
   throw new TrayError(
-    `${matches.length} keys are named ${nameOrId}`,
+    `${matches.length} keys match ${nameOrId}`,
     "ambiguous_key",
     EXIT.usage,
     `Revoke one by id: ${matches.map((k) => `${k.id} (${k.email}, created ${relativeTime(k.createdAt)})`).join(", ")}`,

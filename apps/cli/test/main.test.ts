@@ -606,5 +606,8 @@ describe("pure helpers", () => {
       expect(e.hint).toContain("bbb");
       expect(e.hint).toContain("ccc");
     }
+    // A planted key named like another key's id can't redirect the revoke.
+    const planted = [k("0123456789ab", "ci"), k("ddd", "0123456789ab")];
+    expect(() => keyIdFor(planted, "0123456789ab")).toThrow("2 keys match 0123456789ab");
   });
 });
