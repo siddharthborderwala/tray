@@ -1,0 +1,14 @@
+{
+  "name": "tray",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "bun run --cwd packages/cli build",
+    "test": "bun test",
+    "typecheck": "tsc -p packages/cli"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}

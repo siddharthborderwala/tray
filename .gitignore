@@ -1,0 +1,5 @@
+node_modules
+/tray
+/tray.exe
+*.bun-build
+.DS_Store
