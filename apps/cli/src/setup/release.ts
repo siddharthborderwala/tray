@@ -56,19 +56,6 @@ export async function latestVersion(fetchImpl: Fetch): Promise<string> {
   return tag_name.replace(/^v/, "");
 }
 
-/** `a < b` for x.y.z versions. */
-export function olderThan(a: string, b: string): boolean {
-  const parse = (v: string) =>
-    v
-      .replace(/^v/, "")
-      .split(/[-+]/)[0]!
-      .split(".")
-      .map((n) => Number.parseInt(n, 10) || 0);
-  const [x, y] = [parse(a), parse(b)];
-  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
-  return false;
-}
-
 async function download(fetchImpl: Fetch, url: string): Promise<Uint8Array> {
   const res = await fetchImpl(url).catch((err: Error) => {
     throw new TrayError(`download failed: ${url}: ${err.message}`, "network", EXIT.failed);

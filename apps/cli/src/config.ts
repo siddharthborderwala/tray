@@ -47,7 +47,9 @@ export function saveAccounts(dir: string, accounts: Accounts): void {
   writeJson(join(dir, "accounts.json"), accounts);
 }
 
-// --- site records (name-conflict detection) --------------------------------
+// --- site records -------------------------------------------------------------
+// Where each site was last put from (SPEC §4 "Name conflicts"). The Worker's
+// `source` check is authoritative; this is the local record of it.
 
 export interface SiteRecord {
   absolutePath: string;
@@ -55,10 +57,6 @@ export interface SiteRecord {
 }
 
 type SiteRecords = Record<string, Record<string, SiteRecord>>;
-
-export function getSiteRecord(dir: string, domain: string, site: string): SiteRecord | undefined {
-  return readJson<SiteRecords>(join(dir, "sites.json"), {})[domain]?.[site];
-}
 
 export function setSiteRecord(
   dir: string,

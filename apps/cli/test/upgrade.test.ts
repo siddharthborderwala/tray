@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync, zipSync } from "fflate";
+import { olderThan } from "../src/api.ts";
 import { upgrade } from "../src/commands/upgrade.ts";
 import type { Ctx } from "../src/ctx.ts";
 import { TrayError } from "../src/errors.ts";
@@ -11,7 +12,6 @@ import {
   assetName,
   detectTarget,
   fetchBinary,
-  olderThan,
   replaceableBinary,
   sha256Hex,
   untarFile,

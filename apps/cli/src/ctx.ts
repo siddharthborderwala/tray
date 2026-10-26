@@ -139,7 +139,7 @@ export function currentDomain(ctx: Ctx): string {
   return resolveDomain(ctx.domainFlag, ctx.env, loadAccounts(ctx.configDir));
 }
 
-/** Resolve domain + key and return a client. Throws exit 3 when not logged in. */
+/** Resolve domain + key and return a client. Throws (exit 4) when not logged in. */
 export async function authedApi(ctx: Ctx): Promise<{ api: Api; domain: string }> {
   const domain = currentDomain(ctx);
   const key = await resolveKey(domain, ctx.env, ctx.keyStore);

@@ -263,6 +263,3 @@ export type PendingDevice = z.infer<typeof PendingDevice>;
 
 /** `approve` defaults to true; `false` denies the request. */
 export const ApproveRequest = z.object({ userCode: UserCode, approve: z.boolean().optional() });
-
-/** @deprecated Use `Token`. */
-export type TokenResponse = Token;

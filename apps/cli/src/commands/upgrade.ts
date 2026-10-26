@@ -3,17 +3,12 @@
 // every tray this machine set up whose Worker is older, keeping its bindings.
 import { chmodSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { olderThan } from "../api.ts";
 import { apiBaseUrl } from "../credentials.ts";
 import { info, result, spinner, success, warn, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError, type ExitCode } from "../errors.ts";
 import { cloudflare, loadWorkerSource, updateWorkerCode } from "../setup/cloudflare.ts";
-import {
-  detectTarget,
-  fetchBinary,
-  latestVersion,
-  olderThan,
-  replaceableBinary,
-} from "../setup/release.ts";
+import { detectTarget, fetchBinary, latestVersion, replaceableBinary } from "../setup/release.ts";
 import { loadSetups, savedToken } from "../setup/state.ts";
 import { refreshInstalledSkills } from "../skill.ts";
 import { VERSION } from "../version.ts";
