@@ -1,0 +1,12 @@
+---
+import Docs from "../layouts/Docs.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { SITE_NAME } from "../lib/site";
+---
+
+<Docs title={`Not found · ${SITE_NAME}`} description="Nothing on this tray." noindex>
+  <PageHeader title="404" description="Nothing on this tray. The page moved, or never existed." />
+  <div class="prose">
+    <p class="more"><a href="/">Back to the overview →</a></p>
+  </div>
+</Docs>

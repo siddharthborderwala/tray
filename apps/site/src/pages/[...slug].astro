@@ -1,0 +1,42 @@
+---
+import type { GetStaticPaths } from "astro";
+import { getCollection, render } from "astro:content";
+import Docs from "../layouts/Docs.astro";
+import Hero from "../components/Hero.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { PAGES, SITE_NAME, TAGLINE, markdownHref } from "../lib/site";
+
+export const getStaticPaths = (async () => {
+  const docs = await getCollection("docs");
+  return docs.map((doc) => ({
+    params: { slug: doc.id === "index" ? undefined : doc.id },
+    props: { doc },
+  }));
+}) satisfies GetStaticPaths;
+
+const { doc } = Astro.props;
+const { Content, headings } = await render(doc);
+const page = PAGES.find((p) => p.id === doc.id);
+const overview = doc.id === "index";
+const sections = headings.filter((h) => h.depth === 2).map((h) => ({ id: h.slug, label: h.text }));
+const title = overview ? `${SITE_NAME} · ${TAGLINE}` : `${doc.data.title} · ${SITE_NAME}`;
+---
+
+<Docs
+  title={title}
+  description={doc.data.description}
+  markdown={markdownHref(doc.id)}
+  current={page?.id}
+  sections={sections}
+>
+  {
+    overview ? (
+      <Hero eyebrow="Open source · Self-hosted on Cloudflare" title={doc.data.title} />
+    ) : (
+      <PageHeader title={doc.data.title} description={doc.data.description} note={doc.data.note} />
+    )
+  }
+  <div class:list={["prose", `page-${doc.id}`]}>
+    <Content />
+  </div>
+</Docs>

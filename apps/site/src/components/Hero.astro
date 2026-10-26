@@ -1,0 +1,17 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+}
+const { eyebrow, title } = Astro.props;
+// "Artifacts for every agent." breaks after "for", as in the design.
+const [first, second] = title.split(/(?<=for) /);
+---
+
+<header class="hero">
+  <p class="eyebrow">{eyebrow}</p>
+  <div class="hero-panel">
+    <h1>{first}{second && <br />}{second}</h1>
+    <span class="hero-mark" aria-hidden="true">tray<span class="period"></span></span>
+  </div>
+</header>

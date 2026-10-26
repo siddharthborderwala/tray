@@ -1,0 +1,50 @@
+---
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import "../styles/global.css";
+import { SITE_NAME, SITE_URL } from "../lib/site";
+
+interface Props {
+  title: string;
+  description: string;
+  /** Markdown version of this page, e.g. /cli.md. */
+  markdown?: string;
+  noindex?: boolean;
+}
+
+const { title, description, markdown, noindex = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), SITE_URL).href;
+// Berkeley Mono is licensed and not in the repo. Only preload it when it was provided.
+const FONT = "/fonts/BerkeleyMonoVariable.woff2";
+const hasFont = existsSync(join(process.cwd(), "public", FONT));
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#FAF9F0" />
+    <meta name="color-scheme" content="light" />
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {markdown && <link rel="alternate" type="text/markdown" href={markdown} />}
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
+    <link rel="sitemap" href="/sitemap.xml" />
+    {hasFont && <link rel="preload" href={FONT} as="font" type="font/woff2" crossorigin />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <script is:inline>document.documentElement.classList.add("js");</script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

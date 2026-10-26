@@ -1,14 +1,16 @@
 {
-  "name": "@traysh/site",
+  "name": "@tray-sh/site",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "cp ../../scripts/install.sh public/install && astro build",
-    "preview": "astro preview"
+    "dev": "bun --bun astro dev",
+    "build": "cp ../../scripts/install.sh public/install && bun --bun astro build",
+    "preview": "bun --bun astro preview",
+    "font": "sh scripts/font.sh"
   },
   "dependencies": {
+    "@astrojs/markdown-satteri": "0.4.5",
     "astro": "^7.4.2"
   }
 }

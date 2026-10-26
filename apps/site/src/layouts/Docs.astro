@@ -1,0 +1,29 @@
+---
+import Base from "./Base.astro";
+import Sidebar from "../components/Sidebar.astro";
+import Footer from "../components/Footer.astro";
+import Behavior from "../components/Behavior.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  markdown?: string;
+  current?: string;
+  sections?: { id: string; label: string }[];
+  noindex?: boolean;
+}
+const { current, sections, ...head } = Astro.props;
+---
+
+<Base {...head}>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="shell">
+    <Sidebar current={current} sections={sections} />
+    <main id="main" class="main">
+      <slot />
+      <Footer />
+    </main>
+  </div>
+  <div class="toast" role="status" aria-live="polite"></div>
+  <Behavior />
+</Base>

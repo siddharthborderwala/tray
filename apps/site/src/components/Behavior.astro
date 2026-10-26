@@ -1,0 +1,99 @@
+---
+// Copy buttons, install tabs, the mobile menu and scroll-spy. No dependencies.
+---
+
+<script>
+  // Copy buttons and install tabs.
+  const toast = document.querySelector<HTMLElement>(".toast");
+  document.addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    const copy = target.closest<HTMLButtonElement>("button.copy");
+    if (copy) {
+      try {
+        await navigator.clipboard.writeText(copy.dataset.copy ?? "");
+        copy.textContent = "copied";
+        copy.classList.add("copied");
+        if (toast) toast.textContent = "Copied to clipboard";
+        setTimeout(() => {
+          copy.textContent = "copy";
+          copy.classList.remove("copied");
+          if (toast) toast.textContent = "";
+        }, 1600);
+      } catch {
+        copy.textContent = "press ⌘C";
+      }
+      return;
+    }
+    const tab = target.closest<HTMLButtonElement>('[role="tab"]');
+    if (tab) selectTab(tab);
+  });
+
+  function selectTab(tab: HTMLButtonElement) {
+    const root = tab.closest<HTMLElement>("[data-tabs]");
+    if (!root) return;
+    for (const t of root.querySelectorAll<HTMLButtonElement>('[role="tab"]')) {
+      const on = t === tab;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+    }
+    const cmd = tab.dataset.command ?? "";
+    const text = root.querySelector("[data-command-text]");
+    if (text) text.textContent = cmd;
+    const copy = root.querySelector<HTMLButtonElement>("button.copy");
+    if (copy) copy.dataset.copy = cmd;
+    root.querySelector('[role="tabpanel"]')?.setAttribute("aria-labelledby", tab.id);
+  }
+
+  // Arrow keys move between tabs.
+  document.addEventListener("keydown", (e) => {
+    const tab = (e.target as HTMLElement).closest<HTMLButtonElement>('[role="tab"]');
+    if (!tab || (e.key !== "ArrowRight" && e.key !== "ArrowLeft")) return;
+    const tabs = [...(tab.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])];
+    const i = tabs.indexOf(tab) + (e.key === "ArrowRight" ? 1 : -1);
+    const next = tabs[(i + tabs.length) % tabs.length];
+    if (next) {
+      selectTab(next);
+      next.focus();
+    }
+  });
+
+  // Mobile menu.
+  const menu = document.querySelector<HTMLButtonElement>(".menu");
+  menu?.addEventListener("click", () => {
+    const open = menu.getAttribute("aria-expanded") !== "true";
+    menu.setAttribute("aria-expanded", String(open));
+    menu.textContent = open ? "Close" : "Menu";
+  });
+  document.querySelector(".sidebar-nav")?.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("a") && menu) {
+      menu.setAttribute("aria-expanded", "false");
+      menu.textContent = "Menu";
+    }
+  });
+
+  // Scroll-spy: the section nearest the top of the viewport is current.
+  const links = new Map(
+    [...document.querySelectorAll<HTMLAnchorElement>("[data-spy]")].map((a) => [a.dataset.spy, a]),
+  );
+  const sections = [...document.querySelectorAll<HTMLElement>("[data-section]")];
+  if (links.size && sections.length) {
+    const visible = new Set<string>();
+    const mark = (id: string | undefined) => {
+      for (const [key, a] of links) a.classList.toggle("active", key === id);
+    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).dataset.section ?? "";
+          if (entry.isIntersecting) visible.add(id);
+          else visible.delete(id);
+        }
+        const first = sections.find((s) => visible.has(s.dataset.section ?? ""));
+        if (first) mark(first.dataset.section);
+      },
+      { rootMargin: "-10% 0px -70% 0px" },
+    );
+    for (const s of sections) io.observe(s);
+    mark(location.hash.slice(1) || sections[0]?.dataset.section);
+  }
+</script>
