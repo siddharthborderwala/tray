@@ -1,7 +1,7 @@
 // Who can see a private site. Stored in meta.json `sharedWith[]` and enforced
 // by the serving handler; no Cloudflare calls.
 import { createRoute, z } from "@hono/zod-openapi";
-import { AddSharesRequest, type Share, ShareEntry, ShareList, SiteName } from "@traysh/schema";
+import { AddSharesRequest, type Share, ShareEntry, ShareList, SiteName } from "@tray-sh/schema";
 import type { Env } from "../env.ts";
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";

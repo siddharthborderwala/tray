@@ -1,5 +1,5 @@
 {
-  "name": "@traysh/cli",
+  "name": "@tray-sh/cli",
   "version": "0.1.0",
   "private": true,
   "bin": {
@@ -13,12 +13,12 @@
   "dependencies": {
     "@bomb.sh/router": "0.8.0",
     "@clack/prompts": "^1.8.1",
-    "@traysh/schema": "workspace:*",
+    "@tray-sh/schema": "workspace:*",
     "fflate": "^0.8.3",
     "hono": "^4.13.14",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@traysh/worker": "workspace:*"
+    "@tray-sh/worker": "workspace:*"
   }
 }

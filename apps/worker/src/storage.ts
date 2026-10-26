@@ -1,5 +1,5 @@
 // R2 layout (SPEC.md §2) and small helpers around it.
-import type { Manifest, Site, Source, Visibility } from "@traysh/schema";
+import type { Manifest, Site, Source, Visibility } from "@tray-sh/schema";
 import type { Env, R2Bucket } from "./env.ts";
 
 export const paths = {

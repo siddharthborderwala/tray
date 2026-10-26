@@ -5,7 +5,7 @@ import {
   CheckBlobsResponse,
   MAX_DEPLOY_BYTES,
   Sha256,
-} from "@traysh/schema";
+} from "@tray-sh/schema";
 import { TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
 import { paths } from "../storage.ts";

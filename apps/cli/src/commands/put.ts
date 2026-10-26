@@ -25,7 +25,7 @@ import {
   uploadMissing,
   type HashedFile,
 } from "../upload.ts";
-import { SiteName } from "@traysh/schema";
+import { SiteName } from "@tray-sh/schema";
 import type { DeployRequest } from "../api.ts";
 
 export interface PutArgs {

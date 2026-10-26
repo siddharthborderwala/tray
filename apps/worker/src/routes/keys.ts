@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { CreatedKey, CreateKeyRequest, type Key, KeyId, KeyList } from "@traysh/schema";
+import { CreatedKey, CreateKeyRequest, type Key, KeyId, KeyList } from "@tray-sh/schema";
 import { createKey } from "../auth.ts";
 import { TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";

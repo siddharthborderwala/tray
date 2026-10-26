@@ -10,7 +10,7 @@ import {
   Token,
   TokenRequest,
   UserCode,
-} from "@traysh/schema";
+} from "@tray-sh/schema";
 import { decideDevice, deleteDevice, findDevice, startDevice } from "../auth.ts";
 import { TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";

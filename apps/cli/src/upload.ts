@@ -1,5 +1,5 @@
 // Hash, size-check, and upload collected files, then build the deploy manifest.
-import { CHECK_BATCH_SIZE, MAX_DEPLOY_BYTES } from "@traysh/schema";
+import { CHECK_BATCH_SIZE, MAX_DEPLOY_BYTES } from "@tray-sh/schema";
 import type { Manifest } from "./api.ts";
 import type { Api } from "./api.ts";
 import type { SiteFile } from "./collect.ts";

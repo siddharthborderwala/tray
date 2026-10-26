@@ -12,7 +12,7 @@ It runs on your own Cloudflare account (one Worker, one R2 bucket), so your site
 curl -fsSL tray.sh/install | sh
 ```
 
-Or with npm: `npm i -g @traysh/cli`. Either way, the command is `tray`.
+Or with npm: `npm i -g @tray-sh/cli`. Either way, the command is `tray`.
 
 ## Quick start
 

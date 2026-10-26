@@ -4,11 +4,11 @@
 //
 // For each target it writes:
 //   dist/release/tray-<target>.tar.gz   (.zip on Windows)  GitHub release asset
-//   dist/npm/cli-<target>/              npm package @traysh/cli-<target>
+//   dist/npm/cli-<target>/              npm package @tray-sh/cli-<target>
 // and once:
-//   dist/npm/cli/                       npm package @traysh/cli (launcher)
+//   dist/npm/cli/                       npm package @tray-sh/cli (launcher)
 //
-// Run `bun run --filter @traysh/worker build` first: the CLI embeds the Worker.
+// Run `bun run --filter @tray-sh/worker build` first: the CLI embeds the Worker.
 import { $ } from "bun";
 import { cp, mkdir, rm } from "node:fs/promises";
 
@@ -54,7 +54,7 @@ for (const target of targets) {
     `${pkgDir}/package.json`,
     JSON.stringify(
       {
-        name: `@traysh/cli-${target}`,
+        name: `@tray-sh/cli-${target}`,
         version,
         description: `The tray CLI binary for ${target}`,
         license: "MIT",
@@ -71,7 +71,7 @@ for (const target of targets) {
   console.log(`built ${target}`);
 }
 
-// npm launcher package: @traysh/cli
+// npm launcher package: @tray-sh/cli
 const launcher = `${dist}/npm/cli`;
 await rm(launcher, { recursive: true, force: true });
 await mkdir(`${launcher}/bin`, { recursive: true });
@@ -82,7 +82,7 @@ await Bun.write(
   `${launcher}/package.json`,
   JSON.stringify(
     {
-      name: "@traysh/cli",
+      name: "@tray-sh/cli",
       version,
       description:
         "Artifacts for every agent. Turn a folder or an HTML file into a link you can share.",
@@ -91,7 +91,7 @@ await Bun.write(
       repository: { type: "git", url: "git+https://github.com/siddharthborderwala/tray.git" },
       bin: { tray: "bin/tray.cjs" },
       files: ["bin"],
-      optionalDependencies: Object.fromEntries(ALL.map((t) => [`@traysh/cli-${t}`, version])),
+      optionalDependencies: Object.fromEntries(ALL.map((t) => [`@tray-sh/cli-${t}`, version])),
     },
     null,
     2,

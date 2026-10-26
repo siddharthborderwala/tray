@@ -3,7 +3,7 @@
 import { readdirSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { unzipSync } from "fflate";
-import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@traysh/schema";
+import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@tray-sh/schema";
 import { usageError } from "./errors.ts";
 
 export interface SiteFile {

@@ -88,6 +88,8 @@ Verified against `gh` and `vercel` docs.
 | `TRAY_API_KEY` | API key. Overrides saved login. |
 | `CLOUDFLARE_API_TOKEN` | Used by `tray setup` and `tray domain add`. |
 | `NO_COLOR`, `CI` | Respected. `CI` implies non-interactive. |
+| `AGENT`, `AI_AGENT` | Agent detected: non-interactive, like `CI` (see Output and modes). |
+| `TRAY_INTERACTIVE` | `1` forces interactive mode even when an agent is detected. |
 
 ### Credential resolution
 
@@ -102,8 +104,20 @@ Run `tray login thts.app` or set TRAY_API_KEY.
 
 ### Output and modes
 
-Interactive mode only when stdin **and** stdout are TTYs, `CI` is unset, and
-neither `--json` nor `--non-interactive` is passed.
+Interactive mode only when stdin **and** stdout are TTYs, neither `CI` nor an
+agent is detected, and neither `--json` nor `--non-interactive` is passed.
+
+**Agent detection.** Tray treats itself as running under an AI agent, and
+behaves exactly as under `CI` (no prompts, no spinners or color, plain progress
+on stderr), when any of these is set:
+
+- `AGENT` (the proposed CI-style convention) or `AI_AGENT` (Vercel's variant).
+- A known agent marker: `CLAUDECODE`, `CURSOR_AGENT`, `GEMINI_CLI`,
+  `CODEX_THREAD_ID` (and others as agents adopt them).
+
+stdout stays plain text; `--json` is still opt-in. Detection is a hint, not
+proof (the variables are inherited by child shells), so `TRAY_INTERACTIVE=1`
+forces interactive mode back on, and `--non-interactive` always wins.
 
 - **stdout** carries only the result (a URL, a table, or JSON).
 - **stderr** carries progress, spinners, and hints.
@@ -530,8 +544,8 @@ A visitor must not be able to tell a private site from one that doesn't exist.
 - Three cases return the **identical** response: the site doesn't exist; the
   site is private and the visitor isn't signed in; the visitor is signed in
   but not on the share list. All return `404` with the Tray 404 page, which has
-  a "Sign in to view" link. Same status, same body, same headers
-  (`Cache-Control: no-store`). The Worker does the same lookups in each case.
+  a "Sign in to view" link. Same status, same body, same headers. The Worker
+  does the same lookups in each case.
 - **Sign in** goes to `/.tray/signin?next=<path>` on the same host. That path,
   and only that path, is covered by **one** Cloudflare Access app created by
   `tray setup`: destination `*.<domain>/.tray/signin` plus each custom host,
@@ -557,7 +571,7 @@ A visitor must not be able to tell a private site from one that doesn't exist.
 - Versioning: one version for the whole project (CLI and the Worker bundle it
   embeds). Starts at `0.1.0`. Released by tagging `vX.Y.Z`; GitHub Releases is
   the changelog. The CLI compares its version with the Worker's `tray-version`.
-- npm: `@traysh/cli` (bin: `tray`). `npm i -g @traysh/cli` or `bunx @traysh/cli`. Internal packages use the same scope (`@traysh/schema`, `@traysh/worker`).
+- npm: `@tray-sh/cli` (bin: `tray`). `npm i -g @tray-sh/cli` or `bunx @tray-sh/cli`. Internal packages use the same scope (`@tray-sh/schema`, `@tray-sh/worker`).
 - CLI dependencies: `@clack/prompts`, `@bomb.sh/router` (pinned), `zod`,
   `fflate`, `hono` (client only).
 - Worker dependencies: `hono`, `@hono/zod-openapi`, `zod`. The Worker bundle is

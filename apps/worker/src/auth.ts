@@ -1,5 +1,5 @@
 // API keys, the bearer auth middleware, and device-code approval.
-import { API_KEY_PREFIX, DEVICE_CODE_TTL_SECONDS } from "@traysh/schema";
+import { API_KEY_PREFIX, DEVICE_CODE_TTL_SECONDS } from "@tray-sh/schema";
 import type { Context, MiddlewareHandler } from "hono";
 import { accessToken } from "./access.ts";
 import type { Env } from "./env.ts";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CHECK_BATCH_SIZE, MAX_DEPLOY_BYTES } from "@traysh/schema";
+import { CHECK_BATCH_SIZE, MAX_DEPLOY_BYTES } from "@tray-sh/schema";
 import type { Api } from "../src/api.ts";
 import { TrayError } from "../src/errors.ts";
 import {

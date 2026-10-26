@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MAX_DEPLOY_BYTES } from "@traysh/schema";
+import { MAX_DEPLOY_BYTES } from "@tray-sh/schema";
 import { newDeployId } from "../src/routes/sites.ts";
 import { sha256, setup } from "./helpers.ts";
 

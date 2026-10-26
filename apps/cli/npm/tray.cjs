@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Launcher for `npm i -g @traysh/cli`: runs the prebuilt binary from the
-// matching platform package (@traysh/cli-<os>-<arch>).
+// Launcher for `npm i -g @tray-sh/cli`: runs the prebuilt binary from the
+// matching platform package (@tray-sh/cli-<os>-<arch>).
 const { spawnSync } = require("node:child_process");
 
 const os = { darwin: "darwin", linux: "linux", win32: "windows" }[process.platform];
@@ -12,7 +12,7 @@ const exe = process.platform === "win32" ? "tray.exe" : "tray";
 
 let bin;
 try {
-  bin = require.resolve(`@traysh/cli-${target}/bin/${exe}`);
+  bin = require.resolve(`@tray-sh/cli-${target}/bin/${exe}`);
 } catch {
   console.error(`tray: no prebuilt binary for ${target}. Try: curl -fsSL tray.sh/install | sh`);
   process.exit(1);

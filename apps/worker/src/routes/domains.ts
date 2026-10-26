@@ -1,7 +1,7 @@
 // Custom domains: a Worker Custom Domain on Cloudflare + `hosts/<host>` in R2.
 // The host is also added to the sign-in Access app so "Sign in to view" works there.
 import { createRoute, z } from "@hono/zod-openapi";
-import { AddDomainRequest, Domain, DomainList, DomainListQuery, Hostname } from "@traysh/schema";
+import { AddDomainRequest, Domain, DomainList, DomainListQuery, Hostname } from "@tray-sh/schema";
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
 import { getJson, type HostRecord, listAll, loadSite, now, paths, putJson } from "../storage.ts";

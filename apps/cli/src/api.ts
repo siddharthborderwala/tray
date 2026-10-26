@@ -4,8 +4,8 @@
 // (`AppType`), so a changed path, param, body or response shape is a type
 // error here. Request and response types for the rest of the CLI are derived
 // from the client below rather than written by hand.
-import { ApiError } from "@traysh/schema";
-import type { AppType } from "@traysh/worker";
+import { ApiError } from "@tray-sh/schema";
+import type { AppType } from "@tray-sh/worker";
 import { hc, type ClientResponse, type InferRequestType } from "hono/client";
 import { EXIT, TrayError } from "./errors.ts";
 import { VERSION } from "./version.ts";

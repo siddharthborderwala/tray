@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@traysh/schema";
+import type { ErrorCode } from "@tray-sh/schema";
 
 export type ErrorStatus = 400 | 401 | 403 | 404 | 405 | 409 | 411 | 413 | 422 | 500 | 502;
 

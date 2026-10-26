@@ -12,7 +12,7 @@ import {
   Site,
   SiteList,
   SiteName,
-} from "@traysh/schema";
+} from "@tray-sh/schema";
 import type { Env } from "../env.ts";
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";

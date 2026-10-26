@@ -1,7 +1,7 @@
 // Serving sites on `<site>.<domain>` and custom hosts (SPEC.md §5 "Serving"
 // and "Private sites").
-import type { Manifest, ManifestEntry } from "@traysh/schema";
-import { SITE_NAME_RE } from "@traysh/schema";
+import type { Manifest, ManifestEntry } from "@tray-sh/schema";
+import { SITE_NAME_RE } from "@tray-sh/schema";
 import type { Context } from "hono";
 import { accessToken } from "./access.ts";
 import { messagePage, notFoundPage } from "./pages.ts";

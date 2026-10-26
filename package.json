@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun run --filter @traysh/worker build && bun run --filter @traysh/cli build && bun run --filter @traysh/site build",
+    "build": "bun run --filter @tray-sh/worker build && bun run --filter @tray-sh/cli build && bun run --filter @tray-sh/site build",
     "test": "bun test apps packages",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "oxlint --deny-warnings",

@@ -1,6 +1,6 @@
 // Shared bits for the API routers: context type, validation hook, error docs.
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { ApiError } from "@traysh/schema";
+import { ApiError } from "@tray-sh/schema";
 import type { AccessVerifier } from "./access.ts";
 import type { CloudflareApi } from "./cloudflare.ts";
 import type { Env } from "./env.ts";
