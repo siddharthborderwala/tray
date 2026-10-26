@@ -160,7 +160,7 @@ JSON errors: `{ "error": "message", "code": "site_exists", "hint": "…", "param
 ### Overview
 
 ```
-tray put <path> [-s site] [--private] [--spa] [--replace]
+tray put <path...> [-s site] [--private] [--spa] [--replace]
 tray list | ls
 tray open <site>
 tray edit <site> --visibility public|private [--yes]
@@ -193,13 +193,14 @@ tray upgrade
 
 ---
 
-### `tray put <path>`
+### `tray put <path...>`
 
-Publish a folder, `.zip`, `.tar.gz`, single `.html` file, or `-` (stdin HTML).
+Publish a folder, `.zip`, `.tar.gz`, `.html` file, any other file (a PDF, an
+image…), several files, or `-` (stdin HTML).
 
 | Flag | Meaning |
 |---|---|
-| `-s, --site <name>` | Site name. Default: slug of the folder or file name (`q3-review.html` → `q3-review`). Generic build folder names (`dist`, `out`, `build`, `public`, `site`, `_site`, `www`) fall back to the parent folder's name, so `tray put ./dist` in `~/work/q3-review` → `q3-review`. |
+| `-s, --site <name>` | Site name. Default: slug of the folder or file name, without the file's extension (`Q3 Review.pdf` → `q3-review`). Generic build folder names (`dist`, `out`, `build`, `public`, `site`, `_site`, `www`) fall back to the parent folder's name, so `tray put ./dist` in `~/work/q3-review` → `q3-review`. Several files have no default: interactive asks, non-interactive needs `-s`. |
 | `--private` | Only the owner can view. Applies when creating (or with `--replace`). |
 | `--spa` | Unknown paths serve `/index.html`. |
 | `--replace` | Overwrite a site last put from a different source. |
@@ -210,6 +211,18 @@ Publish a folder, `.zip`, `.tar.gz`, single `.html` file, or `-` (stdin HTML).
 - Zip / tar.gz: unpack in memory (fflate / `Bun.Archive`); skip `__MACOSX`;
   strip a single shared top-level folder.
 - Single `.html` or stdin: becomes `/index.html`.
+- Any other single file: kept at `/<name>` (`/Q3 Review.pdf`).
+- Several files: each one at `/<name>`, as is (a `.zip` or `.html` among them
+  isn't unpacked or renamed). Folders and `-` can't be mixed in; two files with
+  the same name are an error. The source is the folder that holds them all.
+- Dotfiles passed by name are refused, so `.env` is never put by accident.
+
+**Generated index**
+
+When the files have no `/index.html` (any input but stdin), the CLI adds one so
+the site root never 404s. One file: the root opens it directly, in the
+browser's own viewer for a PDF or image. Several: a plain page that lists them,
+with images shown inline. Your own `index.html` always wins.
 
 **Upload**
 1. Hash every file (SHA-256); content type from `Bun.file().type`.

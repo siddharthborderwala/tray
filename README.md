@@ -1,6 +1,6 @@
 # tray
 
-Tray turns a folder or an HTML file into a link you can share. Put it on a tray, pass it around. For you, your agents and your friends.
+Tray turns a folder, a file or a few files into a link you can share. Put it on a tray, pass it around. For you, your agents and your friends.
 
 <img alt="Artifacts for every agent. tray." src=".github/assets/banner.png">
 
@@ -20,6 +20,7 @@ Or with npm: `npm i -g @tray-sh/cli`. Either way, the command is `tray`.
 tray setup --domain acme.dev        # once: creates the Worker, bucket, DNS and TLS
 tray put ./q3-review                # → https://q3-review.acme.dev
 tray put ./q3-review --private      # only you can see it
+tray put "Q3 Report.pdf"            # one file works too: a PDF, an image…
 tray share q3-review bob@acme.com   # …and Bob
 ```
 

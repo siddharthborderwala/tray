@@ -29,7 +29,8 @@ import { SiteName } from "@tray-sh/schema";
 import type { DeployRequest } from "../api.ts";
 
 export interface PutArgs {
-  path: string;
+  /** One folder, archive, file or `-`; or several files. */
+  paths: string[];
   site?: string;
   private: boolean;
   spa: boolean;
@@ -40,19 +41,23 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
   intro(ctx);
 
   // 1. Collect, hash, size-check.
-  const collected = await collect(args.path);
+  const collected = await collect(args.paths);
   if (collected.files.length === 0)
     throw usageError(
-      `nothing to put: ${args.path} has no files`,
+      `nothing to put: ${args.paths[0]} has no files`,
       "Dotfiles, .git and node_modules are skipped.",
     );
-  const site = await siteName(ctx, args.site ?? collected.defaultSite, args.path);
+  const site = await siteName(ctx, args.site ?? collected.defaultSite, args.paths);
   const files = hashFiles(collected.files);
   checkSize(files);
   const bytes = totalBytes(files);
   step(ctx, `Collected ${plural(files.length, "file")} · ${formatBytes(bytes)}`);
-  if (!files.some((f) => f.path === "/index.html"))
-    warn(ctx, "no /index.html; the site root will 404");
+  if (collected.generatedIndex === "redirect") {
+    const only = files.find((f) => f.path !== "/index.html")!;
+    info(ctx, `The link opens ${only.path.slice(1)} directly.`);
+  } else if (collected.generatedIndex === "list") {
+    info(ctx, "No index.html, so Tray added one that lists the files.");
+  }
 
   const { api, domain } = await authedApi(ctx);
   const existing = await api.getSite(site);
@@ -150,12 +155,16 @@ function audience(shareCount: number): string {
   return others > 0 ? `private · you + ${others}` : "private · you";
 }
 
-async function siteName(ctx: Ctx, candidate: string | undefined, path: string): Promise<string> {
+async function siteName(ctx: Ctx, candidate: string | undefined, paths: string[]): Promise<string> {
   let name = candidate;
   if (!name) {
     if (!ctx.mode.interactive) {
       throw new TrayError(
-        path === "-" ? "missing site name for stdin" : `can't derive a site name from ${path}`,
+        paths.length > 1
+          ? "missing site name for several files"
+          : paths[0] === "-"
+            ? "missing site name for stdin"
+            : `can't derive a site name from ${paths[0]}`,
         "missing_input",
         EXIT.usage,
         "Pass -s <site>.",

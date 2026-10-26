@@ -1,10 +1,11 @@
-// Turn a folder, .zip, .tar.gz, single .html file, or stdin into a flat list of
-// files keyed by their path inside the site.
-import { readdirSync, realpathSync, statSync } from "node:fs";
+// Turn a folder, .zip, .tar.gz, .html file, any other file, several files, or
+// stdin into a flat list of files keyed by their path inside the site.
+import { readdirSync, realpathSync, statSync, type Stats } from "node:fs";
 import { basename, dirname, join, posix, relative, resolve, sep } from "node:path";
 import { unzipSync } from "fflate";
 import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@tray-sh/schema";
 import { usageError } from "./errors.ts";
+import { withIndex } from "./index-page.ts";
 
 export interface SiteFile {
   /** Path inside the site, always starting with `/`. */
@@ -19,6 +20,8 @@ export interface Collected {
   defaultSite?: string;
   /** Absolute path of the input (or `-` for stdin). Used for name-conflict detection. */
   source: string;
+  /** Set when Tray added `/index.html`: `redirect` to the only file, or a `list` of several. */
+  generatedIndex?: "redirect" | "list";
 }
 
 const SKIP_NAMES = new Set([".git", ".DS_Store", "node_modules", "__MACOSX"]);
@@ -38,21 +41,25 @@ export function contentType(path: string): string {
   return Bun.file(path).type || "application/octet-stream";
 }
 
-export type InputKind = "stdin" | "folder" | "zip" | "tar.gz" | "html";
+export type InputKind = "stdin" | "folder" | "zip" | "tar.gz" | "html" | "file";
 
-export function inputKind(path: string, isDirectory: boolean): InputKind | undefined {
+export function inputKind(path: string, isDirectory: boolean): InputKind {
   if (path === "-") return "stdin";
   if (isDirectory) return "folder";
   const lower = path.toLowerCase();
   if (lower.endsWith(".zip")) return "zip";
   if (lower.endsWith(".tar.gz") || lower.endsWith(".tgz")) return "tar.gz";
   if (lower.endsWith(".html") || lower.endsWith(".htm")) return "html";
-  return undefined;
+  return "file";
 }
 
-/** `My Report.html` → `my-report`; `site.tar.gz` → `site`. Undefined when no valid name results. */
+/** `Q3 Report.pdf` → `q3-report`; `site.tar.gz` → `site`. Undefined when no valid name results. */
 export function slugify(name: string): string | undefined {
-  const stem = name.replace(/\.(tar\.gz|tgz|zip|html?)$/i, "");
+  return toSlug(name.replace(/\.(tar\.gz|[a-z0-9]+)$/i, ""));
+}
+
+/** Like slugify, but keeps every dot-separated part (folders: `acme.dev` → `acme-dev`). */
+function toSlug(stem: string): string | undefined {
   const slug = stem
     .toLowerCase()
     .normalize("NFKD")
@@ -76,12 +83,12 @@ export const GENERIC_FOLDER_NAMES = new Set([
   "www",
 ]);
 
-/** `~/work/q3-review/dist` → `q3-review`; `~/work/report.html` → `report`. */
+/** `~/work/q3-review/dist` → `q3-review`; `~/work/Q3 Report.pdf` → `q3-report`. */
 export function defaultSiteName(absPath: string, isDirectory: boolean): string | undefined {
   const name = basename(absPath);
-  if (isDirectory && GENERIC_FOLDER_NAMES.has(name.toLowerCase()))
-    return slugify(basename(dirname(absPath)));
-  return slugify(name);
+  if (!isDirectory) return slugify(name);
+  if (GENERIC_FOLDER_NAMES.has(name.toLowerCase())) return toSlug(basename(dirname(absPath)));
+  return toSlug(name);
 }
 
 /** If every file lives under one shared top-level folder, drop that folder. */
@@ -191,21 +198,54 @@ export interface CollectOptions {
   readStdin?: () => Promise<Uint8Array>;
 }
 
-export async function collect(input: string, opts: CollectOptions = {}): Promise<Collected> {
-  if (input === "-") {
+/**
+ * Collect one input (folder, archive, file, or `-`) or several plain files.
+ * Adds a generated `/index.html` when there is none (except for stdin).
+ */
+export async function collect(
+  input: string | string[],
+  opts: CollectOptions = {},
+): Promise<Collected> {
+  const inputs = typeof input === "string" ? [input] : input;
+  if (inputs.length > 1) return indexed(await collectFiles(inputs, opts));
+  const first = inputs[0]!;
+  if (first === "-") {
     const read = opts.readStdin ?? (() => Bun.stdin.bytes());
     return { files: htmlFile(await read()), source: "-" };
   }
-  const abs = resolve(opts.cwd ?? process.cwd(), input);
-  let isDirectory: boolean;
+  return indexed(await collectOne(first, opts));
+}
+
+function indexed(c: Collected): Collected {
+  const files = withIndex(c.files, c.defaultSite);
+  if (files === c.files) return c;
+  return { ...c, files, generatedIndex: c.files.length === 1 ? "redirect" : "list" };
+}
+
+/** `stat` an input path, as a usage error when it's missing. */
+function statInput(input: string, abs: string): Stats {
   try {
-    isDirectory = statSync(abs).isDirectory();
+    return statSync(abs);
   } catch {
     throw usageError(`no such file or folder: ${input}`);
   }
-  const kind = inputKind(abs, isDirectory);
+}
+
+/** A plain file at `/<name>`. Dotfiles are refused so `.env` is never put by accident. */
+async function plainFile(abs: string, st: Stats): Promise<SiteFile> {
+  const name = basename(abs);
+  if (!st.isFile()) throw usageError(`can't put ${name}`, "Pass a regular file or a folder.");
+  if (shouldSkip(name))
+    throw usageError(`won't put ${name}`, "Dotfiles are never published. Rename it to put it.");
+  return { path: `/${name}`, data: await Bun.file(abs).bytes(), type: contentType(abs) };
+}
+
+async function collectOne(input: string, opts: CollectOptions): Promise<Collected> {
+  const abs = resolve(opts.cwd ?? process.cwd(), input);
+  const st = statInput(input, abs);
+  const isDirectory = st.isDirectory();
   const defaultSite = defaultSiteName(abs, isDirectory);
-  switch (kind) {
+  switch (inputKind(abs, isDirectory)) {
     case "folder":
       return { files: await filesFromFolder(abs), defaultSite, source: abs };
     case "zip":
@@ -215,9 +255,39 @@ export async function collect(input: string, opts: CollectOptions = {}): Promise
     case "html":
       return { files: htmlFile(await Bun.file(abs).bytes()), defaultSite, source: abs };
     default:
-      throw usageError(
-        `can't put ${basename(abs)}`,
-        "Pass a folder, .zip, .tar.gz, .html file, or - for HTML on stdin.",
-      );
+      return { files: [await plainFile(abs, st)], defaultSite, source: abs };
   }
+}
+
+/** Several files, each at `/<name>` as is (archives and .html aren't unpacked). No default name. */
+async function collectFiles(inputs: string[], opts: CollectOptions): Promise<Collected> {
+  const several = () =>
+    usageError("put one folder, or several files", "Pass one folder on its own, or files only.");
+  if (inputs.includes("-")) throw several();
+  const abs = inputs.map((i) => resolve(opts.cwd ?? process.cwd(), i));
+  const stats = inputs.map((input, i) => statInput(input, abs[i]!));
+  if (stats.some((st) => st.isDirectory())) throw several();
+  const files: SiteFile[] = [];
+  for (const [i, path] of abs.entries()) {
+    const file = await plainFile(path, stats[i]!);
+    if (files.some((f) => f.path === file.path))
+      throw usageError(
+        `two files named ${file.path.slice(1)}`,
+        "Each file goes to /<name>, so names must differ.",
+      );
+    files.push(file);
+  }
+  return { files, source: commonDir(abs) };
+}
+
+/** Deepest folder containing every path: `/a/b/x`, `/a/c/y` → `/a`. */
+export function commonDir(paths: string[]): string {
+  const split = paths.map((p) => dirname(p).split(sep));
+  const common = split[0]!.slice();
+  for (const parts of split) {
+    let n = 0;
+    while (n < common.length && parts[n] === common[n]) n++;
+    common.length = n;
+  }
+  return common.join(sep) || sep;
 }

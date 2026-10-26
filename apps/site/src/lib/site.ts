@@ -11,7 +11,7 @@ export const GITHUB_URL = "https://github.com/siddharthborderwala/tray";
 export const ISSUES_URL = `${GITHUB_URL}/issues`;
 export const SECURITY_URL = `${GITHUB_URL}/security/advisories/new`;
 export const DESCRIPTION =
-  "Tray turns a folder or an HTML file into a link you can share. Open source and self-hosted on your own Cloudflare account. For you, your agents and your friends.";
+  "Tray turns a folder, a file or a few files into a link you can share. Open source and self-hosted on your own Cloudflare account. For you, your agents and your friends.";
 
 /** Footer "Made with ♥ by Sid ↗". */
 export const AUTHOR_NAME = "Sid";

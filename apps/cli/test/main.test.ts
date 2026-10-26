@@ -179,6 +179,51 @@ describe("tray put", () => {
     expect(JSON.parse(out[0]!)).toMatchObject({ code: "invalid_usage", param: "--site" });
   });
 
+  test("several files: one site, each file at /<name>, plus a generated list", async () => {
+    const dir = tmp();
+    writeFileSync(join(dir, "a.png"), "a");
+    writeFileSync(join(dir, "b.png"), "b");
+    const { done, calls } = run(
+      ["put", join(dir, "a.png"), join(dir, "b.png"), "-s", "x", "--json"],
+      {
+        "GET /v1/sites/x": () => notFound(),
+        "POST /v1/blobs/check": () => ({ missing: [] }),
+        "POST /v1/sites/x/deploys": () => Response.json(deployBody("d6"), { status: 201 }),
+      },
+    );
+    expect(await done).toBe(0);
+    const deploy = calls.find((c) => c.path === "/v1/sites/x/deploys")!;
+    expect(Object.keys(deploy.body.files).sort()).toEqual(["/a.png", "/b.png", "/index.html"]);
+    expect(deploy.body.source.path).toBe(dir);
+    expect(JSON.parse(out[0]!).files).toBe(3); // counts the generated index
+    expect(err).toEqual(["No index.html, so Tray added one that lists the files."]);
+  });
+
+  test("several files without -s, non-interactive: exit 2 before any request", async () => {
+    const dir = tmp();
+    writeFileSync(join(dir, "a.png"), "a");
+    writeFileSync(join(dir, "b.png"), "b");
+    const { done, calls } = run(["put", join(dir, "a.png"), join(dir, "b.png"), "--json"]);
+    expect(await done).toBe(2);
+    expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--site" });
+    expect(calls.length).toBe(0);
+  });
+
+  test("one PDF: named after the file, and the link opens it directly", async () => {
+    const dir = tmp();
+    writeFileSync(join(dir, "Q3 Report.pdf"), "%PDF");
+    const { done, calls } = run(["put", join(dir, "Q3 Report.pdf")], {
+      "GET /v1/sites/q3-report": () => notFound(),
+      "POST /v1/blobs/check": () => ({ missing: [] }),
+      "POST /v1/sites/q3-report/deploys": () => Response.json(deployBody("d7"), { status: 201 }),
+    });
+    expect(await done).toBe(0);
+    const deploy = calls.find((c) => c.path === "/v1/sites/q3-report/deploys")!;
+    expect(Object.keys(deploy.body.files).sort()).toEqual(["/Q3 Report.pdf", "/index.html"]);
+    expect(deploy.body.files["/Q3 Report.pdf"].type).toBe("application/pdf");
+    expect(err).toEqual(["The link opens Q3 Report.pdf directly."]);
+  });
+
   test("over 50 MB exits 1 before any request", async () => {
     const dir = siteDir();
     writeFileSync(join(dir, "big.bin"), new Uint8Array(51 * 1024 * 1024));

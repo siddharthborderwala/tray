@@ -70,20 +70,24 @@ const siteFlag = (desc: string, s = SiteName.optional()) =>
 
 export const app = route(
   name("tray"),
-  description("Turn a folder, zip, or HTML file into a URL on your own domain."),
+  description("Turn a folder, a file, or a few files into a URL on your own domain."),
   version(VERSION),
   globals,
 
   command(
     name("put"),
-    description("Publish a folder, .zip, .tar.gz, single .html file, or - (HTML on stdin)."),
+    description(
+      "Publish a folder, zip, HTML file, any other file (PDF, image…), several files, or - (HTML on stdin).",
+    ),
     argument(
       name("path"),
-      schema(required("<path>")),
-      description("Folder, .zip, .tar.gz, .html, or - for stdin."),
+      label("<PATH...>"),
+      multiple(),
+      schema(z.array(z.string(), { error: "missing <path>" }).min(1, "missing <path>")),
+      description("Folder, .zip, .tar.gz, .html, any file, several files, or - for stdin."),
     ),
     siteFlag(
-      "Site name. Default: slug of the folder or file name (the parent folder for dist, out, build, public, site, _site, www).",
+      "Site name. Default: slug of the folder or file name (the parent folder for dist, out, build, public, site, _site, www). No default for several files.",
     ),
     flag(
       "private",

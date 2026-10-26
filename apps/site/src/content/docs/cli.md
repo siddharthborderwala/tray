@@ -5,9 +5,11 @@ description: Every command, flag and exit code.
 
 ## put
 
-### `tray put <path>`
+### `tray put <path...>`
 
-Publish a folder, `.zip`, `.tar.gz`, `.html` file, or `-` for HTML on stdin. Prints the URL.
+Publish a folder, `.zip`, `.tar.gz`, `.html` file, any other file (a PDF, an image…), several files, or `-` for HTML on stdin. Prints the URL.
+
+One file opens straight from the link. Several files, or a folder without `index.html`, get a page that lists them. Several files have no default name, so pass `-s`.
 
 | Flag                | Meaning                                         |
 | ------------------- | ----------------------------------------------- |

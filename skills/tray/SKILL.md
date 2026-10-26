@@ -18,8 +18,9 @@ metadata:
 
 # Tray: put it on a URL
 
-`tray put <path>` uploads a folder, `.zip`, `.tar.gz` or `.html` file and
-prints a URL on the user's own domain. Deploys are immutable, so nothing is
+`tray put <path>` uploads a folder, `.zip`, `.tar.gz`, `.html` file, any
+single file (a PDF, an image) or several files, and prints a URL on the user's
+own domain. Deploys are immutable, so nothing is
 lost (`tray rollback` always works).
 
 ## 1. Check state
@@ -46,7 +47,7 @@ tray put ./dist -s q3-revenue-report --json
   owner (and people they share with) can open it.
 - Add `--spa` for client-routed apps (React Router, Vue Router), so deep
   links serve `index.html` instead of 404.
-- Pass only the build output or the file to share.
+- Pass only the build output, or the file or files to share.
 
 ## 3. Reply
 

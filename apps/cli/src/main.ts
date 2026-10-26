@@ -160,7 +160,7 @@ async function run(ctx: Ctx, intent: Execute): Promise<void> {
     case "/put": {
       const m = intent.model;
       return put(ctx, {
-        path: m.path,
+        paths: m.path,
         site: m.site,
         private: m.private,
         spa: m.spa,
