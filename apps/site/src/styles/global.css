@@ -242,6 +242,7 @@ button {
 }
 
 .meta {
+  margin-top: 20px;
   font-size: 12px;
   line-height: 16px;
   color: var(--gray-3);
