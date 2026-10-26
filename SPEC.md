@@ -7,7 +7,7 @@ self-hosted on the user's Cloudflare account and built for both people and
 agents.
 
 - Project home: `tray.sh` (docs, install script)
-- Example instance: `thts.app` → sites at `<site>.thts.app`, API at `tray.thts.app`
+- Example instance: `acme.dev` → sites at `<site>.acme.dev`, API at `tray.acme.dev`
 
 ---
 
@@ -84,7 +84,7 @@ Verified against `gh` and `vercel` docs.
 
 | Variable | Meaning |
 |---|---|
-| `TRAY_DOMAIN` | Tray to use (e.g. `thts.app`). |
+| `TRAY_DOMAIN` | Tray to use (e.g. `acme.dev`). |
 | `TRAY_API_KEY` | API key. Overrides saved login. |
 | `CLOUDFLARE_API_TOKEN` | Used by `tray setup` and `tray domain add`. |
 | `NO_COLOR`, `CI` | Respected. `CI` implies non-interactive. |
@@ -97,8 +97,8 @@ Verified against `gh` and `vercel` docs.
 `TRAY_API_KEY` → saved key for that domain → error:
 
 ```
-error: not logged in to thts.app
-Run `tray login thts.app` or set TRAY_API_KEY.
+error: not logged in to acme.dev
+Run `tray login acme.dev` or set TRAY_API_KEY.
 ```
 
 **Where saved keys live.** The OS credential store via `Bun.secrets`, or
@@ -241,13 +241,13 @@ with `--replace`. Use `tray edit` to change it.
 ┌  tray
 ◇  Collected 42 files · 3.1 MB
 ◇  Uploaded 3 changed files
-└  https://report.thts.app   (private · you)
+└  https://report.acme.dev   (private · you)
 
 # non-interactive
-https://report.thts.app
+https://report.acme.dev
 
 # --json
-{"site":"report","url":"https://report.thts.app","visibility":"public",
+{"site":"report","url":"https://report.acme.dev","visibility":"public",
  "deploy":"lq3k2-8f1a","files":42,"uploaded":3,"bytes":3145728}
 ```
 
@@ -257,8 +257,8 @@ https://report.thts.app
 
 ```
 SITE      URL                        VISIBILITY   DOMAINS          UPDATED
-report    https://report.thts.app    private (3)  —                2m ago
-docs      https://docs.thts.app      public       docs.acme.com    3d ago
+report    https://report.acme.dev    private (3)  —                2m ago
+docs      https://docs.acme.dev      public       docs.acme.com    3d ago
 ```
 
 `(3)` = number of people it is shared with, including the owner.
@@ -328,11 +328,11 @@ tray domain list [-s docs]
 ### Auth: `login`, `approve`, `logout`, `account`
 
 ```
-$ tray login thts.app
-Opening https://tray.thts.app/approve?code=QXFT-7K2M
+$ tray login acme.dev
+Opening https://tray.acme.dev/approve?code=QXFT-7K2M
   or on a logged-in machine: tray approve QXFT-7K2M
 waiting…
-✓ Logged in as sid@acme.com on thts.app
+✓ Logged in as sid@acme.com on acme.dev
 ```
 
 Flow (device code):
@@ -408,15 +408,15 @@ One-time provisioning of a tray on the user's Cloudflare account.
 
 ```
 $ tray setup
-? Domain for your tray (must be on Cloudflare): thts.app
+? Domain for your tray (must be on Cloudflare): acme.dev
 ? Cloudflare API token (needs: Workers, R2, DNS, Access): ****
 ? Your email: sid@acme.com
-◇  R2 bucket            tray-thts-app
+◇  R2 bucket            tray-acme-dev
 ◇  Worker               tray
-◇  Routes + DNS         *.thts.app, tray.thts.app
+◇  Routes + DNS         *.acme.dev, tray.acme.dev
 ◇  Access               tray.acme.dev/approve → sid@acme.com
 ◇  Sign-in              *.acme.dev/.tray/signin (email code)
-└  Your tray is ready at thts.app. This machine is logged in.
+└  Your tray is ready at acme.dev. This machine is logged in.
 ```
 
 - Flags: `--domain`, `--email`; token from `CLOUDFLARE_API_TOKEN` or prompt.
