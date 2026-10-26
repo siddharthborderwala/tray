@@ -9,4 +9,6 @@
     "directory": "./dist",
   },
   "observability": { "enabled": true },
+  // tray.sh (apex) is the website; tray.tray.sh and *.tray.sh belong to the maintainers' own tray.
+  "routes": [{ "pattern": "tray.sh", "custom_domain": true }],
 }
