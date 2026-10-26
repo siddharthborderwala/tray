@@ -21,7 +21,7 @@ If Cloudflare Web Analytics is on for your domain, Cloudflare adds its script to
 
 The `tray` CLI sends no telemetry. It only talks to your own tray, to the Cloudflare API with your token during `tray setup` and `tray upgrade`, and to GitHub when `tray upgrade` looks for a new release.
 
-The install script at tray.sh/install downloads the CLI from the project's GitHub releases and checks its SHA-256 checksum.
+The install script at https://tray.sh/install downloads the CLI from the project's GitHub releases and checks its SHA-256 checksum.
 
 ## Questions
 

@@ -57,6 +57,18 @@ describe("folder", () => {
     expect(new TextDecoder().decode(css.data)).toBe("body{}");
   });
 
+  test("follows file links only inside the folder, never to skipped files", async () => {
+    const outside = tmp();
+    writeFileSync(join(outside, "id_rsa"), "PRIVATE");
+    const dir = tmp();
+    writeFileSync(join(dir, "index.html"), "x");
+    writeFileSync(join(dir, ".env"), "SECRET=1");
+    symlinkSync(join(outside, "id_rsa"), join(dir, "vendor.js"));
+    symlinkSync(join(dir, ".env"), join(dir, "config.txt"));
+    symlinkSync(join(dir, "index.html"), join(dir, "home.html"));
+    expect(paths((await collect(dir)).files)).toEqual(["/home.html", "/index.html"]);
+  });
+
   test("does not strip a single top-level folder for folders", async () => {
     const dir = tmp();
     mkdirSync(join(dir, "only"));

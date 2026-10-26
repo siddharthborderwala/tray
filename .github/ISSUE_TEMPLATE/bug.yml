@@ -26,7 +26,7 @@ body:
     attributes:
       label: How did you install tray?
       options:
-        - curl tray.sh/install
+        - curl https://tray.sh/install
         - npm / bun
         - GitHub release download
         - From source

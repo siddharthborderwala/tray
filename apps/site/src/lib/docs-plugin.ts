@@ -283,8 +283,12 @@ function sectionize(root: Root): void {
       out.push(section);
     } else if (section) {
       section.children.push(child);
+    } else if (child.type === "text" && !textOf(child).trim()) {
+      continue;
     } else {
-      out.push(child);
+      // The intro before the first h2 is one section too, so its paragraphs sit together.
+      section = h("section", { className: ["doc-section", "intro"] }, [child]);
+      out.push(section);
     }
   }
   // Drop whitespace-only text nodes between blocks inside sections.

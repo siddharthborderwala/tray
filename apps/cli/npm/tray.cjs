@@ -14,7 +14,9 @@ let bin;
 try {
   bin = require.resolve(`@tray-sh/cli-${target}/bin/${exe}`);
 } catch {
-  console.error(`tray: no prebuilt binary for ${target}. Try: curl -fsSL tray.sh/install | sh`);
+  console.error(
+    `tray: no prebuilt binary for ${target}. Try: curl -fsSL https://tray.sh/install | sh`,
+  );
   process.exit(1);
 }
 

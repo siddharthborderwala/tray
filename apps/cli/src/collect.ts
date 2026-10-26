@@ -1,7 +1,7 @@
 // Turn a folder, .zip, .tar.gz, single .html file, or stdin into a flat list of
 // files keyed by their path inside the site.
-import { readdirSync, statSync } from "node:fs";
-import { basename, dirname, join, posix, resolve } from "node:path";
+import { readdirSync, realpathSync, statSync } from "node:fs";
+import { basename, dirname, join, posix, relative, resolve, sep } from "node:path";
 import { unzipSync } from "fflate";
 import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@tray-sh/schema";
 import { usageError } from "./errors.ts";
@@ -138,6 +138,19 @@ export async function filesFromTarGz(data: Uint8Array): Promise<SiteFile[]> {
 
 export async function filesFromFolder(root: string): Promise<SiteFile[]> {
   const files: SiteFile[] = [];
+  const realRoot = realpathSync(root);
+  /** A file link counts only if it points inside the folder at a file we'd publish anyway. */
+  const linkTargetOk = (abs: string): boolean => {
+    let target: string;
+    try {
+      target = realpathSync(abs);
+    } catch {
+      return false;
+    }
+    const rel = relative(realRoot, target);
+    if (rel === "" || rel.startsWith("..") || resolve(realRoot, rel) !== target) return false;
+    return !shouldSkipPath(rel.split(sep).join("/"));
+  };
   const walk = async (dir: string, rel: string) => {
     const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
       a.name.localeCompare(b.name),
@@ -157,6 +170,8 @@ export async function filesFromFolder(root: string): Promise<SiteFile[]> {
           continue; // broken link
         }
         if (isDir) continue; // don't follow directory links (avoids cycles)
+        // Never publish what a link points to outside the folder (`config.txt -> ~/.env`).
+        if (!linkTargetOk(abs)) continue;
       }
       if (isDir) await walk(abs, relPath);
       else if (isFile)

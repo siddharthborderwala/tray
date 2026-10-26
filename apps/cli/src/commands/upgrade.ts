@@ -72,7 +72,7 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
           EXIT.failed,
           /node_modules/.test(execPath)
             ? "Installed with npm: run `npm i -g @tray-sh/cli@latest`."
-            : "Reinstall with: curl -fsSL tray.sh/install | sh",
+            : "Reinstall with: curl -fsSL https://tray.sh/install | sh",
         );
       }
       spin.message(`Downloading tray ${latest}…`);

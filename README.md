@@ -12,7 +12,7 @@ Tray runs on your own Cloudflare account, on Workers, R2 and Access, so your sit
 ## Install
 
 ```sh
-curl -fsSL tray.sh/install | sh
+curl -fsSL https://tray.sh/install | sh
 ```
 
 Or with npm: `npm i -g @tray-sh/cli`. Either way, the command is `tray`.

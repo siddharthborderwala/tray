@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs the tray CLI.  curl -fsSL tray.sh/install | sh
+# Installs the tray CLI.  curl -fsSL https://tray.sh/install | sh
 #
 #   TRAY_VERSION=v0.1.0   install a specific version (default: latest; the v is optional)
 #   TRAY_INSTALL=~/.tray  install directory (binary goes in $TRAY_INSTALL/bin)
@@ -149,9 +149,9 @@ detect_target() {
 
 download() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$1" -o "$2" || fail "download failed: $1"
+    curl --proto "=https" --proto-redir "=https" -fsSL "$1" -o "$2" || fail "download failed: $1"
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$2" "$1" || fail "download failed: $1"
+    wget --https-only -qO "$2" "$1" || fail "download failed: $1"
   else
     fail "need curl or wget"
   fi

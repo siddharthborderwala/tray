@@ -615,7 +615,7 @@ A visitor must not be able to tell a private site from one that doesn't exist.
 
 - Bun + TypeScript, compiled with `bun build --compile` for darwin-arm64,
   darwin-x64, linux-x64, linux-arm64, windows-x64.
-- `curl -fsSL tray.sh/install | sh` → `~/.tray/bin/tray` (`TRAY_INSTALL` to
+- `curl -fsSL https://tray.sh/install | sh` → `~/.tray/bin/tray` (`TRAY_INSTALL` to
   change). It adds that directory to PATH in the user's shell rc file
   (`TRAY_NO_MODIFY_PATH=1` to skip) and appends it to `$GITHUB_PATH` in CI.
 - Versioning: one version for the whole project (CLI and the Worker bundle it

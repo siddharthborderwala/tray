@@ -10,7 +10,7 @@ It runs on your own Cloudflare account, on Workers, R2 and Access. Setup takes a
 ## Install
 
 ```sh tabs="curl,bun,npm"
-$ curl -fsSL tray.sh/install | sh
+$ curl -fsSL https://tray.sh/install | sh
 $ bun add -g @tray-sh/cli
 $ npm i -g @tray-sh/cli
 ```
