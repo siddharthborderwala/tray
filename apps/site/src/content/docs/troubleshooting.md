@@ -52,7 +52,7 @@ $ tray edit q3-review --visibility private
 ## Domain not found
 
 ```text
-error: acme.com is not on this Cloudflare account
+error: acme.com isn't on this Cloudflare account
 ```
 
 Custom domains must be on the same Cloudflare account as your tray. Add the domain to Cloudflare, then try again.

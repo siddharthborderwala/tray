@@ -40,10 +40,10 @@ $ tray rollback q3-review
 Agents use the same CLI. Point yours at [tray.sh/skill.md](/skill.md) and it knows when to put something on a tray. It prints one line: the link.
 
 ```sh
-$ tray put ./out --json
+$ tray put ./dist -s q3-review --json
 {
-  "site": "out",
-  "url": "https://out.acme.dev",
+  "site": "q3-review",
+  "url": "https://q3-review.acme.dev",
   "visibility": "public",
   "deploy": "lq3m9-2c7e",
   "files": 12,
@@ -54,7 +54,7 @@ $ tray put ./out --json
 
 ## Your Cloudflare
 
-Tray runs on your own Cloudflare account. One Worker, one R2 bucket, your domain. Set it up once.
+Tray runs on your own Cloudflare account. One Worker, one R2 bucket, your domain. Set it up once. Use a domain just for Tray: every subdomain of it becomes a site.
 
 ```sh
 $ tray setup --domain acme.dev

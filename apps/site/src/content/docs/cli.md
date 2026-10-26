@@ -37,9 +37,9 @@ Your sites, with visibility, domains and when they changed.
 
 ```sh
 $ tray list
-SITE       VISIBILITY   DOMAINS        UPDATED
-q3-review  private (3)  —              2m ago
-docs       public       docs.acme.com  3d ago
+SITE        URL                          VISIBILITY    DOMAINS         UPDATED
+q3-review   https://q3-review.acme.dev   private (3)   —               2m ago
+docs        https://docs.acme.dev        public        docs.acme.com   3d ago
 ```
 
 ## open
@@ -94,7 +94,7 @@ $ tray unshare q3-review bob@acme.com
 
 ### `tray domain`
 
-Custom domains. The domain must be on the same Cloudflare account.
+Custom domains. The domain must be on the same Cloudflare account. Your tray uses the Cloudflare token `tray setup` saved; run setup again to change it.
 
 | Command                | Meaning                   |
 | ---------------------- | ------------------------- |
@@ -155,7 +155,7 @@ Create or update your tray on Cloudflare. Safe to run again. `tray upgrade` upda
 | ---------------------- | ------------------------------------------ |
 | `TRAY_DOMAIN`          | Tray to use.                               |
 | `TRAY_API_KEY`         | API key. Overrides your login.             |
-| `CLOUDFLARE_API_TOKEN` | Used by setup and domain add.              |
+| `CLOUDFLARE_API_TOKEN` | Used by setup and upgrade.                 |
 | `CI`                   | Set: never prompt.                         |
 | `AGENT`, `AI_AGENT`    | Set: an agent is running. Never prompt.    |
 | `TRAY_INTERACTIVE`     | 1: prompt anyway, even under an agent.     |

@@ -15,7 +15,7 @@
 |---|---|
 | `TRAY_DOMAIN` | Tray to use (e.g. `acme.dev`). |
 | `TRAY_API_KEY` | API key (`tray_k_…`). Overrides the saved login. |
-| `CLOUDFLARE_API_TOKEN` | Used by `tray setup`. |
+| `CLOUDFLARE_API_TOKEN` | Used by `tray setup` and `tray upgrade`. |
 | `NO_COLOR`, `CI` | Respected. `CI` implies non-interactive. |
 | `TRAY_INTERACTIVE` | `1` forces interactive mode (TTYs still required). |
 

@@ -17,7 +17,7 @@ Sign-in for private sites is handled by Cloudflare Access on your account. Tray 
 
 ## The CLI
 
-The `tray` CLI sends no telemetry. It only talks to your own tray and, during `tray setup` and `tray domain add`, to the Cloudflare API with your token.
+The `tray` CLI sends no telemetry. It only talks to your own tray, to the Cloudflare API with your token during `tray setup` and `tray upgrade`, and to GitHub when `tray upgrade` looks for a new release.
 
 The install script at tray.sh/install downloads the CLI from the project's GitHub releases and checks its SHA-256 checksum.
 

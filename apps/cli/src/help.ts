@@ -5,7 +5,7 @@ const ROOT_HELP_FOOTER = `
 Environment:
   TRAY_DOMAIN           Tray to use (e.g. acme.dev).
   TRAY_API_KEY          API key. Overrides saved login.
-  CLOUDFLARE_API_TOKEN  Used by \`tray setup\` and \`tray domain add\`.
+  CLOUDFLARE_API_TOKEN  Used by \`tray setup\` and \`tray upgrade\`.
   NO_COLOR, CI          Respected. CI implies --non-interactive.
   AGENT, AI_AGENT       Agent detected (also CLAUDECODE, CURSOR_AGENT, GEMINI_CLI,
                         CODEX_THREAD_ID): non-interactive, like CI.
