@@ -7,7 +7,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "bun build --compile --minify --sourcemap --no-compile-autoload-dotenv --no-compile-autoload-bunfig ./src/index.ts --outfile dist/tray",
+    "build": "bun run --cwd ../worker build && bun build --compile --minify --sourcemap --no-compile-autoload-dotenv --no-compile-autoload-bunfig ./src/index.ts --outfile dist/tray",
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
