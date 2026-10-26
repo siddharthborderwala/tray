@@ -21,6 +21,12 @@ export interface Env {
   CF_API_TOKEN?: string;
   /** This Worker's script name (custom domains point at it). Default `tray`. */
   WORKER_NAME?: string;
+  /**
+   * Secret set by `tray setup`: the KeyRecord JSON (hash only) of the key it
+   * minted for the machine running setup. Accepted once, then moved to R2, so
+   * setup never has to write to R2 itself and recovery works with all keys lost.
+   */
+  TRAY_SETUP_KEY?: string;
 }
 
 export interface R2Object {

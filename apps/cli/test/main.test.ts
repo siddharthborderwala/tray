@@ -344,10 +344,9 @@ describe("other commands", () => {
     expect(calls[1]!.path).toBe("/v1/keys/bbbbbbbbbbbb");
   });
 
-  test("setup and upgrade are stubs that fail clearly", async () => {
-    expect(await run(["setup", "--json"]).done).toBe(1);
-    expect(JSON.parse(out[0]!).code).toBe("not_implemented");
-    expect(await run(["upgrade"]).done).toBe(1);
+  test("setup without --domain exits 2 naming the flag (full flow: setup.test.ts)", async () => {
+    expect(await run(["setup", "--json"]).done).toBe(2);
+    expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--domain" });
   });
 });
 

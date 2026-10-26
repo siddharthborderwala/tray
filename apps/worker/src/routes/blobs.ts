@@ -13,7 +13,10 @@ import { paths } from "../storage.ts";
 const check = createRoute({
   method: "post",
   path: "/blobs/check",
-  summary: "Which of these blobs are missing?",
+  operationId: "checkBlobs",
+  summary: "Find which blobs are missing",
+  description:
+    "Takes up to 512 sha256 hashes and returns the ones not yet stored. Upload those with `PUT /blobs/{sha256}` before deploying.",
   security: bearer,
   request: { body: body(CheckBlobsRequest) },
   responses: { 200: json(CheckBlobsResponse, "Hashes not yet stored"), ...errors() },
@@ -22,7 +25,10 @@ const check = createRoute({
 const put = createRoute({
   method: "put",
   path: "/blobs/{sha256}",
-  summary: "Upload a blob (raw body, content-length required)",
+  operationId: "uploadBlob",
+  summary: "Upload a blob",
+  description:
+    "Raw file bytes as the body; `content-length` is required (411 without it, 413 over 50 MB). The body must hash to `sha256` (400 `digest_mismatch`). 201 when stored, 200 when it already existed.",
   security: bearer,
   request: {
     params: z.object({ sha256: Sha256 }),

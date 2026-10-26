@@ -19,7 +19,10 @@ import { getJson, now, paths, type PendingDevice as PendingRecord, putJson } fro
 const device = createRoute({
   method: "post",
   path: "/auth/device",
-  summary: "Start a device login (no auth)",
+  operationId: "startDeviceLogin",
+  summary: "Start a device login",
+  description:
+    "No auth. Returns a device code for the CLI to poll with and a user code for the owner to approve at `verificationUriComplete` or with `tray approve`.",
   request: { body: body(DeviceRequest) },
   responses: { 200: json(DeviceCode, "Codes for the CLI and the approver"), ...errors() },
 });
@@ -27,9 +30,10 @@ const device = createRoute({
 const token = createRoute({
   method: "post",
   path: "/auth/token",
-  summary: "Poll for the key (no auth)",
+  operationId: "pollDeviceToken",
+  summary: "Poll for a device login's API key",
   description:
-    "400 with `authorization_pending` until approved, `slow_down` when polling faster than `interval`, `expired_token`, or `access_denied`.",
+    "No auth. Returns 400 `authorization_pending` until approved, `slow_down` when polling faster than `interval`, `expired_token` when the code expired or was used, or `access_denied` when denied. On approval returns the key once.",
   request: { body: body(TokenRequest) },
   responses: { 200: json(Token, "Approved: the key, shown once"), ...errors() },
 });
@@ -37,7 +41,10 @@ const token = createRoute({
 const getDevice = createRoute({
   method: "get",
   path: "/auth/device/{userCode}",
-  summary: "Look up a pending login (for `tray approve`)",
+  operationId: "getDeviceLogin",
+  summary: "Look up a pending device login",
+  description:
+    "Returns the device name and IP for a user code so `tray approve` can show them before approving.",
   security: bearer,
   request: { params: z.object({ userCode: UserCode }) },
   responses: { 200: json(PendingDevice, "The pending login"), ...errors() },
@@ -46,8 +53,10 @@ const getDevice = createRoute({
 const approve = createRoute({
   method: "post",
   path: "/auth/approve",
-  summary: "Approve (or deny with approve: false) a pending login",
-  description: "Accepts an API key, or the owner's Cloudflare Access identity.",
+  operationId: "approveDeviceLogin",
+  summary: "Approve or deny a device login",
+  description:
+    "Mints an API key bound to the approver's email and the device name. `approve: false` denies. Accepts an API key or the owner's Cloudflare Access identity. Repeating the same decision is a no-op.",
   security: bearer,
   request: { body: body(ApproveRequest) },
   responses: { 204: { description: "Done" }, ...errors() },

@@ -37,7 +37,10 @@ const siteParam = z.object({ site: SiteName });
 const listSites = createRoute({
   method: "get",
   path: "/sites",
+  operationId: "listSites",
   summary: "List sites",
+  description:
+    "Every site with its URL, visibility, current deploy and custom domains, most recently updated first.",
   security: bearer,
   responses: { 200: json(SiteList, "Sites, most recently updated first"), ...errors() },
 });
@@ -45,7 +48,9 @@ const listSites = createRoute({
 const getSite = createRoute({
   method: "get",
   path: "/sites/{site}",
+  operationId: "getSite",
   summary: "Get a site",
+  description: "One site's URL, visibility, current deploy, custom domains and share count.",
   security: bearer,
   request: { params: siteParam },
   responses: { 200: json(Site, "The site"), ...errors(404) },
@@ -54,7 +59,10 @@ const getSite = createRoute({
 const editSite = createRoute({
   method: "patch",
   path: "/sites/{site}",
+  operationId: "updateSite",
   summary: "Change a site's visibility",
+  description:
+    "`private` limits it to the owner and its share list; `public` makes it visible to anyone with the link. The share list is kept either way.",
   security: bearer,
   request: { params: siteParam, body: body(EditSiteRequest) },
   responses: { 200: json(Site, "The updated site"), ...errors(404) },
@@ -63,7 +71,10 @@ const editSite = createRoute({
 const deleteSite = createRoute({
   method: "delete",
   path: "/sites/{site}",
-  summary: "Remove a site and its custom domains",
+  operationId: "deleteSite",
+  summary: "Remove a site",
+  description:
+    "Deletes the site, its deploy records and its custom domains. Blobs are left for later garbage collection.",
   security: bearer,
   request: { params: siteParam },
   responses: { 204: { description: "Removed" }, ...errors(404, 502) },
@@ -72,7 +83,10 @@ const deleteSite = createRoute({
 const createDeploy = createRoute({
   method: "post",
   path: "/sites/{site}/deploys",
-  summary: "Deploy a manifest (creates the site if needed)",
+  operationId: "createDeploy",
+  summary: "Deploy a manifest",
+  description:
+    "Creates the site if needed and makes the manifest live. Returns 200 with the current deploy when `files` and `spa` are unchanged, 409 `site_exists` when the site was last put from another `source` (pass `replace: true`), and 409 `missing_blobs` with `missing` when blobs need uploading first.",
   security: bearer,
   request: { params: siteParam, body: body(DeployRequest) },
   responses: {
@@ -85,7 +99,10 @@ const createDeploy = createRoute({
 const listDeploys = createRoute({
   method: "get",
   path: "/sites/{site}/deploys",
-  summary: "List deploys, newest first",
+  operationId: "listDeploys",
+  summary: "List deploys",
+  description:
+    "Newest first. Page with `limit` (default 20, max 100) and `before=<deployId>`; `hasMore` says whether older deploys exist.",
   security: bearer,
   request: { params: siteParam, query: DeployListQuery },
   responses: { 200: json(DeployList, "A page of deploys"), ...errors(404) },
@@ -94,7 +111,9 @@ const listDeploys = createRoute({
 const rollback = createRoute({
   method: "post",
   path: "/sites/{site}/rollback",
-  summary: "Point the site at an earlier deploy",
+  operationId: "rollbackSite",
+  summary: "Roll a site back to a deploy",
+  description: "Makes deploy `to` live. `to` is required; list deploys to pick one.",
   security: bearer,
   request: { params: siteParam, body: body(RollbackRequest) },
   responses: { 200: json(Site, "The site, now serving `to`"), ...errors(404) },

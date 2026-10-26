@@ -8,7 +8,21 @@ describe("GET /v1/openapi.json", () => {
     expect(res.status).toBe(200);
     const doc = await res.json();
     expect(doc.openapi).toBe("3.1.0");
-    expect(doc.servers).toEqual([{ url: "https://tray.thts.app/v1" }]);
+    expect(doc.servers[0].url).toBe("https://tray.{domain}/v1");
+    expect(doc.servers[0].variables.domain.default).toBe("thts.app");
+
+    // Every operation has a unique camelCase operationId, a summary and a description.
+    const operations = Object.values(doc.paths as Record<string, Record<string, any>>).flatMap(
+      (m) => Object.values(m),
+    );
+    const ids = operations.map((o) => o.operationId);
+    expect(ids.every((id) => /^[a-z][a-zA-Z]+$/.test(id))).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const o of operations) {
+      expect(o.summary).toBeString();
+      expect(o.summary).not.toContain("\n");
+      expect(o.description.length).toBeGreaterThan(20);
+    }
 
     const ops = Object.entries(doc.paths as Record<string, Record<string, unknown>>).flatMap(
       ([path, methods]) => Object.keys(methods).map((m) => `${m.toUpperCase()} ${path}`),
@@ -60,4 +74,13 @@ describe("GET /v1/openapi.json", () => {
       expect.arrayContaining(["200", "201", "409", "413"]),
     );
   });
+});
+
+test("openApiDocument() for the build has templated servers and the same operations", async () => {
+  const { openApiDocument } = await import("../src/app.ts");
+  const doc = openApiDocument();
+  expect(doc.servers?.[0]?.url).toBe("https://tray.{domain}/v1");
+  expect(doc.servers?.[0]?.variables?.domain?.default).toBe("example.com");
+  expect(doc.paths?.["/sites/{site}/deploys"]?.post?.operationId).toBe("createDeploy");
+  expect(doc.paths?.["/blobs/check"]?.post?.operationId).toBe("checkBlobs");
 });

@@ -16,6 +16,8 @@ export const paths = {
   key: (id: string) => `keys/${id}.json`,
   pending: (deviceCode: string) => `auth/pending/${deviceCode}.json`,
   code: (userCode: string) => `auth/codes/${userCode}`,
+  /** Marks a setup key as claimed, so revoking it later can't be undone by the secret. */
+  setupKeyClaimed: (id: string) => `auth/setup-keys/${id}`,
 };
 
 export interface SiteMeta {

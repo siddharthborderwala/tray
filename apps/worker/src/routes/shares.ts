@@ -12,7 +12,10 @@ const siteParam = z.object({ site: SiteName });
 const listShares = createRoute({
   method: "get",
   path: "/sites/{site}/shares",
-  summary: "Who can see a private site (owner first)",
+  operationId: "listShares",
+  summary: "List who can see a private site",
+  description:
+    "The owner first, then shared emails and `@domain` entries. 409 `site_public` on a public site.",
   security: bearer,
   request: { params: siteParam },
   responses: { 200: json(ShareList, "Owner and share entries"), ...errors(404, 409) },
@@ -21,7 +24,10 @@ const listShares = createRoute({
 const addShares = createRoute({
   method: "post",
   path: "/sites/{site}/shares",
-  summary: "Share a private site with emails or @domains",
+  operationId: "addShares",
+  summary: "Share a private site",
+  description:
+    "Adds emails or `@domain` entries (anyone with an email at that domain). Entries already present are ignored. Returns the full list.",
   security: bearer,
   request: { params: siteParam, body: body(AddSharesRequest) },
   responses: { 200: json(ShareList, "The full share list"), ...errors(404, 409) },
@@ -30,7 +36,10 @@ const addShares = createRoute({
 const removeShare = createRoute({
   method: "delete",
   path: "/sites/{site}/shares/{entry}",
-  summary: "Stop sharing with an email or @domain",
+  operationId: "removeShare",
+  summary: "Stop sharing a private site",
+  description:
+    "Removes an email or `@domain` entry. Removing an entry that isn't shared is a no-op; the owner can't be removed.",
   security: bearer,
   request: { params: z.object({ site: SiteName, entry: ShareEntry }) },
   responses: { 204: { description: "Removed (or wasn't shared)" }, ...errors(404, 409) },

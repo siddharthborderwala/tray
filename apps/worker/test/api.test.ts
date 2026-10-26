@@ -35,6 +35,32 @@ describe("auth", () => {
     ).not.toBeNull();
   });
 
+  test("the TRAY_SETUP_KEY secret is accepted once, then lives in R2; revoking it sticks", async () => {
+    const setupKey = "tray_k_" + "a".repeat(48);
+    const hash = await sha256(setupKey);
+    const record = {
+      id: hash.slice(0, 12),
+      hash,
+      name: "mbp",
+      email: "sid@acme.com",
+      createdAt: "2026-10-26T00:00:00Z",
+      lastUsedAt: null,
+    };
+    const { api, bucket } = await setup({ TRAY_SETUP_KEY: JSON.stringify(record) });
+
+    expect((await api("/keys", { key: setupKey })).status).toBe(200);
+    expect(await bucket.json(`keys/${record.id}.json`)).toMatchObject({
+      id: record.id,
+      name: "mbp",
+    });
+
+    // A key with the same id prefix but a different secret is still refused.
+    expect((await api("/sites", { key: "tray_k_" + "b".repeat(48) })).status).toBe(401);
+
+    expect((await api("/keys/current", { method: "DELETE", key: setupKey })).status).toBe(204);
+    expect((await api("/sites", { key: setupKey })).status).toBe(401);
+  });
+
   test("every response carries tray-version", async () => {
     const { api, visit } = await setup();
     expect((await api("/sites")).headers.get("tray-version")).toMatch(/^\d+\.\d+\.\d+/);

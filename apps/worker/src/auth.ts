@@ -48,7 +48,8 @@ async function identityFromKey(c: Context<Ctx>, header: string): Promise<Identit
   const key = header.slice("Bearer ".length).trim();
   if (!key.startsWith(API_KEY_PREFIX)) return null;
   const { id, hash } = await keyId(key);
-  const record = await getJson<KeyRecord>(c.env.BUCKET, paths.key(id));
+  const record =
+    (await getJson<KeyRecord>(c.env.BUCKET, paths.key(id))) ?? (await claimSetupKey(c.env, id));
   if (!record || !safeEqual(record.hash, hash)) return null;
 
   const stale =
@@ -62,6 +63,25 @@ async function identityFromKey(c: Context<Ctx>, header: string): Promise<Identit
     }
   }
   return { email: record.email, keyId: id };
+}
+
+/**
+ * The key `tray setup` minted arrives as the `TRAY_SETUP_KEY` secret. On its
+ * first use it is copied to keys/<id>.json; a marker stops a later revoke from
+ * being undone by the (still present) secret.
+ */
+async function claimSetupKey(env: Env, id: string): Promise<KeyRecord | null> {
+  if (!env.TRAY_SETUP_KEY) return null;
+  let record: KeyRecord;
+  try {
+    record = JSON.parse(env.TRAY_SETUP_KEY) as KeyRecord;
+  } catch {
+    return null;
+  }
+  if (record.id !== id || (await env.BUCKET.head(paths.setupKeyClaimed(id)))) return null;
+  await putJson(env.BUCKET, paths.key(id), record);
+  await env.BUCKET.put(paths.setupKeyClaimed(id), now());
+  return record;
 }
 
 /** Identity from the owner Access app on `tray.<domain>/approve`. */

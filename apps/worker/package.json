@@ -5,7 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./app": "./src/app.ts"
+    "./app": "./src/app.ts",
+    "./bundle": {
+      "types": "./bundle.d.ts",
+      "default": "./dist/worker.js"
+    }
   },
   "scripts": {
     "build": "bun run scripts/build.ts",

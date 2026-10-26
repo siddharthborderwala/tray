@@ -1,6 +1,9 @@
 // Bundles the Worker into one ES module: dist/worker.js. The CLI embeds this
 // file and uploads it with the Cloudflare API in `tray setup`.
+// Also writes dist/openapi.json (servers templated as https://tray.{domain}/v1),
+// which the site publishes at tray.sh/openapi.json.
 import { rm } from "node:fs/promises";
+import { openApiDocument } from "../src/app.ts";
 
 const outdir = new URL("../dist/", import.meta.url).pathname;
 await rm(outdir, { recursive: true, force: true });
@@ -24,3 +27,6 @@ const gzip = Bun.gzipSync(new Uint8Array(await out.arrayBuffer())).byteLength;
 console.log(
   `dist/worker.js  ${(out.size / 1024).toFixed(1)} KB  (${(gzip / 1024).toFixed(1)} KB gzip)`,
 );
+
+await Bun.write(outdir + "openapi.json", JSON.stringify(openApiDocument(), null, 2) + "\n");
+console.log("dist/openapi.json");

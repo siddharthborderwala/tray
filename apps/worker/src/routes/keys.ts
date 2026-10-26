@@ -8,7 +8,9 @@ import { getJson, type KeyRecord, listAll, mapLimit, paths } from "../storage.ts
 const listKeys = createRoute({
   method: "get",
   path: "/keys",
+  operationId: "listKeys",
   summary: "List API keys",
+  description: "Every key's id, name, owner email and timestamps. Never returns key secrets.",
   security: bearer,
   responses: { 200: json(KeyList, "Keys, oldest first"), ...errors() },
 });
@@ -16,7 +18,10 @@ const listKeys = createRoute({
 const newKey = createRoute({
   method: "post",
   path: "/keys",
-  summary: "Create an API key (shown once)",
+  operationId: "createKey",
+  summary: "Create an API key",
+  description:
+    "For agents and CI. The `key` is returned only in this response; only its hash is stored.",
   security: bearer,
   request: { body: body(CreateKeyRequest) },
   responses: { 201: json(CreatedKey, "The new key"), ...errors() },
@@ -26,7 +31,9 @@ const newKey = createRoute({
 const revokeCurrent = createRoute({
   method: "delete",
   path: "/keys/current",
-  summary: "Revoke the key making this request (logout)",
+  operationId: "revokeCurrentKey",
+  summary: "Revoke the calling key",
+  description: "Logout: revokes the API key that authenticated this request.",
   security: bearer,
   responses: { 204: { description: "Revoked" }, ...errors() },
 });
@@ -34,7 +41,9 @@ const revokeCurrent = createRoute({
 const revokeKey = createRoute({
   method: "delete",
   path: "/keys/{id}",
+  operationId: "revokeKey",
   summary: "Revoke an API key",
+  description: "Revokes a key by its 12-character id.",
   security: bearer,
   request: { params: z.object({ id: KeyId }) },
   responses: { 204: { description: "Revoked" }, ...errors(404) },

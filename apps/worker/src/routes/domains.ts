@@ -9,7 +9,9 @@ import { getJson, type HostRecord, listAll, loadSite, now, paths, putJson } from
 const listDomains = createRoute({
   method: "get",
   path: "/domains",
+  operationId: "listDomains",
   summary: "List custom domains",
+  description: "All custom hosts and the sites they serve, sorted by host. Filter with `?site=`.",
   security: bearer,
   request: { query: DomainListQuery },
   responses: { 200: json(DomainList, "Custom domains, by host"), ...errors() },
@@ -18,7 +20,10 @@ const listDomains = createRoute({
 const addDomain = createRoute({
   method: "post",
   path: "/domains",
+  operationId: "addDomain",
   summary: "Attach a custom domain to a site",
+  description:
+    "Adds the host as a Worker Custom Domain (Cloudflare creates DNS and TLS) and to the sign-in Access app. The host's zone must be on the same Cloudflare account (422 `zone_not_in_account`). 200 if already mapped to this site, 409 `domain_taken` if mapped elsewhere.",
   security: bearer,
   request: { body: body(AddDomainRequest) },
   responses: {
@@ -31,7 +36,9 @@ const addDomain = createRoute({
 const removeDomain = createRoute({
   method: "delete",
   path: "/domains/{host}",
+  operationId: "removeDomain",
   summary: "Detach a custom domain",
+  description: "Removes the Worker Custom Domain, the sign-in Access entry and the host mapping.",
   security: bearer,
   request: { params: z.object({ host: Hostname }) },
   responses: { 204: { description: "Detached" }, ...errors(404, 502) },

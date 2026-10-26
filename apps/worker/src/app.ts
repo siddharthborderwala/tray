@@ -30,15 +30,32 @@ api.openAPIRegistry.registerComponent("securitySchemes", "bearer", {
   scheme: "bearer",
   description: "An API key, `tray_k_…`",
 });
-api.doc31("/openapi.json", (c) => ({
-  openapi: "3.1.0",
-  info: {
-    title: "Tray",
-    version: VERSION,
-    description: "Tray Worker API. Errors are `{ error, code, hint?, param? }`.",
-  },
-  servers: [{ url: `https://tray.${c.env.DOMAIN}/v1` }],
-}));
+/**
+ * OpenAPI config. `servers` stays templated (`https://tray.{domain}/v1`); a
+ * running Worker fills in its own domain as the default.
+ */
+export function openApiConfig(domain = "example.com") {
+  return {
+    openapi: "3.1.0",
+    info: {
+      title: "Tray",
+      version: VERSION,
+      description:
+        "Self-hosted Tray API: publish folders as sites on your own domain. Authenticate with `authorization: Bearer tray_k_…`. Errors are `{ error, code, hint?, param? }` with snake_case codes.",
+    },
+    servers: [
+      {
+        url: "https://tray.{domain}/v1",
+        description: "Your tray",
+        variables: {
+          domain: { default: domain, description: "The domain the tray was set up on" },
+        },
+      },
+    ],
+  };
+}
+
+api.doc31("/openapi.json", (c) => openApiConfig(c.env.DOMAIN));
 
 const routes = api
   .route("/", blobs)
@@ -49,6 +66,11 @@ const routes = api
   .route("/", auth);
 
 export type AppType = typeof routes;
+
+/** The OpenAPI document, as served at `/v1/openapi.json` (written to dist/openapi.json at build). */
+export function openApiDocument(domain?: string) {
+  return api.getOpenAPI31Document(openApiConfig(domain));
+}
 
 export function defaultDeps(): Deps {
   return { cloudflare: (env) => cloudflareApi(env), verifyAccess: createAccessVerifier() };
