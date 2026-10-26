@@ -68,7 +68,7 @@ describe("serving public sites", () => {
     expect(res.headers.get("content-type")).toBe("text/html;charset=utf-8");
     const etag = res.headers.get("etag")!;
     expect(etag).toMatch(/^"[a-f0-9]{64}"$/);
-    expect(res.headers.get("cache-control")).toBe("public, max-age=0, must-revalidate");
+    expect(res.headers.get("cache-control")).toBeNull();
     expect(res.headers.get("content-length")).toBe("13");
 
     res = await visit("https://report.thts.app/", { headers: { "if-none-match": etag } });
@@ -111,7 +111,7 @@ describe("serving public sites", () => {
 
     res = await visit("https://c.thts.app/nope");
     expect(res.status).toBe(404);
-    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("cache-control")).toBeNull();
     const html = await res.text();
     expect(html).toContain("Sign in to view");
     expect(html).toContain('href="/.tray/signin?next=%2Fnope"');
@@ -155,7 +155,7 @@ describe("private sites", () => {
       const res = await visit("https://secret.thts.app/", { headers: await cookie(email) });
       expect(res.status).toBe(200);
       expect(await res.text()).toBe("classified");
-      expect(res.headers.get("cache-control")).toBe("private, no-cache");
+      expect(res.headers.get("cache-control")).toBeNull();
     }
     for (const email of ["eve@partner.io", "eve@acme.com.evil.io", "eve@notacme.com"]) {
       expect(
@@ -196,7 +196,7 @@ describe("private sites", () => {
     const unsigned = await snapshot(await visit("https://secret.thts.app/page"));
     expect(unsigned).toEqual(missing);
     expect(missing.status).toBe(404);
-    expect(Object.fromEntries(missing.headers)["cache-control"]).toBe("no-store");
+    expect(Object.fromEntries(missing.headers)["cache-control"]).toBeUndefined();
     expect(missing.body).toContain("Sign in to view");
     expect(missing.body).not.toContain("Signed in as");
 

@@ -155,7 +155,7 @@ describe("blobs", () => {
       env,
     );
     expect(res.status).toBe(411);
-    expect((await res.json()).code).toBe("length_required");
+    expect(((await res.json()) as { code: string }).code).toBe("length_required");
 
     res = await app.request(
       `https://tray.thts.app/v1/blobs/${hash}`,
@@ -166,7 +166,7 @@ describe("blobs", () => {
       env,
     );
     expect(res.status).toBe(413);
-    expect((await res.json()).code).toBe("too_large");
+    expect(((await res.json()) as { code: string }).code).toBe("too_large");
   });
 
   test("bad hash in path → 400", async () => {

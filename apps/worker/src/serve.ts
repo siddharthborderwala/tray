@@ -78,7 +78,7 @@ export function resolvePath(files: Manifest, path: string, spa: boolean): Resolv
 function trayNotFound(c: Context<Ctx>, email: string | null) {
   const url = new URL(c.req.url);
   const html = notFoundPage(url.pathname + url.search, email);
-  const headers = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
+  const headers = { "content-type": "text/html; charset=utf-8" };
   return c.req.method === "HEAD" ? c.body(null, 404, headers) : c.body(html, 404, headers);
 }
 
@@ -95,8 +95,8 @@ async function viewer(c: Context<Ctx>): Promise<string | null> {
 
 /** Only same-host relative paths, so this can't become an open redirect. */
 export function safeNext(next: string | undefined): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || /[\\\x00-\x1f]/.test(next))
-    return "/";
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return "/";
+  if ([...next].some((ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f)) return "/";
   const base = "https://tray.invalid";
   const url = new URL(next, base);
   if (url.origin !== base || url.pathname === SIGNIN_PATH) return "/";
@@ -112,9 +112,6 @@ async function signin(c: Context<Ctx>) {
         "Cloudflare Access didn't vouch for this request. Try again.",
       ),
       403,
-      {
-        "cache-control": "no-store",
-      },
     );
   }
   return c.redirect(safeNext(c.req.query("next")), 302);
@@ -161,8 +158,6 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   const headers: Record<string, string> = {
     etag: etag,
     "content-type": entry.type || "application/octet-stream",
-    "cache-control":
-      meta.visibility === "private" ? "private, no-cache" : "public, max-age=0, must-revalidate",
     "x-content-type-options": "nosniff",
   };
 
@@ -172,10 +167,7 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   if (c.req.method === "HEAD")
     return c.body(null, status, { ...headers, "content-length": String(entry.size) });
   const blob = await c.env.BUCKET.get(paths.blob(entry.hash));
-  if (!blob)
-    return c.text("Internal Server Error: file content missing", 500, {
-      "cache-control": "no-store",
-    });
+  if (!blob) return c.text("Internal Server Error: file content missing", 500);
   return c.body(blob.body, status, { ...headers, "content-length": String(blob.size) });
 }
 

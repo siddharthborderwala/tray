@@ -37,7 +37,7 @@ async function toBytes(
 
 export async function sha256(data: Uint8Array | string): Promise<string> {
   const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
-  const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+  const digest = await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>);
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -70,7 +70,7 @@ export class MemoryBucket implements R2Bucket {
     const data = s.data;
     return {
       ...this.meta(key, s),
-      body: new Response(data as BodyInit).body!,
+      body: new Response(data as Uint8Array<ArrayBuffer>).body!,
       text: async () => new TextDecoder().decode(data),
       json: async <T>() => JSON.parse(new TextDecoder().decode(data)) as T,
       arrayBuffer: async () => data.slice().buffer as ArrayBuffer,
@@ -116,7 +116,10 @@ export class MemoryBucket implements R2Bucket {
       const at = options.delimiter ? rest.indexOf(options.delimiter) : -1;
       if (at >= 0) {
         const p = prefix + rest.slice(0, at + options.delimiter!.length);
-        if (!seen.has(p)) (entries.push({ prefix: p }), seen.add(p));
+        if (!seen.has(p)) {
+          entries.push({ prefix: p });
+          seen.add(p);
+        }
       } else entries.push({ key: k });
     }
     const page = entries.slice(start, start + limit);
@@ -230,6 +233,10 @@ export function accessJwt(email: string, aud: string, opts: { exp?: number; iss?
 
 // --- harness ----------------------------------------------------------------------
 
+/** Tests read JSON bodies loosely; the shapes are asserted with expect(). */
+// oxlint-disable-next-line no-explicit-any
+export type TestResponse = Omit<Response, "json"> & { json(): Promise<any> };
+
 export const OWNER = "sid@acme.com";
 
 export async function setup(overrides: Partial<Env> = {}) {
@@ -253,15 +260,18 @@ export async function setup(overrides: Partial<Env> = {}) {
     const headers = new Headers(rest.headers);
     if (k) headers.set("authorization", `Bearer ${k}`);
     if (json !== undefined) headers.set("content-type", "application/json");
-    return app.request(
-      `https://tray.thts.app/v1${path}`,
-      { ...rest, headers, ...(json !== undefined ? { body: JSON.stringify(json) } : {}) },
-      env,
+    return <Promise<TestResponse>>(
+      app.request(
+        `https://tray.thts.app/v1${path}`,
+        { ...rest, headers, ...(json !== undefined ? { body: JSON.stringify(json) } : {}) },
+        env,
+      )
     );
   };
 
   /** Request to any host (sites, custom domains, /approve). */
-  const visit = (url: string, init: RequestInit = {}) => app.request(url, init, env);
+  const visit = (url: string, init: RequestInit = {}) =>
+    <Promise<TestResponse>>app.request(url, init, env);
 
   /** Upload content as blobs and return a manifest for it. */
   const upload = async (files: Record<string, string | { body: string; type: string }>) => {

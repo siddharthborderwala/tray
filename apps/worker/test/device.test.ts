@@ -174,7 +174,7 @@ describe("/approve page", () => {
 
     let res = await visit("https://tray.thts.app/approve", { headers });
     expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("cache-control")).toBeNull();
     expect(await res.text()).toContain('name="code"');
 
     res = await visit(dc.verificationUriComplete, { headers });
