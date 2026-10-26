@@ -1,14 +1,23 @@
 {
   "name": "tray",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "build": "bun run --cwd packages/cli build",
-    "test": "bun test",
-    "typecheck": "tsc -p packages/cli"
+    "build": "bun run --filter @traysh/worker build && bun run --filter @traysh/cli build && bun run --filter @traysh/site build",
+    "test": "bun test apps packages",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint --deny-warnings",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",
+    "oxfmt": "0.74.0",
+    "oxlint": "1.89.0",
     "typescript": "^7.0.2"
-  }
+  },
+  "packageManager": "bun@1.3.14"
 }

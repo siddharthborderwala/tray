@@ -1,0 +1,21 @@
+// Local development only (`bun run dev` → `wrangler dev`). Production Workers
+// are created by `tray setup`, which uploads dist/worker.js with the same
+// bindings via the Cloudflare API.
+//
+// Locally, *.localhost resolves to 127.0.0.1, so with DOMAIN=localhost:
+//   http://tray.localhost:8787/v1/...   API
+//   http://<site>.localhost:8787/       sites
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "tray",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "tray-dev" }],
+  "vars": {
+    "DOMAIN": "localhost",
+    "OWNER_EMAIL": "you@example.com",
+    "WORKER_NAME": "tray",
+    // ACCESS_TEAM_DOMAIN, ACCESS_APPROVE_AUD, ACCESS_SIGNIN_AUD, ACCESS_SIGNIN_APP_ID,
+    // CF_ACCOUNT_ID: set to test Access / custom domains. CF_API_TOKEN: put it in .dev.vars.
+  },
+}

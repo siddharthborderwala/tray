@@ -1,0 +1,24 @@
+{
+  "name": "@traysh/cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "tray": "./src/index.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "bun build --compile --minify --sourcemap --no-compile-autoload-dotenv --no-compile-autoload-bunfig ./src/index.ts --outfile dist/tray",
+    "dev": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@bomb.sh/router": "0.8.0",
+    "@clack/prompts": "^1.8.1",
+    "@traysh/schema": "workspace:*",
+    "fflate": "^0.8.3",
+    "hono": "^4.13.14",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@traysh/worker": "workspace:*"
+  }
+}

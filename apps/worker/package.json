@@ -1,0 +1,21 @@
+{
+  "name": "@traysh/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./app": "./src/app.ts"
+  },
+  "scripts": {
+    "build": "bun run scripts/build.ts",
+    "dev": "bunx wrangler dev",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
+    "@traysh/schema": "workspace:*",
+    "hono": "^4.13.14",
+    "zod": "^4.6.7"
+  }
+}

@@ -1,5 +1,6 @@
 node_modules
-/tray
-/tray.exe
+dist
+.astro
 *.bun-build
+.wrangler
 .DS_Store
