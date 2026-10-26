@@ -21,6 +21,8 @@ import { offerSkillInstall } from "../skill.ts";
 /**
  * Poll POST /auth/token (RFC 8628 semantics): `authorization_pending` keeps
  * polling, `slow_down` adds 5s, `expired_token` / `access_denied` stop.
+ * Network errors and 5xx are transient while waiting: keep polling until the
+ * code expires.
  */
 export async function pollForKey(
   api: Api,
@@ -41,8 +43,9 @@ export async function pollForKey(
     try {
       return await api.pollToken(deviceCode);
     } catch (err) {
+      if (err instanceof TrayError && err.code === "network") continue;
       if (!(err instanceof ApiFailure)) throw err;
-      if (err.code === "authorization_pending") continue;
+      if (err.code === "authorization_pending" || err.status >= 500) continue;
       if (err.code === "slow_down") {
         interval += 5000;
         continue;

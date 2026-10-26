@@ -486,6 +486,21 @@ describe("pure helpers", () => {
     expect(err.exit).toBe(4);
   });
 
+  test("pollForKey keeps polling through network errors and 5xx", async () => {
+    const replies = ["network", "503", "authorization_pending", "ok"];
+    const fetchImpl = (async () => {
+      const r = replies.shift()!;
+      if (r === "network") throw new Error("ECONNRESET");
+      if (r === "503") return new Response("upstream", { status: 503 });
+      if (r === "ok") return Response.json({ key: "tray_k_x", email: "e", name: "n" });
+      return Response.json({ error: r, code: r }, { status: 400 });
+    }) as unknown as typeof fetch;
+    const api = createApi({ baseUrl: "https://tray.t.app", fetch: fetchImpl });
+    const token = await pollForKey(api, "dc", 1, { sleep: async () => {} });
+    expect(token.key).toBe("tray_k_x");
+    expect(replies).toEqual([]);
+  });
+
   test("pollForKey stops at expired_token", async () => {
     const m = mockFetch({
       "POST /v1/auth/token": () =>
