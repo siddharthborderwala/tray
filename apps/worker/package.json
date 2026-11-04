@@ -7,7 +7,7 @@
     ".": "./src/index.ts",
     "./app": "./src/app.ts",
     "./mark": "./src/mark.ts",
-    "./pages": "./src/pages.ts",
+    "./pages": "./src/pages.tsx",
     "./bundle": {
       "types": "./bundle.d.ts",
       "default": "./dist/worker.js"
@@ -15,12 +15,13 @@
   },
   "scripts": {
     "build": "bun run scripts/build.ts",
-    "dev": "bunx wrangler dev",
+    "dev": "bun scripts/build.ts && (bun --watch scripts/build.ts & bunx wrangler dev)",
     "test": "bun test"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",
     "@tray-sh/schema": "workspace:*",
+    "@tray-sh/theme": "workspace:*",
     "hono": "^4.13.14",
     "jose": "^6.2.13",
     "zod": "^4.6.7"

@@ -13,7 +13,7 @@
     },
     "apps/cli": {
       "name": "@tray-sh/cli",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "bin": {
         "tray": "./src/index.ts",
       },
@@ -21,6 +21,7 @@
         "@bomb.sh/router": "0.8.0",
         "@clack/prompts": "^1.8.1",
         "@tray-sh/schema": "workspace:*",
+        "@tray-sh/theme": "workspace:*",
         "fflate": "^0.8.3",
         "hono": "^4.13.14",
         "zod": "^4.6.7",
@@ -31,10 +32,11 @@
     },
     "apps/site": {
       "name": "@tray-sh/site",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@astrojs/cloudflare": "^14.4.2",
         "@astrojs/markdown-satteri": "0.4.5",
+        "@tray-sh/theme": "workspace:*",
         "astro": "^7.4.2",
       },
       "devDependencies": {
@@ -44,10 +46,11 @@
     },
     "apps/worker": {
       "name": "@tray-sh/worker",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@hono/zod-openapi": "1.6.3",
         "@tray-sh/schema": "workspace:*",
+        "@tray-sh/theme": "workspace:*",
         "hono": "^4.13.14",
         "jose": "^6.2.13",
         "zod": "^4.6.7",
@@ -60,6 +63,10 @@
         "tldts": "^7.4.19",
         "zod": "^4.6.7",
       },
+    },
+    "packages/theme": {
+      "name": "@tray-sh/theme",
+      "version": "0.0.0",
     },
   },
   "packages": {
@@ -422,6 +429,8 @@
     "@tray-sh/schema": ["@tray-sh/schema@workspace:packages/schema"],
 
     "@tray-sh/site": ["@tray-sh/site@workspace:apps/site"],
+
+    "@tray-sh/theme": ["@tray-sh/theme@workspace:packages/theme"],
 
     "@tray-sh/worker": ["@tray-sh/worker@workspace:apps/worker"],
 

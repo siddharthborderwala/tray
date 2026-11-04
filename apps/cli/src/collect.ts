@@ -5,7 +5,7 @@ import { basename, dirname, join, posix, relative, resolve, sep } from "node:pat
 import { unzipSync } from "fflate";
 import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@tray-sh/schema";
 import { usageError } from "./errors.ts";
-import { withIndex } from "./index-page.ts";
+import { withIndex } from "./index-page.tsx";
 
 export interface SiteFile {
   /** Path inside the site, always starting with `/`. */

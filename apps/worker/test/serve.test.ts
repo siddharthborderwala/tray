@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createAccessVerifier } from "../src/access.ts";
-import { FONT_PATH } from "../src/pages.ts";
+import { FONT_PATH } from "../src/pages.tsx";
 import { resolvePath, safeNext } from "../src/serve.ts";
 import { accessJwt, APPROVE_AUD, certsFetch, OWNER, setup, SIGNIN_AUD } from "./helpers.ts";
 

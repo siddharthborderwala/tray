@@ -1,7 +1,6 @@
 // The toolbar on hosted pages: when it's added, what /.tray/me tells whom,
 // and that everything else is served exactly as before.
 import { describe, expect, test } from "bun:test";
-import { bundleToolbar, generated, OUT } from "../scripts/toolbar.ts";
 import { ME_PATH, TOOLBAR_JS, TOOLBAR_PATH } from "../src/toolbar.ts";
 import { accessJwt, OWNER, setup, SIGNIN_AUD } from "./helpers.ts";
 
@@ -194,12 +193,12 @@ describe("the script", () => {
     expect((await visit("https://deck.acme.dev/.tray/toolbar-00000000.js")).status).toBe(404);
   });
 
-  test("is valid JavaScript", () => {
-    expect(() => new Function(TOOLBAR_JS)).not.toThrow();
+  test("is pure ASCII, so its charset can't garble it", () => {
+    expect(/[\u0080-\uffff]/.test(TOOLBAR_JS)).toBe(false);
   });
 
-  test("the generated bundle is up to date with toolbar-client.ts", async () => {
-    expect(await Bun.file(OUT).text()).toBe(generated(await bundleToolbar()));
+  test("is valid JavaScript", () => {
+    expect(() => new Function(TOOLBAR_JS)).not.toThrow();
   });
 });
 

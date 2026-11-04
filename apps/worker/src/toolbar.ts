@@ -1,8 +1,8 @@
 // The toolbar on hosted pages: who's signed in and, for the owner, who has
 // access. Read-only. Served on every site host under /.tray/.
 import { markSvg } from "./mark.ts";
-import { escapeHtml, FONT_PATH } from "./pages.ts";
-import { TOOLBAR_BUNDLE } from "./toolbar-bundle.gen.ts";
+import { escapeHtml, FONT_PATH } from "./pages.tsx";
+import { toolbarBundle } from "../scripts/toolbar.ts" with { type: "macro" };
 import type { ToolbarConfig } from "./toolbar-types.ts";
 
 export const ME_PATH = "/.tray/me";
@@ -11,8 +11,11 @@ const config: ToolbarConfig = {
   me: ME_PATH,
   font: FONT_PATH,
   signout: "/.tray/signout",
-  mark: markSvg(),
+  mark: markSvg("var(--tray-accent)"),
 };
+
+/** The browser bundle of toolbar-client.ts, built while compiling (a Bun macro). */
+const TOOLBAR_BUNDLE: string = toolbarBundle();
 
 /** The client, with its config bound in a scope of its own. */
 export const TOOLBAR_JS = `(()=>{const TRAY_TOOLBAR_CONFIG=${JSON.stringify(config)};${TOOLBAR_BUNDLE}})();\n`;

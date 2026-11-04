@@ -5,7 +5,7 @@ import { SiteName } from "@tray-sh/schema";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { accessToken } from "./access.ts";
-import { messagePage, notFoundPage, PAGE_HEADERS } from "./pages.ts";
+import { messagePage, notFoundPage, PAGE_HEADERS } from "./pages.tsx";
 import type { Ctx } from "./router.ts";
 import {
   type DeployRecord,

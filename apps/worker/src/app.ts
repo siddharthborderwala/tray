@@ -20,7 +20,7 @@ import { sites } from "./routes/sites.ts";
 import { defaultFavicon, FAVICON_PATH, hostOf, serveSite } from "./serve.ts";
 import { apiHost, trayDomain } from "./domain.ts";
 import { fontBytes } from "./assets/font.ts";
-import { apiHomePage, FONT_PATH, messagePage, PAGE_HEADERS } from "./pages.ts";
+import { apiHomePage, FONT_PATH, messagePage, PAGE_HEADERS } from "./pages.tsx";
 
 export const VERSION: string = pkg.version;
 

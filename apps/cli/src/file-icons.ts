@@ -1,5 +1,5 @@
 // Tabler Icons 3.50.0 (MIT, https://tabler.io/icons), outline, 24×24 viewBox,
-// stroke=currentColor. Only the inner paths; index-page.ts wraps them.
+// stroke=currentColor. Only the inner paths; index-page.tsx wraps them.
 // Generated: to add one, copy its <path>s from @tabler/icons/icons/outline/<name>.svg.
 export const ICONS = {
   folder: `<path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/>`,

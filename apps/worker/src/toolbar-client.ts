@@ -8,6 +8,7 @@
 // Serialized with `toString()` and served as /.tray/toolbar-<v>.js: keep it
 // self-contained (no imports, no outside references).
 
+import { themeCss } from "@tray-sh/theme";
 import type { ToolbarConfig, ToolbarMe } from "./toolbar-types.ts";
 
 declare const TRAY_TOOLBAR_CONFIG: ToolbarConfig;
@@ -23,16 +24,17 @@ declare const TRAY_TOOLBAR_CONFIG: ToolbarConfig;
   }
   const url = (path: string) => new URL(path, location.origin).href;
 
+  // The handle and avatars are identity, the same in both themes (an ink
+  // tile, a periwinkle initial, the blue period). Everything else uses the
+  // theme's --tray-* tokens, set on .root inside the shadow tree so a page's
+  // own custom properties can't reach them.
   const INK = "#242424";
-  const PAPER = "#FAF9F0";
   const BLUE = "#356BE5";
   const PERI = "#7B9BFF";
-  const GRAY = "#6B6B6B";
   /** The handle's edge: visible on dark pages, quiet on light ones. */
   const EDGE = "#3A3A3A";
-  const LINE = "#DDDBD0";
-  const CODE = "#ECEBE3";
-  const FAMILY = "Tray Mono";
+  /** Namespaced, since it's registered on the page's document.fonts. */
+  const FAMILY = "__tray_mono";
   const KEY = "tray-toolbar-corner";
   const INSET = 16;
 
@@ -84,18 +86,18 @@ declare const TRAY_TOOLBAR_CONFIG: ToolbarConfig;
     const letter = (domain ? who.slice(1) : who).charAt(0).toLowerCase() || "?";
     const h = hash(who);
     const FONT = 46.4; // 1.45 × the tile
-    const bar = domain ? 3 : 0;
-    const x = [1, 4, 7][h % 3]! + bar;
-    // Where the glyph's line box starts; the baseline sits 0.86 em below it
-    // (JetBrains Mono, as Chrome lays it out). Low, so letters crop at the bottom.
-    const top = [-1, 3][(h >>> 2) % 2]!;
-    const y = top + 0.86 * FONT;
+    // The hash only shifts the crop sideways; every letter sits at the same
+    // height, so none looks smaller. The line box starts 1 unit above the tile
+    // and the baseline sits 0.86 em below that (JetBrains Mono, as Chrome lays
+    // it out): low, so letters crop at the bottom.
+    const x = [1, 4, 7][h % 3]!;
+    const y = -1 + 0.86 * FONT;
     const stroke = (size >= 28 ? 1.5 : 1) * (32 / size); // constant on screen
     const root = svg("svg", {
       viewBox: "0 0 32 32",
       width: size,
       height: size,
-      class: "avatar",
+      class: domain ? "avatar domain" : "avatar",
       "aria-hidden": "true",
       focusable: "false",
     });
@@ -105,35 +107,37 @@ declare const TRAY_TOOLBAR_CONFIG: ToolbarConfig;
       "font-size": FONT,
       "font-weight": 700,
       fill: "none",
-      stroke: PERI,
+      // An @domain is the inverse: an ink initial on a periwinkle tile.
+      stroke: domain ? INK : PERI,
       "stroke-width": stroke,
       "font-family": `"${FAMILY}", ui-monospace, monospace`,
     });
     text.textContent = letter;
-    root.append(svg("rect", { width: 32, height: 32, fill: INK }), text);
-    if (domain) root.append(svg("rect", { width: bar, height: 32, fill: PERI }));
+    root.append(svg("rect", { width: 32, height: 32, fill: domain ? PERI : INK }), text);
     return root;
   };
 
   const css = `
 :host{all:initial}
 *{box-sizing:border-box;margin:0;padding:0}
-.root{font:13px/20px "${FAMILY}",ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.03em;color:${INK};-webkit-font-smoothing:antialiased}
+${themeCss(".root", { colorScheme: false })}
+.root{font:13px/20px "${FAMILY}",ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.03em;color:var(--tray-foreground);-webkit-font-smoothing:antialiased}
 .avatar{display:block;flex-shrink:0;overflow:hidden;user-select:none}
+@media (prefers-color-scheme:dark){.panel .avatar:not(.domain){outline:1px solid ${EDGE};outline-offset:-1px}}
 .handle{position:fixed;z-index:2147483647;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:${INK};border:1px solid ${EDGE};cursor:grab;touch-action:none;transition:left .2s ease,top .2s ease}
 .handle::after{content:"";position:absolute;right:-4px;bottom:-4px;width:7px;height:7px;background:${BLUE}}
 .handle:focus-visible{outline:2px solid ${BLUE};outline-offset:2px}
 .handle.dragging{cursor:grabbing;border-color:${BLUE};outline:3px solid ${PERI};transition:none}
-.tip{position:fixed;z-index:2147483647;background:${INK};color:${PAPER};font-size:12px;line-height:18px;padding:4px 8px;white-space:nowrap;pointer-events:none;display:none}
+.tip{position:fixed;z-index:2147483647;background:var(--tray-inverse);color:var(--tray-inverse-foreground);font-size:12px;line-height:18px;padding:4px 8px;white-space:nowrap;pointer-events:none;display:none}
 .handle:hover+.tip{display:block}
 .handle.dragging+.tip,.open+.tip{display:none!important}
-.panel{position:fixed;z-index:2147483647;width:340px;max-height:calc(100vh - 96px);overflow:auto;background:${PAPER};border:1px solid ${INK};display:none;flex-direction:column}
+.panel{position:fixed;z-index:2147483647;width:340px;max-height:calc(100vh - 96px);overflow:auto;background:var(--tray-background);border:1px solid var(--tray-border-strong);display:none;flex-direction:column}
 .panel.show{display:flex}
 .account{display:flex;align-items:center;gap:12px;padding:16px}
 .col{display:flex;flex-direction:column;min-width:0;flex:1}
 .email{font-size:14px;font-weight:600;overflow-wrap:anywhere}
-.sub,.role,.note{font-size:12px;line-height:18px;color:${GRAY}}
-.rule{height:1px;background:${LINE};flex-shrink:0}
+.sub,.role,.note{font-size:12px;line-height:18px;color:var(--tray-muted-foreground)}
+.rule{height:1px;background:var(--tray-border);flex-shrink:0}
 .people{display:flex;flex-direction:column;padding:16px 16px 12px;gap:4px}
 .head{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px}
 .title{font-weight:600}
@@ -141,18 +145,19 @@ declare const TRAY_TOOLBAR_CONFIG: ToolbarConfig;
 .row .who{overflow-wrap:anywhere}
 .role{flex-shrink:0}
 .hint{display:flex;flex-direction:column;gap:8px;padding-top:12px}
-.code{display:flex;align-items:center;gap:12px;background:${CODE};padding:10px 12px}
+.code{display:flex;align-items:center;gap:12px;background:var(--tray-muted);padding:10px 12px}
 .code code{flex:1;min-width:0;font:inherit;font-size:12px;line-height:18px;overflow-wrap:anywhere}
-.copy{font:inherit;font-size:11px;line-height:16px;color:${GRAY};background:${PAPER};border:1px solid ${LINE};padding:1px 8px;cursor:pointer;flex-shrink:0}
-.copy:hover{color:${INK};border-color:${INK}}
+.copy{font:inherit;font-size:11px;line-height:16px;color:var(--tray-muted-foreground);background:var(--tray-background);border:1px solid var(--tray-border);padding:1px 8px;cursor:pointer;flex-shrink:0}
+.copy:hover{color:var(--tray-foreground);border-color:var(--tray-border-strong)}
 .foot{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
-.foot a{color:${INK};text-decoration:underline;text-underline-offset:3px}
-.foot a:hover{color:${BLUE}}
-.mark{display:block;color:${INK};line-height:0}
+.foot a{color:var(--tray-foreground);text-decoration:underline;text-underline-offset:3px}
+.foot a:hover{color:var(--tray-accent)}
+.mark{display:block;color:var(--tray-foreground);line-height:0}
 .mark svg{height:16px;width:auto}
 @media (max-width:480px){
   .panel{left:0!important;right:0!important;bottom:0!important;top:auto!important;width:auto;max-height:80vh;border-width:1px 0 0}
 }
+.root ::selection{background:var(--tray-selection);color:var(--tray-selection-foreground)}
 @media (prefers-reduced-motion:reduce){.handle{transition:none}}
 @media print{.root{display:none}}
 `;

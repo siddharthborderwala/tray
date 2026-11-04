@@ -3,7 +3,7 @@
 import { type Context, Hono } from "hono";
 import { decideDevice, findDevice, normalizeUserCode, ownerFromAccess } from "./auth.ts";
 import { TrayError } from "./errors.ts";
-import { approveCodeForm, approveDetails, messagePage, PAGE_HEADERS } from "./pages.ts";
+import { approveCodeForm, approveDetails, messagePage, PAGE_HEADERS } from "./pages.tsx";
 import type { Ctx } from "./router.ts";
 
 /** A form post from this page itself: same-origin by Fetch Metadata and by Origin (when sent). */

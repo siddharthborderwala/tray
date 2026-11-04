@@ -180,7 +180,7 @@ describe("single file", () => {
     expect(c.source).toBe(join(dir, "report.pdf"));
     expect(c.generatedIndex).toBe("redirect");
     expect(text(c, "/index.html")).toContain(
-      '<meta http-equiv="refresh" content="0; url=/report.pdf">',
+      '<meta http-equiv="refresh" content="0; url=/report.pdf"/>',
     );
   });
 

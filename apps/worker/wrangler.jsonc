@@ -1,18 +1,22 @@
-// Local development only (`bun run dev` → `wrangler dev`). Production Workers
-// are created by `tray setup`, which uploads dist/worker.js with the same
-// bindings via the Cloudflare API.
+// Local development only (`bun run dev`). Production Workers are created by
+// `tray setup`, which uploads dist/worker.js with the same bindings via the
+// Cloudflare API. Locally, wrangler runs that same file: Bun builds it (the
+// toolbar is inlined by a Bun macro, which wrangler's bundler can't run), so
+// wrangler doesn't bundle anything.
 //
-// Locally, *.localhost resolves to 127.0.0.1, so with DOMAIN=localhost:
-//   http://tray.localhost:8787/v1/...   API
-//   http://<site>.localhost:8787/       sites
+// lvh.me is a public domain whose every subdomain resolves to 127.0.0.1, and
+// unlike `localhost` it passes the Worker's domain check:
+//   http://tray.lvh.me:8787/v1/...   API
+//   http://<site>.lvh.me:8787/       sites
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "tray",
-  "main": "src/index.ts",
+  "main": "dist/worker.js",
+  "no_bundle": true,
   "compatibility_date": "2026-10-01",
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "tray-dev" }],
   "vars": {
-    "DOMAIN": "localhost",
+    "DOMAIN": "lvh.me",
     "OWNER_EMAIL": "you@example.com",
     "WORKER_NAME": "tray",
     // ACCESS_TEAM_DOMAIN, ACCESS_APPROVE_AUD, ACCESS_SIGNIN_AUD, ACCESS_SIGNIN_APP_ID,
