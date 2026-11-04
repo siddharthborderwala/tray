@@ -127,7 +127,7 @@ ${themeCss(".root", { colorScheme: false })}
 .panel.show{display:flex}
 .account{display:flex;align-items:center;gap:12px;padding:16px}
 .col{display:flex;flex-direction:column;min-width:0;flex:1}
-.email{font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.email{font-size:15px;line-height:22px;font-weight:600;overflow-wrap:anywhere}
 .sub,.role,.note{font-size:12px;line-height:18px;color:var(--tray-muted-foreground)}
 .row .note{font-size:11px;line-height:16px}
 .rule{height:1px;background:var(--tray-border);flex-shrink:0}
@@ -135,15 +135,16 @@ ${themeCss(".root", { colorScheme: false })}
 .head{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px}
 .title{font-weight:600}
 .row{display:flex;align-items:center;gap:12px;min-height:40px}
-.row .who{overflow-wrap:anywhere}
+.row .who{font-size:14px;line-height:20px;overflow-wrap:anywhere}
 .role{flex-shrink:0}
 .hint{display:flex;flex-direction:column;gap:8px;padding-top:12px}
+.hint .note{font-size:13px;line-height:20px}
 .code{display:flex;align-items:center;gap:12px;background:var(--tray-muted);padding:10px 12px}
-.code code{flex:1;min-width:0;font:inherit;font-size:12px;line-height:18px;overflow-wrap:anywhere}
-.copy{font:inherit;font-size:11px;line-height:16px;color:var(--tray-muted-foreground);background:var(--tray-background);border:1px solid var(--tray-border);padding:1px 8px;cursor:pointer;flex-shrink:0}
+.code code{flex:1;min-width:0;font:inherit;font-size:13px;line-height:20px;overflow-wrap:anywhere}
+.copy{font:inherit;font-size:12px;line-height:16px;color:var(--tray-muted-foreground);background:var(--tray-background);border:1px solid var(--tray-border);padding:1px 8px;cursor:pointer;flex-shrink:0}
 .copy:hover{color:var(--tray-foreground);border-color:var(--tray-border-strong)}
 .foot{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
-.foot a{color:var(--tray-foreground);text-decoration:underline;text-underline-offset:3px}
+.foot a{font-size:14px;color:var(--tray-foreground);text-decoration:underline;text-underline-offset:3px}
 .foot a:hover{color:var(--tray-accent)}
 .mark{display:block;color:var(--tray-foreground);line-height:0}
 .mark svg{height:16px;width:auto}
