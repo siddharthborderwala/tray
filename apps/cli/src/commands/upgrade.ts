@@ -113,12 +113,39 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
       `Refreshed the Tray skill in ${skills.length} place${skills.length === 1 ? "" : "s"}`,
     );
 
+  // One tray failing (say, a revoked token) doesn't stop the others.
   const workers = [];
+  const failed: { domain: string; error: TrayError }[] = [];
   for (const [domain, record] of Object.entries(loadSetups(ctx.configDir))) {
-    workers.push(await redeployIfOlder(ctx, domain, record, version, deps));
+    try {
+      workers.push(await redeployIfOlder(ctx, domain, record, version, deps));
+    } catch (err) {
+      if (!(err instanceof TrayError)) throw err;
+      const error =
+        err.code === "cloudflare_forbidden"
+          ? new TrayError(
+              `${domain}: Cloudflare rejected the saved API token`,
+              err.code,
+              err.exit,
+              `It was revoked, expired, or is missing a permission. Run \`tray setup --domain ${domain}\` to save a new one.`,
+            )
+          : new TrayError(`${domain}: ${err.message}`, err.code, err.exit, err.hint);
+      warn(ctx, `${error.message}\n${error.hint ?? ""}`.trim());
+      failed.push({ domain, error });
+      workers.push({ domain, redeployed: false, error: error.message });
+    }
   }
 
   const from = ctx.env[UPGRADED_FROM];
+  if (failed.length) {
+    const first = failed[0]!.error;
+    throw new TrayError(
+      failed.length === 1 ? first.message : `${failed.length} trays weren't upgraded`,
+      first.code,
+      first.exit,
+      failed.length === 1 ? first.hint : failed.map((f) => f.error.message).join("\n"),
+    );
+  }
   const summary = from ? `Upgraded tray ${from} → ${version}` : `tray ${version} is up to date`;
   result(ctx, summary, { version, upgradedFrom: from ?? null, skills, workers });
 }

@@ -273,3 +273,42 @@ describe("release helpers", () => {
     expect(replaceableBinary("/opt/homebrew/bin/bun")).toBe(false);
   });
 });
+
+describe("a tray whose saved token Cloudflare rejects", () => {
+  test("the other trays still upgrade; the error says to re-run setup for that one", async () => {
+    keys = memoryKeyStore({ "cloudflare:acme.dev": "revoked", "cloudflare:zz.dev": "good" });
+    saveSetup(configDir, "zz.dev", {
+      accountId: "acct",
+      zoneId: "z2",
+      worker: "tray-zz-dev",
+      bucket: "tray-zz-dev",
+      email: "sid@acme.com",
+    });
+    const puts: string[] = [];
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/v1/openapi.json"))
+        return Response.json({}, { headers: { "tray-version": "0.1.0" } });
+      if (init?.method === "PUT") {
+        puts.push(url);
+        if (url.includes("tray-acme-dev"))
+          return Response.json(
+            { success: false, errors: [{ code: 10000, message: "Authentication error" }] },
+            { status: 403 },
+          );
+        return Response.json({ success: true, errors: [], result: {} });
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    const e = await upgrade(ctxFor(fetchImpl, { TRAY_UPGRADED_FROM: "0.1.0" }), {
+      version: "0.2.0",
+      workerSource: "x",
+    }).catch((x) => x);
+    expect(puts.some((u) => u.includes("tray-zz-dev"))).toBe(true); // still deployed
+    expect(e).toBeInstanceOf(TrayError);
+    expect(e.message).toBe("acme.dev: Cloudflare rejected the saved API token");
+    expect(e.hint).toContain("tray setup --domain acme.dev");
+    expect(e.exit).toBe(4);
+  });
+});

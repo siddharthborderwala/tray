@@ -513,6 +513,21 @@ describe("tray setup", () => {
     expect(cf.state.scripts.size).toBe(1);
   });
 
+  test("a saved token Cloudflare rejects is dropped, and a new one is asked for", async () => {
+    const cf = fakeCloudflare();
+    await keys.set("cloudflare:acme.dev", "revoked");
+    const e = await setup(ctxFor(cf.fetch, {}), "sid@acme.com", { workerSource: WORKER }).catch(
+      (x) => x,
+    );
+    // Non-interactive: asking means the pre-filled token link (exit 2), not the old 4.
+    expect(e.code).toBe("missing_input");
+    expect(e.exit).toBe(2);
+    expect(e.hint).toContain("dash.cloudflare.com");
+    expect(keys.data["cloudflare:acme.dev"]).toBeUndefined();
+    expect(err.join("\n")).toContain("no longer accepts the token saved for acme.dev");
+    expect(cf.state.scripts.size).toBe(0);
+  });
+
   test("not live yet → still saved, with a warning", async () => {
     const cf = fakeCloudflare();
     const offline = (async (input: string | URL | Request, init?: RequestInit) =>

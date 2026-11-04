@@ -24,7 +24,14 @@ import {
 } from "../setup/cloudflare.ts";
 import { tokenTemplateUrl } from "../setup/token.ts";
 import { pressEnter, requireZeroTrust, type ZeroTrustDeps } from "../setup/zero-trust.ts";
-import { loadSetups, resourceName, saveSetup, savedToken, saveToken } from "../setup/state.ts";
+import {
+  loadSetups,
+  resourceName,
+  saveSetup,
+  savedToken,
+  saveToken,
+  tokenSlotFor,
+} from "../setup/state.ts";
 import { offerSkillInstall } from "../skill.ts";
 import { Email } from "@tray-sh/schema";
 
@@ -41,11 +48,16 @@ function report(ctx: Ctx, label: string, value: string) {
   else ctx.stderr(`${label}: ${value}`);
 }
 
-async function askToken(ctx: Ctx, domain: string, deps: SetupDeps): Promise<string> {
+async function askToken(
+  ctx: Ctx,
+  domain: string,
+  deps: SetupDeps,
+  { useSaved = true } = {},
+): Promise<{ token: string; saved: boolean }> {
   const fromEnv = ctx.env.CLOUDFLARE_API_TOKEN?.trim();
-  if (fromEnv) return fromEnv;
-  const saved = await savedToken(ctx.keyStore, domain);
-  if (saved) return saved;
+  if (fromEnv) return { token: fromEnv, saved: false };
+  const saved = useSaved ? await savedToken(ctx.keyStore, domain) : null;
+  if (saved) return { token: saved, saved: true };
   const link = tokenTemplateUrl(domain);
   if (!ctx.mode.interactive) {
     throw new TrayError(
@@ -69,7 +81,7 @@ async function askToken(ctx: Ctx, domain: string, deps: SetupDeps): Promise<stri
     output: process.stderr,
   });
   if (p.isCancel(answer)) throw cancelled();
-  return answer.trim();
+  return { token: answer.trim(), saved: false };
 }
 
 /** A new API key and the record the Worker stores for it (hash only). */
@@ -102,23 +114,36 @@ export async function setup(
         placeholder: "acme.dev",
       })),
   );
-  const token = await askToken(ctx, domain, deps);
+  let { token, saved } = await askToken(ctx, domain, deps);
   const previous = loadSetups(ctx.configDir)[domain];
-  const cf = cloudflare(token, ctx.fetch ?? fetch);
+  let cf = cloudflare(token, ctx.fetch ?? fetch);
   const spin = spinner(ctx);
 
   // Verify the token (zone lookup), then Zero Trust, before asking for
-  // anything else or creating anything.
+  // anything else or creating anything. A saved token Cloudflare rejects
+  // (revoked, expired) is dropped, and we ask for a new one once.
   spin.start("Checking Cloudflare…");
   let accountId: string;
   let zoneId: string;
-  try {
-    const zone = await findZone(cf, domain);
-    accountId = zone.account.id;
-    zoneId = zone.id;
-  } catch (err) {
-    spin.error("Cloudflare check failed");
-    throw err;
+  for (;;) {
+    try {
+      const zone = await findZone(cf, domain);
+      accountId = zone.account.id;
+      zoneId = zone.id;
+      break;
+    } catch (err) {
+      if (saved && err instanceof TrayError && err.code === "cloudflare_forbidden") {
+        spin.error("The saved Cloudflare token was rejected");
+        await ctx.keyStore.delete(tokenSlotFor(domain));
+        warn(ctx, `Cloudflare no longer accepts the token saved for ${domain}. Create a new one.`);
+        ({ token, saved } = await askToken(ctx, domain, deps, { useSaved: false }));
+        cf = cloudflare(token, ctx.fetch ?? fetch);
+        spin.start("Checking Cloudflare…");
+        continue;
+      }
+      spin.error("Cloudflare check failed");
+      throw err;
+    }
   }
   spin.stop(`Cloudflare account ${accountId}`);
   const team = await requireZeroTrust(ctx, cf, accountId, deps);

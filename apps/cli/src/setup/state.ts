@@ -23,7 +23,8 @@ export function saveSetup(dir: string, domain: string, record: SetupRecord): voi
   writeJson(file(dir), { ...loadSetups(dir), [domain]: record });
 }
 
-const tokenSlot = (domain: string) => `cloudflare:${domain}`;
+export const tokenSlotFor = (domain: string) => `cloudflare:${domain}`;
+const tokenSlot = tokenSlotFor;
 
 export const savedToken = (store: KeyStore, domain: string) => store.get(tokenSlot(domain));
 export const saveToken = (store: KeyStore, domain: string, token: string) =>
