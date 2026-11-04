@@ -15,7 +15,7 @@ const LLMS = `# Tray
 - The link should stay the same when the content changes, or be visible only to certain people.
 - The user wants to roll back to an earlier version of something they shared.
 
-Don't use it for secrets you wouldn't put on a website, or for files over 50 MB per deploy.
+Don't use it for secrets you wouldn't put on a website, or for files over 100 MB per deploy.
 
 ## Docs
 

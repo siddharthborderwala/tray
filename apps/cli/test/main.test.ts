@@ -224,9 +224,9 @@ describe("tray put", () => {
     expect(err).toEqual(["The link opens Q3 Report.pdf directly."]);
   });
 
-  test("over 50 MB exits 1 before any request", async () => {
+  test("over the size limit exits 1 before any request", async () => {
     const dir = siteDir();
-    writeFileSync(join(dir, "big.bin"), new Uint8Array(51 * 1024 * 1024));
+    writeFileSync(join(dir, "big.bin"), new Uint8Array(101 * 1024 * 1024));
     const { done, calls } = run(["put", dir]);
     expect(await done).toBe(1);
     expect(err.join("\n")).toContain("big.bin");

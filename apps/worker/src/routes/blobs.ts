@@ -28,7 +28,7 @@ const put = createRoute({
   operationId: "uploadBlob",
   summary: "Upload a blob",
   description:
-    "Raw file bytes as the body; `content-length` is required (411 without it, 413 over 50 MB). The body must hash to `sha256` (400 `digest_mismatch`). 201 when stored, 200 when it already existed.",
+    "Raw file bytes as the body; `content-length` is required (411 without it, 413 over 100 MB). The body must hash to `sha256` (400 `digest_mismatch`). 201 when stored, 200 when it already existed.",
   security: bearer,
   request: {
     params: z.object({ sha256: Sha256 }),
@@ -71,7 +71,7 @@ export const blobs = newRouter()
       throw new TrayError(
         413,
         "too_large",
-        `blob is ${size} bytes; the limit is ${MAX_DEPLOY_BYTES} (50 MB)`,
+        `blob is ${size} bytes; the limit is ${MAX_DEPLOY_BYTES} (100 MB)`,
       );
     }
 

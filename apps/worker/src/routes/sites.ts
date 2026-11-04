@@ -226,7 +226,7 @@ export const sites = newRouter()
       throw new TrayError(
         413,
         "too_large",
-        `deploy is ${bytes} bytes; the limit is ${MAX_DEPLOY_BYTES} (50 MB)`,
+        `deploy is ${bytes} bytes; the limit is ${MAX_DEPLOY_BYTES} (100 MB)`,
         { param: "files" },
       );
     }

@@ -184,7 +184,7 @@ describe("blobs", () => {
     expect(bucket.objects.has(`blobs/${hash}`)).toBe(false);
   });
 
-  test("411 without content-length, 413 over 50 MB", async () => {
+  test("411 without content-length, 413 over 100 MB", async () => {
     const { app, env, key } = await setup();
     const hash = await sha256("x");
     // A streamed body with no length.
@@ -396,7 +396,7 @@ describe("deploys", () => {
     expect(calls()).toBeLessThan(100);
   });
 
-  test("50 MB total → 413 too_large", async () => {
+  test("over 100 MB total → 413 too_large", async () => {
     const { api } = await setup();
     const hash = await sha256("x");
     const res = await api("/sites/huge/deploys", {

@@ -84,5 +84,5 @@ first, then the result). Indented on a terminal, one line when piped.
 
 `site_exists`, `site_not_found`, `site_public` (share on a public site; run
 `tray edit <site> --visibility private` first), `domain_taken`,
-`zone_not_in_account`, `too_large` (over 50 MB), `not_logged_in`,
+`zone_not_in_account`, `too_large` (over 100 MB), `not_logged_in`,
 `unauthenticated`, `network`, `missing_input`, `invalid_usage`.

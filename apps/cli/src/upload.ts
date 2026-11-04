@@ -27,7 +27,7 @@ export function totalBytes(files: SiteFile[]): number {
   return files.reduce((n, f) => n + f.data.byteLength, 0);
 }
 
-/** Reject deploys over 50 MB, naming the largest files. */
+/** Reject deploys over 100 MB, naming the largest files. */
 export function checkSize(files: SiteFile[], limit = MAX_DEPLOY_BYTES): void {
   const total = totalBytes(files);
   if (total <= limit) return;

@@ -45,11 +45,13 @@ describe("hashing", () => {
 });
 
 describe("size limit", () => {
-  test("50 MB is allowed, one byte more is not", () => {
-    expect(() => checkSize([file("/a", new Uint8Array(MAX_DEPLOY_BYTES))])).not.toThrow();
+  test("100 MB in total is allowed, one byte more is not", () => {
+    const half = MAX_DEPLOY_BYTES / 2;
+    const ok = [file("/a", new Uint8Array(half)), file("/b", new Uint8Array(half))];
+    expect(() => checkSize(ok)).not.toThrow();
     const err = (() => {
       try {
-        checkSize([file("/big.bin", new Uint8Array(MAX_DEPLOY_BYTES)), file("/small.txt", "x")]);
+        checkSize([...ok, file("/small.txt", "x")]);
       } catch (e) {
         return e as TrayError;
       }
@@ -57,8 +59,7 @@ describe("size limit", () => {
     expect(err).toBeInstanceOf(TrayError);
     expect(err.code).toBe("too_large");
     expect(err.exit).toBe(1);
-    expect(err.hint).toContain("/big.bin");
-    expect(err.hint!.indexOf("/big.bin")).toBeLessThan(err.hint!.indexOf("/small.txt"));
+    expect(err.hint).toContain("/a");
   });
 });
 

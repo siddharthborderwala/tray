@@ -13,8 +13,12 @@ import { Hostname, ShareEntry } from "./hosts.ts";
 
 export const SITE_NAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 export const RESERVED_SITE_NAMES: readonly string[] = ["tray"];
-/** 50 MB total per deploy (and per blob). */
-export const MAX_DEPLOY_BYTES = 50 * 1024 * 1024;
+/**
+ * 100 MB total per deploy (and so per file). Each file uploads as one request,
+ * and Cloudflare rejects bodies over 100 MiB (104,857,600 bytes) on the Free
+ * and Pro plans before the Worker runs; this limit is exactly that.
+ */
+export const MAX_DEPLOY_BYTES = 100 * 1024 * 1024;
 /** Max hashes per `POST /blobs/check`. */
 export const CHECK_BATCH_SIZE = 512;
 export const API_KEY_PREFIX = "tray_k_";

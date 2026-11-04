@@ -40,7 +40,7 @@ $ tray put ./q3-review -s q3-review-v2
 ## Too large
 
 ```text
-error: deploy is 63 MB, over the 50 MB limit
+error: deploy is 128 MB, over the 100 MB limit
 ```
 
 tray lists the biggest files. Remove what you don’t need, like videos or source maps, and put it again.

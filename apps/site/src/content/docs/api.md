@@ -116,4 +116,4 @@ Errors return a status code and a JSON body.
 | `401`  | Missing or wrong key.                      |
 | `404`  | No such site, domain or key.               |
 | `409`  | Name taken. Code site_exists.              |
-| `413`  | Over 50 MB.                                |
+| `413`  | Over 100 MB.                               |
