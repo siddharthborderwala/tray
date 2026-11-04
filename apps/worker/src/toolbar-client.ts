@@ -245,7 +245,7 @@ ${themeCss(".root", { colorScheme: false })}
         for (const who of me.sharedWith ?? []) {
           people.append(
             who.startsWith("@")
-              ? row(who, who, "Viewer", `anyone at ${who.slice(1)}`)
+              ? row(who, who, "Viewer", `anyone with ${who} email`)
               : row(who, who, "Viewer"),
           );
         }
