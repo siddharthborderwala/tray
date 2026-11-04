@@ -53,13 +53,6 @@ declare const TRAY_TOOLBAR_CONFIG: ToolbarConfig;
     return n;
   };
 
-  /** Stable small hash, so an email always gets the same crop. */
-  const hash = (s: string) => {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
-    return h >>> 0;
-  };
-
   /**
    * The initial as a huge outlined glyph, cropped by the tile. Ink ground,
    * periwinkle outline. An `@domain` gets a periwinkle bar down the left edge.
@@ -84,13 +77,12 @@ declare const TRAY_TOOLBAR_CONFIG: ToolbarConfig;
   const avatar = (who: string, size: number) => {
     const domain = who.startsWith("@");
     const letter = (domain ? who.slice(1) : who).charAt(0).toLowerCase() || "?";
-    const h = hash(who);
     const FONT = 46.4; // 1.45 × the tile
-    // The hash only shifts the crop sideways; every letter sits at the same
-    // height, so none looks smaller. The line box starts 1 unit above the tile
-    // and the baseline sits 0.86 em below that (JetBrains Mono, as Chrome lays
-    // it out): low, so letters crop at the bottom.
-    const x = [1, 4, 7][h % 3]!;
+    // Every initial sits in the same spot, pushed to the bottom right so it
+    // bleeds off the tile's right and bottom edges. The line box starts 1 unit
+    // above the tile and the baseline sits 0.86 em below that (JetBrains Mono,
+    // as Chrome lays it out).
+    const x = 7;
     const y = -1 + 0.86 * FONT;
     const stroke = (size >= 28 ? 1.5 : 1) * (32 / size); // constant on screen
     const root = svg("svg", {
