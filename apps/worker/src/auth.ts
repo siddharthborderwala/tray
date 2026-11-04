@@ -170,7 +170,11 @@ const expired = () =>
   });
 
 export async function deleteDevice(env: Env, deviceCode: string, userCode: string) {
-  await env.BUCKET.delete([paths.pending(deviceCode), paths.code(userCode)]);
+  await env.BUCKET.delete([
+    paths.pending(deviceCode),
+    paths.code(userCode),
+    paths.poll(deviceCode),
+  ]);
 }
 
 /** The pending request for a user code, or `expired_token`. */

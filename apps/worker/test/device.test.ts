@@ -32,6 +32,14 @@ const poll = (api: Awaited<ReturnType<typeof setup>>["api"], deviceCode: string)
   api("/auth/token", { method: "POST", key: null, json: { deviceCode } });
 
 describe("device flow", () => {
+  test("polling never rewrites the pending record, so it can't undo an approval", async () => {
+    const { api, bucket } = await setup();
+    const dc = await start(api);
+    const before = await (await bucket.get(`auth/pending/${dc.deviceCode}.json`))!.text();
+    expect((await (await poll(api, dc.deviceCode)).json()).code).toBe("authorization_pending");
+    expect(await (await bucket.get(`auth/pending/${dc.deviceCode}.json`))!.text()).toBe(before);
+  });
+
   test("start → pending → approve via API key → token (single use) → key works", async () => {
     const { api, bucket } = await setup();
     const dc = await start(api);

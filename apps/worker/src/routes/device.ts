@@ -15,7 +15,7 @@ import {
 import { createKey, decideDevice, deleteDevice, findDevice, startDevice } from "../auth.ts";
 import { TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
-import { getJson, now, paths, type PendingDevice as PendingRecord, putJson } from "../storage.ts";
+import { getJson, getText, now, paths, type PendingDevice as PendingRecord } from "../storage.ts";
 import { apiHost } from "../domain.ts";
 
 const device = createRoute({
@@ -109,10 +109,13 @@ export const auth = newRouter()
     }
 
     // RFC 8628 §3.5: polling faster than `interval` → slow_down (1s grace for clock jitter).
-    const last = pending.lastPollAt ? Date.parse(pending.lastPollAt) : 0;
+    // Stored apart from the pending record: rewriting that here could undo an approval
+    // that lands between our read and write, leaving the CLI polling until it expires.
+    const pollKey = paths.poll(deviceCode);
+    const lastText = await getText(c.env.BUCKET, pollKey);
+    const last = lastText ? Date.parse(lastText) : 0;
     const tooFast = Date.now() - last < (DEVICE_POLL_INTERVAL_SECONDS - 1) * 1000;
-    pending.lastPollAt = now();
-    await putJson(c.env.BUCKET, key!, pending);
+    await c.env.BUCKET.put(pollKey, now());
     if (tooFast)
       throw deviceError("slow_down", `poll at most every ${DEVICE_POLL_INTERVAL_SECONDS}s`);
     throw deviceError("authorization_pending", "waiting for approval");

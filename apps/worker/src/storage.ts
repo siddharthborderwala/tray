@@ -19,6 +19,8 @@ export const paths = {
   keyUsed: (id: string) => `auth/key-used/${id}`,
   pending: (deviceCode: string) => `auth/pending/${deviceCode}.json`,
   code: (userCode: string) => `auth/codes/${userCode}`,
+  /** Last poll time, kept apart so a poll never overwrites an approval. */
+  poll: (deviceCode: string) => `auth/polls/${deviceCode}`,
   /** Marks a setup key as claimed, so revoking it later can't be undone by the secret. */
   setupKeyClaimed: (id: string) => `auth/setup-keys/${id}`,
 };
@@ -74,7 +76,6 @@ export interface PendingDevice {
   createdAt: string;
   expiresAt: string;
   status: "pending" | "approved" | "denied";
-  lastPollAt?: string;
   /** The approver, set on approval. `POST /auth/token` mints the key for it once. */
   email?: string;
 }
