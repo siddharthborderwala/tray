@@ -210,7 +210,7 @@ async function run(ctx: Ctx, intent: Execute): Promise<void> {
     case "/key/revoke":
       return keyRevoke(ctx, intent.model.keyName);
     case "/setup":
-      return setup(ctx, intent.model.email);
+      return setup(ctx, intent.model.email, { newToken: intent.model.newToken });
     case "/upgrade":
       return upgrade(ctx);
   }

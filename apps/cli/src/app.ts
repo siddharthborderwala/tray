@@ -293,6 +293,11 @@ export const app = route(
       schema(Email.optional()),
       description("Your email (owner)."),
     ),
+    flag(
+      "newToken",
+      "--new-token",
+      "Ask for a new Cloudflare API token instead of using the saved one.",
+    ),
     globals,
   ),
   command(name("upgrade"), description("Replace this binary with the latest release."), globals),

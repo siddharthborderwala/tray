@@ -528,6 +528,23 @@ describe("tray setup", () => {
     expect(cf.state.scripts.size).toBe(0);
   });
 
+  test("--new-token ignores the saved token and asks for a new one", async () => {
+    const cf = fakeCloudflare();
+    await keys.set("cloudflare:acme.dev", "cf_token");
+    const e = await setup(ctxFor(cf.fetch, {}), "sid@acme.com", {
+      workerSource: WORKER,
+      newToken: true,
+    }).catch((x) => x);
+    expect(e.code).toBe("missing_input");
+    expect(cf.calls.length).toBe(0);
+    // With CLOUDFLARE_API_TOKEN set, that one is used and saved instead.
+    await setup(ctxFor(cf.fetch, { CLOUDFLARE_API_TOKEN: "cf_token" }), "sid@acme.com", {
+      workerSource: WORKER,
+      newToken: true,
+    });
+    expect(cf.state.scripts.size).toBe(1);
+  });
+
   test("not live yet → still saved, with a warning", async () => {
     const cf = fakeCloudflare();
     const offline = (async (input: string | URL | Request, init?: RequestInit) =>

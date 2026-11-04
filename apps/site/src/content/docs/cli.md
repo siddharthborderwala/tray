@@ -135,12 +135,13 @@ API keys for agents and CI. Use one with `TRAY_API_KEY`.
 
 Create or update your tray on Cloudflare. Safe to run again. `tray upgrade` updates the CLI.
 
-Without `CLOUDFLARE_API_TOKEN`, setup prints a link that pre-fills a token with everything it needs, opens it, and asks you to paste the token. It also needs Cloudflare Zero Trust turned on (the Free plan is enough).
+Without `CLOUDFLARE_API_TOKEN`, setup prints a link that pre-fills a token with everything it needs, opens it, and asks you to paste the token. It saves the token in your OS keychain for re-runs and `tray upgrade`. If Cloudflare later rejects it (revoked or expired), setup asks for a new one. It also needs Cloudflare Zero Trust turned on (the Free plan is enough).
 
 | Flag           | Meaning                            |
 | -------------- | ---------------------------------- |
 | `--domain <d>` | Domain on your Cloudflare account. |
 | `--email <e>`  | Your email, for logging in.        |
+| `--new-token`  | Ask for a new Cloudflare token instead of the saved one. |
 
 ## Global flags
 

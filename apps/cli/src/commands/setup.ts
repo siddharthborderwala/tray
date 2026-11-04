@@ -40,6 +40,8 @@ export { upgrade } from "./upgrade.ts";
 export interface SetupDeps extends ZeroTrustDeps {
   /** The Worker bundle; defaults to the one embedded in this binary. */
   workerSource?: string;
+  /** `--new-token`: don't use the saved Cloudflare token; ask for a new one. */
+  newToken?: boolean;
 }
 
 /** `label` padded like the spec's output: `◇  R2 bucket            tray-acme-dev`. */
@@ -114,7 +116,7 @@ export async function setup(
         placeholder: "acme.dev",
       })),
   );
-  let { token, saved } = await askToken(ctx, domain, deps);
+  let { token, saved } = await askToken(ctx, domain, deps, { useSaved: !deps.newToken });
   const previous = loadSetups(ctx.configDir)[domain];
   let cf = cloudflare(token, ctx.fetch ?? fetch);
   const spin = spinner(ctx);
