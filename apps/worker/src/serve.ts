@@ -17,6 +17,10 @@ import {
   type SiteMeta,
 } from "./storage.ts";
 import { trayDomain } from "./domain.ts";
+import { faviconBytes } from "./assets/favicon.ts";
+import { injectInto, scannableType } from "./inject.ts";
+import { ME_PATH, TOOLBAR_JS, TOOLBAR_PATH, TOOLBAR_VERSION, toolbarTag } from "./toolbar.ts";
+import type { ToolbarMe } from "./toolbar-types.ts";
 
 export const SIGNIN_PATH = "/.tray/signin";
 export const SIGNOUT_PATH = "/.tray/signout";
@@ -147,14 +151,12 @@ function signout(c: Context<Ctx>) {
   return c.redirect("/cdn-cgi/access/logout", 302);
 }
 
-export async function serveSite(c: Context<Ctx>): Promise<Response> {
-  if (c.req.method !== "GET" && c.req.method !== "HEAD") {
-    return c.text("Method Not Allowed", 405, { allow: "GET, HEAD" });
-  }
-  const url = new URL(c.req.url);
-  if (url.pathname === SIGNIN_PATH) return signin(c);
-  if (url.pathname === SIGNOUT_PATH) return signout(c);
-
+/**
+ * The site for this host, who's signed in here (`email`), and whether they may
+ * see it. Private sites always check sign-in; public ones only when our cookie
+ * is present, so anonymous visits to public sites cost no extra work.
+ */
+async function lookup(c: Context<Ctx>) {
   // The same lookups happen whether or not the site exists or is private, so
   // a missing site, a private one without sign-in, and one not shared with
   // the visitor are indistinguishable (SPEC.md §5 "Private sites").
@@ -163,17 +165,92 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
     getJson<SiteMeta>(c.env.BUCKET, paths.meta(name)),
     getText(c.env.BUCKET, paths.current(name)),
   ]);
+  const signedIn =
+    !meta || meta.visibility === "private" || getCookie(c, SIGNIN_COOKIE, "host") !== undefined;
+  const email = signedIn ? await viewer(c) : null;
+  const allowed =
+    !!meta &&
+    !!current &&
+    (meta.visibility === "public" || (!!email && canView(meta, email, siteOwner(meta, c.env))));
+  return { name, meta, current, email, allowed };
+}
 
-  let email: string | null = null;
-  if (!meta || meta.visibility === "private") {
-    email = await viewer(c);
-    if (!meta || !current || !email || !canView(meta, email, siteOwner(meta, c.env)))
-      return trayNotFound(c, email);
+// No cache headers (Tray sets none); the toolbar fetches this with `cache: "no-store"`.
+const ME_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "cross-origin-resource-policy": "same-origin",
+};
+
+/**
+ * `/.tray/me`: who's signed in here, for the toolbar. Same-origin only; the
+ * share list only goes to the owner. Anyone else gets the same 404.
+ */
+async function me(c: Context<Ctx>) {
+  const fetchSite = c.req.header("sec-fetch-site");
+  const { name, meta, email, allowed } = await lookup(c);
+  if (!meta || !email || !allowed || (fetchSite && fetchSite !== "same-origin"))
+    return c.json({ error: "not found" }, 404, ME_HEADERS);
+  const owner = siteOwner(meta, c.env);
+  const you = email.toLowerCase();
+  const isOwner = you === owner;
+  const body: ToolbarMe = {
+    email: you,
+    role: isOwner ? "owner" : "viewer",
+    site: name,
+    host: hostOf(c),
+    visibility: meta.visibility,
+    owner,
+    ...(isOwner ? { sharedWith: meta.sharedWith } : {}),
+  };
+  return c.json(body, 200, ME_HEADERS);
+}
+
+function toolbarScript(c: Context<Ctx>) {
+  return c.body(TOOLBAR_JS, 200, {
+    "content-type": "text/javascript; charset=utf-8",
+    "cache-control": "public, max-age=31536000, immutable",
+    "x-content-type-options": "nosniff",
+    "cross-origin-resource-policy": "same-origin",
+  });
+}
+
+export const FAVICON_PATH = "/favicon.ico";
+
+/**
+ * Tray's favicon, for every artifact without its own /favicon.ico (browsers
+ * ask for that path when a page names no icon). The same bytes for missing,
+ * private and unshared sites, so it reveals nothing.
+ */
+export function defaultFavicon(c: Context) {
+  const bytes = faviconBytes();
+  const headers = {
+    "content-type": "image/x-icon",
+    "content-length": String(bytes.byteLength),
+    "x-content-type-options": "nosniff",
+  };
+  return c.req.method === "HEAD"
+    ? c.body(null, 200, headers)
+    : c.body(bytes as Uint8Array<ArrayBuffer>, 200, headers);
+}
+
+export async function serveSite(c: Context<Ctx>): Promise<Response> {
+  if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+    return c.text("Method Not Allowed", 405, { allow: "GET, HEAD" });
   }
-  if (!meta || !current) return trayNotFound(c, email);
+  const url = new URL(c.req.url);
+  if (url.pathname === SIGNIN_PATH) return signin(c);
+  if (url.pathname === SIGNOUT_PATH) return signout(c);
+  if (url.pathname === ME_PATH) return me(c);
+  if (url.pathname === TOOLBAR_PATH) return toolbarScript(c);
+
+  const { name, meta, current, email, allowed } = await lookup(c);
+  const favicon = url.pathname === FAVICON_PATH;
+  if (!meta || !current || !allowed) return favicon ? defaultFavicon(c) : trayNotFound(c, email);
 
   const deploy = await loadDeploy(c, name, current);
-  if (!deploy) return trayNotFound(c, email);
+  if (!deploy) return favicon ? defaultFavicon(c) : trayNotFound(c, email);
+  // Their own favicon.ico wins; otherwise ours, before any SPA or 404.html fallback.
+  if (favicon && !deploy.files[FAVICON_PATH]) return defaultFavicon(c);
 
   let path: string;
   try {
@@ -186,22 +263,33 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   if ("redirect" in resolved) return c.redirect(encodeURI(resolved.redirect) + url.search, 301);
 
   const { entry, status } = resolved;
+  // Signed-in visitors get the toolbar on HTML pages (when it can go in safely: see inject.ts).
+  const toolbar = !!email && scannableType(entry.type);
   // Weak: Cloudflare's edge drops strong ETags (it may re-encode the body), but keeps weak ones.
-  const etag = `"${entry.hash}"`;
+  // The toolbar's own version is part of it, so a new toolbar isn't served from a stale cache.
+  const etag = toolbar ? `"${entry.hash}-${TOOLBAR_VERSION}"` : `"${entry.hash}"`;
   const headers: Record<string, string> = {
     etag: `W/${etag}`,
     "content-type": entry.type || "application/octet-stream",
     "x-content-type-options": "nosniff",
   };
-
   if (status === 200 && matches(c.req.header("if-none-match"), etag))
     return c.body(null, 304, headers);
 
+  // HEAD with the toolbar: the length depends on the scan, so leave it out.
   if (c.req.method === "HEAD")
-    return c.body(null, status, { ...headers, "content-length": String(entry.size) });
+    return c.body(
+      null,
+      status,
+      toolbar ? headers : { ...headers, "content-length": String(entry.size) },
+    );
   const blob = await c.env.BUCKET.get(paths.blob(entry.hash));
   if (!blob) return c.text("Internal Server Error: file content missing", 500);
-  return c.body(blob.body, status, { ...headers, "content-length": String(blob.size) });
+  if (!toolbar)
+    return c.body(blob.body, status, { ...headers, "content-length": String(blob.size) });
+  const { stream, injected } = await injectInto(blob.body, toolbarTag(url.origin));
+  const length = blob.size + (injected ? toolbarTag(url.origin).byteLength : 0);
+  return c.body(stream, status, { ...headers, "content-length": String(length) });
 }
 
 /** Weak comparison (RFC 9110 §8.8.3.2): `W/"x"` and `"x"` both match. */

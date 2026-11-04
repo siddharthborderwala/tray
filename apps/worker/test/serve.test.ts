@@ -191,7 +191,7 @@ describe("private sites", () => {
     for (const email of [OWNER, "bob@partner.io", "anyone@acme.com", "Bob@Partner.io"]) {
       const res = await visit("https://secret.acme.dev/", { headers: await cookie(email) });
       expect(res.status).toBe(200);
-      expect(await res.text()).toBe("classified");
+      expect(await res.text()).toEndWith("classified"); // after the toolbar tag
       expect(res.headers.get("cache-control")).toBeNull();
     }
     for (const email of ["eve@partner.io", "eve@acme.com.evil.io", "eve@notacme.com"]) {

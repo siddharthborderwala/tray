@@ -17,7 +17,7 @@ import { domains } from "./routes/domains.ts";
 import { keys } from "./routes/keys.ts";
 import { shares } from "./routes/shares.ts";
 import { sites } from "./routes/sites.ts";
-import { hostOf, serveSite } from "./serve.ts";
+import { defaultFavicon, FAVICON_PATH, hostOf, serveSite } from "./serve.ts";
 import { apiHost, trayDomain } from "./domain.ts";
 import { fontBytes } from "./assets/font.ts";
 import { apiHomePage, FONT_PATH, messagePage, PAGE_HEADERS } from "./pages.ts";
@@ -102,6 +102,7 @@ export function createApp(deps: Deps = defaultDeps()) {
     await next();
   });
 
+  app.get(FAVICON_PATH, defaultFavicon);
   app.route("/v1", api);
   app.route("/approve", approvePage);
 

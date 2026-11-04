@@ -53,7 +53,7 @@ auth/codes/<userCode>                  deviceCode (index for approve)
 
 ### Limits
 
-- 50 MB total per deploy (checked by CLI and Worker).
+- 100 MB total per deploy (checked by CLI and Worker). It matches Cloudflare's cap on one request body (100 MiB on the Free and Pro plans), and each file uploads as one request.
 - Site names: `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`. Reserved: `tray`.
 
 ---
@@ -221,12 +221,14 @@ image…), several files, or `-` (stdin HTML).
 
 When the files have no `/index.html` (any input but stdin), the CLI adds one so
 the site root never 404s. One file: the root opens it directly, in the
-browser's own viewer for a PDF or image. Several: a plain page that lists them,
-with images shown inline. Your own `index.html` always wins.
+browser's own viewer for a PDF or image. Several: a file list at `/` and in
+every folder without its own `index.html`: folders first, Tabler file-type
+icons, sizes, and a breadcrumb heading back up. Your own `index.html` always
+wins (at the root, nothing is generated at all).
 
 **Upload**
 1. Hash every file (SHA-256); content type from `Bun.file().type`.
-2. Reject if total > 50 MB (exit 1, lists the largest files).
+2. Reject if total > 100 MB (exit 1, lists the largest files).
 3. `POST /v1/blobs/check` in batches of 512 hashes, up to 20 requests in parallel → missing hashes.
 4. `PUT /v1/blobs/<hash>` for each missing file, up to 32 in parallel.
 5. `POST /v1/sites/<site>/deploys` with the manifest and `source` → URL.
@@ -509,7 +511,7 @@ Notes:
 - `POST /blobs/check`: R2 calls count against the Workers per-request limit
   (1,000 Free / 10,000 Paid), so 512 hashes per call is safe on both.
 - `PUT /blobs/{sha256}`: streamed into `R2.put(key, body, { sha256 })`. `411`
-  without `content-length`, `413` over 50 MB, `400 digest_mismatch` if R2
+  without `content-length`, `413` over 100 MB, `400 digest_mismatch` if R2
   rejects the hash.
 - `POST /sites/{site}/deploys` creates the site if needed. `source` is
   `{ path, machine }` and drives the `site_exists` check. If `files` + `spa`
@@ -625,6 +627,47 @@ A visitor must not be able to tell a private site from one that doesn't exist.
 - Public sites never touch Access.
 - Every person who signs in uses a Cloudflare Zero Trust seat (Free plan: 50).
   `tray setup` mentions this.
+
+### Favicon
+
+`/favicon.ico` on every host serves the site's own `/favicon.ico` when it has
+one (and the visitor may see the site), else Tray's: the square period on a
+paper tile (16/32/48 px ICO). The default is the same for missing, private
+and unshared sites, and comes before the `--spa` and `404.html` fallbacks.
+Pages that name their own icon with `<link rel="icon">` keep it.
+
+### Toolbar
+
+Signed-in visitors (a valid `__Host-tray_signin` on that host, and allowed to
+view the site) get a small toolbar on HTML pages: their avatar as a draggable
+handle, and a panel with who they are, sign out, and (owner only) who has
+access. It's read-only. Anonymous visitors to public sites get the exact
+bytes that were put; for them the Worker doesn't even check sign-in.
+
+- **Injection** (`inject.ts`): one `<script src="https://<host>/.tray/toolbar-<v>.js" defer>`
+  goes before `</head>`, or before the first body content (`<body>`, a body
+  element, or visible text), or at the end of a page with neither. The Worker
+  scans at most the first 64 KB, honouring comments, quoted attributes,
+  `<template>` and raw-text elements, and **fails closed**: an unclosed
+  comment, tag or raw-text element, a `<script>` using `<!--` escapes, UTF-16,
+  a non-ASCII-compatible `charset`, or no safe point in 64 KB means the page
+  is served unchanged. Only `text/html` responses (including the site's own
+  `404.html`) are considered. The rest of the page streams through untouched;
+  `content-length` is exact. Checked against Chrome's parser: the tag lands in
+  `<head>` or `<body>`, after `<!doctype>`, `<meta charset>`, `<base>` and CSP
+  `<meta>`, and the rest of the DOM is unchanged.
+- Signed-in HTML responses have their own ETag (`<hash>-<toolbar version>`),
+  so signing in or a new toolbar never reuses a stale cached page.
+- **`/.tray/me`** returns `{email, role, site, host, visibility, owner}`, plus
+  `sharedWith` for the owner only. Same 404 for not signed in, not shared,
+  missing site, or `Sec-Fetch-Site` other than `same-origin`. No CORS,
+  `nosniff`, `Cross-Origin-Resource-Policy: same-origin`.
+- **The script** is static (no per-visitor data), served at a content-hashed
+  path as immutable. It runs only in the top window, mounts after `load`, in
+  a closed shadow root on a randomly named element, builds every node with
+  `textContent`, and uses absolute same-origin URLs. A page's own scripts run
+  in the same origin, so they could read `/.tray/me` too: for the owner that's
+  their own share list, on their own site.
 
 ---
 

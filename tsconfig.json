@@ -7,5 +7,6 @@
     "apps/worker/test",
     "apps/worker/scripts",
     "packages/*/src"
-  ]
+  ],
+  "exclude": ["apps/worker/src/toolbar-client.ts"]
 }
