@@ -10,6 +10,15 @@ type Doc = CollectionEntry<"docs">;
  */
 export function cleanBody(body: string): string {
   return body
+    .replace(
+      /^```agents\n([\s\S]*?)\n```$/gm,
+      (_all, list: string) =>
+        `Works with ${list
+          .split("\n")
+          .map((l) => l.trim().split(" ").slice(1).join(" "))
+          .filter(Boolean)
+          .join(", ")} and anything that can run a command.`,
+    )
     .replace(/^```(\w+)([^\n]*)$/gm, (_all, lang: string, meta: string) => {
       const title = /title="([^"]*)"/.exec(meta)?.[1];
       return title ? `${title}:\n\n\`\`\`${lang}` : `\`\`\`${lang}`;

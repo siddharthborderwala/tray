@@ -60,3 +60,13 @@ Conventions the renderer (`src/lib/docs-plugin.ts`) understands:
   endpoint or step layout.
 
 Site-wide links (GitHub, the footer's author link, version) are in `src/lib/site.ts`.
+
+## Agent logos
+
+`public/agents/*.svg` are the agents' own marks, drawn in ink through a CSS mask in the "Works
+with" marquee. Sources: [LobeHub Icons](https://github.com/lobehub/lobe-icons) (MIT) for Claude
+Code, Codex, Gemini CLI, OpenCode, Amp, Cursor, GitHub Copilot, Windsurf, Hermes, Cline and Goose;
+[Simple Icons](https://simpleicons.org) (CC0) for Zed, JetBrains and Warp;
+[Codicons](https://github.com/microsoft/vscode-codicons) (CC BY 4.0, © Microsoft) for VS Code.
+The marks are trademarks of their owners.
+

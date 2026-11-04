@@ -1,21 +1,39 @@
 ---
 title: Artifacts for every agent.
-description: Tray turns a folder, a file or a few files into a link you can share. Self-hosted on your Cloudflare account.
+description: Build and share what your agents make, in any harness. Self-hosted on your own Cloudflare account.
 ---
 
-Tray turns a folder, a file or a few files into a link you can share. Put it on a tray, pass it around. For you, your agents and your friends.
+Build and share what your agents make, in any harness.
 
-It runs on your own Cloudflare account, so your sites and data stay yours.
+```agents
+claudecode Claude Code
+codex Codex
+geminicli Gemini CLI
+opencode OpenCode
+cursor Cursor
+vscode VS Code
+githubcopilot GitHub Copilot
+windsurf Windsurf
+zed Zed
+jetbrains JetBrains
+amp Amp
+cline Cline
+goose Goose
+hermesagent Hermes
+warp Warp
+```
 
-## Install
+## Set up
 
-Tell your agent:
+Paste this into your agent:
 
 ```prompt
 Read https://tray.sh/skill.md and set me up with Tray
 ```
 
-It installs Tray and walks you through setup. Or install it yourself:
+It installs Tray and gives you one command to set it up on your own Cloudflare account. You need a domain on Cloudflare and about a minute. The free plan is enough.
+
+Rather install it yourself?
 
 ```sh tabs="curl,bun,npm"
 $ curl -fsSL https://tray.sh/install | sh
@@ -23,59 +41,46 @@ $ bun add -g @tray-sh/cli
 $ npm i -g @tray-sh/cli
 ```
 
-## Set up
+## Share
 
-Tray runs on your own Cloudflare account. A Worker serves your sites, R2 stores the files, with private sharing through Cloudflare Access.
+Reports, dashboards, prototypes, slides, PDFs. Ask your agent to share it and it's live on your domain.
 
-```sh
-$ tray setup
-```
-
-Setup takes 60 seconds and asks for three things:
-
-- **A domain on Cloudflare.** Use one just for Tray. Every site gets its own subdomain, like q3-review.acme.dev.
-- **A Cloudflare API token.** Setup opens a link that fills in everything Tray needs. You only click Create.
-- **Your email.** You own every site, and you sign in with it to see private ones.
-
-The free plan on Cloudflare is enough.
-
-## Put it on a tray
-
-A folder, a zip, one HTML file, a PDF, a few images. Whatever it is, you get a link.
-
-```sh
-$ tray put ./q3-review
+```prompt
+> Share this report on Tray
 https://q3-review.acme.dev
 
-$ tray put report.pdf
-https://report.acme.dev
-
-$ tray put chart.png diagram.png -s figures
+> Put these charts on Tray as figures
 https://figures.acme.dev
+
+> Share the PDF I just made
+https://board-deck.acme.dev
 ```
 
-Change it and put it again. The link stays the same.
+## Private artifacts
 
-## Keep it private
+Make it private and choose who can open it: by email, or everyone at your company. They sign in with a code sent to their inbox. To anyone else, there's nothing there.
 
-Sites are public by default. Add `--private` and only you can see it.
-
-```sh
-$ tray put ./q3-review --private
+```prompt
+> Make it private and share it with bob@acme.com and everyone at acme.com
+Private · you, bob@acme.com, @acme.com
 ```
 
-## Share it
+## Update
 
-Share a private site with whoever you want, by email or a whole domain. They sign in with a code sent to their email.
+Ask for changes and it updates in place. The address stays the same, and every version is kept, so you can always go back.
 
-```sh
-$ tray share q3-review bob@acme.com @acme.com
+```prompt
+> Make the chart bigger and update it on Tray
+https://q3-review.acme.dev · updated
+
+> Go back to yesterday's version
+https://q3-review.acme.dev · rolled back
 ```
 
-[Every command and flag →](/cli)
+## Any agent
 
-## For agents
+Claude has Artifacts, but they work only in Claude.ai, Claude Desktop, Claude Mobile and Claude Code. Tray works in every agent and editor above, and anything else that can run a command. Switch agents and your work stays where it is.
 
-Tray works with Claude Code, Codex, Cursor, Gemini CLI, OpenCode and any agent that can run a command. Your agent puts things on a tray and replies with the link.
+## Self-hosted
 
-[Set up your agent →](/agents)
+Everything lives on your own Cloudflare account: the files, the links on your domain, and who can open them. There's no Tray account to sign up for, and no Tray servers in between. It's open source under MIT.

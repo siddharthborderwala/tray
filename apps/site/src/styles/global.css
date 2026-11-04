@@ -355,6 +355,96 @@ button {
   padding-bottom: 40px;
 }
 
+/* Overview: the subline under the hero, then the agents it works with. */
+.page-index .intro {
+  gap: 28px;
+}
+.page-index .intro > p:first-child {
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: var(--track);
+  color: var(--ink);
+}
+.works {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+  line-height: 20px;
+}
+.works-label {
+  color: var(--gray-2);
+}
+.marquee {
+  display: flex;
+  overflow: hidden;
+  /* Logos fade in and out at the edges instead of being cut off. */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 40px,
+    #000 calc(100% - 40px),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 40px,
+    #000 calc(100% - 40px),
+    transparent
+  );
+}
+.marquee-track {
+  display: flex;
+  flex-shrink: 0;
+  gap: 32px;
+  margin: 0;
+  padding: 4px 32px 4px 0;
+  list-style: none;
+  animation: marquee 48s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-100%);
+  }
+}
+.works li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.agent-logo {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  mask: var(--logo) center / contain no-repeat;
+  -webkit-mask: var(--logo) center / contain no-repeat;
+}
+.works-more {
+  color: var(--gray-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  .marquee-track {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    gap: 14px 24px;
+    padding-right: 0;
+    animation: none;
+  }
+  .marquee-track[aria-hidden] {
+    display: none;
+  }
+}
+
 .doc-section {
   display: flex;
   flex-direction: column;
@@ -369,8 +459,8 @@ button {
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 13px;
-  line-height: 16px;
+  font-size: 15px;
+  line-height: 25px;
   font-weight: 600;
   scroll-margin-top: 32px;
 }
@@ -513,6 +603,41 @@ button {
   line-height: 16px;
   letter-spacing: 0.04em;
   color: var(--gray-on-gray);
+}
+
+/* Prompt blocks: one copy button per prompt, its result dimmed below */
+.code.prompts {
+  display: block;
+}
+.prompt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.prompt-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prompt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.prompt-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.prompt-row .copy {
+  margin-top: 1px;
+}
+.prompt-result {
+  padding-left: 22px;
+  padding-right: 64px;
+  color: var(--gray-on-gray);
+  overflow-wrap: anywhere;
 }
 
 /* Copy button */

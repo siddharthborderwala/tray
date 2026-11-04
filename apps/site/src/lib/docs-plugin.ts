@@ -7,6 +7,7 @@
  *   `$ ` starts a command, `# ` a comment, other lines are output.
  *   Fence meta: `tabs="curl,bun,npm"` (one command per tab), `response`
  *   (deep-blue JSON), `title="…"` (small label above the code).
+ * - ```agents fences → a "Works with" logo grid, one `<logo> <Name>` per line.
  * - Tables → hairline rows (thead kept for screen readers, hidden visually).
  * - A paragraph that is only a link → a "more" link.
  *
@@ -87,6 +88,8 @@ function codeBlock(code: Element): Element {
 
   const tabs = metaAttr(meta, "tabs");
   if (tabs) return tabsBlock(tabs.split(","), lines);
+  if (lang === "agents") return agentsRow(lines);
+  if (lang === "prompt") return promptBlock(lines);
 
   const title = metaAttr(meta, "title");
   const response = hasFlag(meta, "response");
@@ -133,6 +136,78 @@ function codeBlock(code: Element): Element {
   return h("div", { className: classes }, [
     h("pre", { tabIndex: 0 }, [h("code", {}, body)]),
     ...(lang === "text" ? [] : [copyButton(copyText, copyLabel)]),
+  ]);
+}
+
+/**
+ * A ```prompt fence: things to say to your agent, each with its own copy
+ * button and, dimmed under it, what you get back. `> ` starts a prompt; the
+ * lines after it are its result; a blank line separates prompts. A fence with
+ * no `> ` lines is one prompt per line.
+ */
+function promptBlock(lines: string[]): Element {
+  const marked = lines.some((l) => l.startsWith("> "));
+  const items: { prompt: string; results: string[] }[] = [];
+  for (const line of lines) {
+    if (!marked) {
+      if (line.trim()) items.push({ prompt: line, results: [] });
+    } else if (line.startsWith("> ")) items.push({ prompt: line.slice(2), results: [] });
+    else if (line.trim() && items.length) items.at(-1)!.results.push(line.trim());
+  }
+  return h(
+    "div",
+    {
+      className: [
+        "code",
+        "prompts",
+        ...(items.length === 1 && !items[0]!.results.length ? ["single"] : []),
+      ],
+    },
+    [
+      h(
+        "div",
+        { className: ["prompt-list"] },
+        items.map(({ prompt: text, results }) =>
+          h("div", { className: ["prompt-item"] }, [
+            h("div", { className: ["prompt-row"] }, [
+              prompt(),
+              h("span", { className: ["prompt-text"] }, [t(text)]),
+              copyButton(text, "copy prompt"),
+            ]),
+            ...results.map((r) => h("span", { className: ["prompt-result"] }, [t(r)])),
+          ]),
+        ),
+      ),
+    ],
+  );
+}
+
+/**
+ * A ```agents fence: a grid of the agents Tray works with. Each line is
+ * `<logo> <Name>`, the logo being /agents/<logo>.svg (drawn in ink via a mask).
+ */
+function agentsRow(lines: string[]): Element {
+  const items = lines
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const [logo = "", ...name] = l.split(" ");
+      return h("li", {}, [
+        h("span", {
+          className: ["agent-logo"],
+          style: `--logo: url(/agents/${logo}.svg)`,
+          ariaHidden: "true",
+        }),
+        t(name.join(" ")),
+      ]);
+    });
+  // Two identical tracks scroll as one loop; the second is only for the eye.
+  const track = (hidden: boolean) =>
+    h("ul", { className: ["marquee-track"], ...(hidden ? { ariaHidden: "true" } : {}) }, items);
+  return h("div", { className: ["works"] }, [
+    h("span", { className: ["works-label"] }, [t("Works with")]),
+    h("div", { className: ["marquee"] }, [track(false), track(true)]),
+    h("span", { className: ["works-more"] }, [t("and anything that can run a command")]),
   ]);
 }
 
