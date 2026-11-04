@@ -1,6 +1,6 @@
 {
   "name": "@tray-sh/cli",
-  "version": "0.1.3",
+  "version": "0.1.2",
   "private": true,
   "bin": {
     "tray": "./src/index.ts"
