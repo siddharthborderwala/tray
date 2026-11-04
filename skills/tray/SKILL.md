@@ -12,7 +12,7 @@ license: MIT
 compatibility: Needs the `tray` CLI on PATH and network access to tray.<domain> (the user's tray API host).
 allowed-tools: Bash(tray:*)
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   author: Siddharth Borderwala
 ---
 
