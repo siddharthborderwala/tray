@@ -129,6 +129,7 @@ ${themeCss(".root", { colorScheme: false })}
 .col{display:flex;flex-direction:column;min-width:0;flex:1}
 .email{font-size:14px;font-weight:600;overflow-wrap:anywhere}
 .sub,.role,.note{font-size:12px;line-height:18px;color:var(--tray-muted-foreground)}
+.row .note{font-size:11px;line-height:16px}
 .rule{height:1px;background:var(--tray-border);flex-shrink:0}
 .people{display:flex;flex-direction:column;padding:16px 16px 12px;gap:4px}
 .head{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px}
@@ -244,7 +245,7 @@ ${themeCss(".root", { colorScheme: false })}
         for (const who of me.sharedWith ?? []) {
           people.append(
             who.startsWith("@")
-              ? row(who, who, "Viewer", `anyone with an ${who} email`)
+              ? row(who, who, "Viewer", `anyone at ${who.slice(1)}`)
               : row(who, who, "Viewer"),
           );
         }
