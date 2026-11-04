@@ -182,12 +182,24 @@ export async function skillInstall(ctx: Ctx, project: boolean): Promise<void> {
   });
 }
 
+/** Whether the skill is already in any of this user's agent folders (not a project's). */
+export function skillInstalled(home: string, cwd: string): boolean {
+  return skillDirs({ home, cwd, project: false }).some(
+    (dir) => readSkillFile(join(dir, "SKILL.md")) !== null,
+  );
+}
+
 /**
  * "Add Tray to your coding agents? (Y/n)" at the end of `tray login` / `tray setup`.
- * Interactive only; declining or cancelling just skips it.
+ * Interactive only; declining or cancelling just skips it. Asked once: if the
+ * skill is already installed, its copies are brought up to date silently instead.
  */
 export async function offerSkillInstall(ctx: Ctx): Promise<void> {
   if (!ctx.mode.interactive) return;
+  if (skillInstalled(homeOf(ctx), process.cwd())) {
+    refreshInstalledSkills(homeOf(ctx), process.cwd());
+    return;
+  }
   const yes = await p.confirm({
     message: "Add Tray to your coding agents?",
     initialValue: true,

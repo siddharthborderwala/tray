@@ -183,3 +183,21 @@ describe("tray skill install", () => {
     );
   });
 });
+
+describe("skillInstalled", () => {
+  test("true once any global agent folder has the skill; a project copy doesn't count", async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { skillInstalled } = await import("../src/skill.ts");
+    const home = mkdtempSync(join(tmpdir(), "tray-home-"));
+    const cwd = mkdtempSync(join(tmpdir(), "tray-cwd-"));
+    expect(skillInstalled(home, cwd)).toBe(false);
+    mkdirSync(join(cwd, ".claude/skills/tray"), { recursive: true });
+    writeFileSync(join(cwd, ".claude/skills/tray/SKILL.md"), "old");
+    expect(skillInstalled(home, cwd)).toBe(false);
+    mkdirSync(join(home, ".claude/skills/tray"), { recursive: true });
+    writeFileSync(join(home, ".claude/skills/tray/SKILL.md"), "old");
+    expect(skillInstalled(home, cwd)).toBe(true);
+  });
+});
