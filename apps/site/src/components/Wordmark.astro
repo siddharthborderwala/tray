@@ -6,7 +6,7 @@ interface Props {
 }
 const { href } = Astro.props;
 const Tag = href ? "a" : "span";
-const svg = markSvg("var(--blue)", href ? "tray, home" : "tray");
+const svg = markSvg("var(--tray-accent)", href ? "tray, home" : "tray");
 ---
 
 <Tag class="wordmark" href={href} set:html={svg} />

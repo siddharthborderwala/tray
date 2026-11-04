@@ -1,4 +1,5 @@
 ---
+import { themeColorMeta, themeCss } from "@tray-sh/theme";
 import "../styles/global.css";
 import {
   DESCRIPTION,
@@ -70,8 +71,9 @@ const jsonLd = home
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#FAF9F0" />
-    <meta name="color-scheme" content="light" />
+    <Fragment set:html={themeColorMeta()} />
+    <meta name="color-scheme" content="light dark" />
+    <style is:inline set:html={themeCss()} />
     <meta name="is-agentic-site-type" content="content" />
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

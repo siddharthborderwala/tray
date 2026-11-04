@@ -13,23 +13,8 @@
 }
 
 :root {
-  --periwinkle: #7b9bff;
-  --blue: #356be5;
-  --ink: #242424;
-  --paper: #faf9f0;
-
-  --code-bg: #ecebe3;
-  --hairline: #dddbd0;
-  --gray-1: #5a5a5a;
-  --gray-2: #6b6b6b;
-  --gray-3: #727272;
-
-  /* On the gray code background, text must stay at 4.5:1 or better:
-     deep blue becomes #235EE3 (4.64), grays step down to #5A5A5A and #666666. */
-  --blue-on-gray: #235ee3;
-  --gray-on-gray: #5a5a5a;
-  --comment-on-gray: #666666;
-
+  /* Colors: --tray-* tokens from @tray-sh/theme, inlined by Base.astro
+     (light, or dark under prefers-color-scheme). */
   --mono:
     "Berkeley Mono Variable", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
     "Liberation Mono", monospace;
@@ -40,8 +25,6 @@
   --sidebar: 176px;
   --gutter: 44px;
   --content: 576px;
-
-  color-scheme: light;
 }
 
 *,
@@ -58,8 +41,8 @@ html {
 
 body {
   margin: 0;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--tray-background);
+  color: var(--tray-foreground);
   font-family: var(--mono);
   font-size: 15px;
   line-height: 25px;
@@ -97,13 +80,13 @@ button {
 }
 
 :focus-visible {
-  outline: 1.5px solid var(--blue);
+  outline: 1.5px solid var(--tray-accent);
   outline-offset: 3px;
 }
 
 ::selection {
-  background: var(--periwinkle);
-  color: var(--ink);
+  background: var(--tray-selection);
+  color: var(--tray-selection-foreground);
 }
 
 .sr-only {
@@ -124,8 +107,8 @@ button {
   top: -100px;
   z-index: 10;
   padding: 11px 16px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--tray-inverse);
+  color: var(--tray-inverse-foreground);
   font-size: 14px;
   line-height: 18px;
   font-weight: 500;
@@ -166,7 +149,7 @@ button {
 
 .wordmark {
   display: inline-block;
-  color: var(--ink);
+  color: var(--tray-foreground);
 }
 .wordmark svg {
   display: block;
@@ -212,20 +195,20 @@ button {
   display: inline-block;
   font-size: 13px;
   line-height: 16px;
-  color: var(--gray-2);
+  color: var(--tray-faint-foreground);
 }
 .pages a:hover {
-  color: var(--ink);
+  color: var(--tray-foreground);
 }
 .pages a[aria-current="page"] {
-  color: var(--ink);
+  color: var(--tray-foreground);
   font-weight: 600;
 }
 
 .toc {
   margin-top: 10px;
   padding: 2px 0 4px 12px;
-  border-left: 1px solid var(--hairline);
+  border-left: 1px solid var(--tray-border);
 }
 .toc a {
   display: block;
@@ -237,8 +220,8 @@ button {
     border-color 120ms ease;
 }
 .toc a.active {
-  color: var(--blue);
-  border-left-color: var(--blue);
+  color: var(--tray-accent);
+  border-left-color: var(--tray-accent);
 }
 
 /* 36px above the meta line, the same as under the wordmark. */
@@ -246,10 +229,10 @@ button {
   margin-top: 8px;
   font-size: 12px;
   line-height: 16px;
-  color: var(--gray-3);
+  color: var(--tray-faint-foreground);
 }
 .meta a:hover {
-  color: var(--ink);
+  color: var(--tray-foreground);
 }
 
 /* ------------------------------------------------------------------ */
@@ -266,14 +249,14 @@ button {
   line-height: 16px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--blue);
+  color: var(--tray-accent);
 }
 
 .hero-panel {
   position: relative;
   height: 240px;
   overflow: hidden;
-  background: var(--periwinkle);
+  background: var(--tray-brand);
 }
 
 .hero-panel h1 {
@@ -285,7 +268,7 @@ button {
   line-height: 56px;
   font-weight: 600;
   letter-spacing: var(--track-display);
-  color: var(--ink);
+  color: var(--tray-brand-foreground);
   overflow-wrap: normal;
 }
 
@@ -302,7 +285,7 @@ button {
   font-weight: 700;
   letter-spacing: var(--track-mark);
   color: transparent;
-  -webkit-text-stroke: 1.5px var(--blue);
+  -webkit-text-stroke: 1.5px var(--tray-brand-accent);
   user-select: none;
 }
 /* Drawn with generated content so it isn't page text. */
@@ -313,7 +296,7 @@ button {
   content: "";
   width: 0.18em;
   height: 0.18em;
-  border: 1.5px solid var(--blue);
+  border: 1.5px solid var(--tray-brand-accent);
   border-radius: 0.036em;
 }
 
@@ -334,12 +317,12 @@ button {
 .page-header p {
   font-size: 15px;
   line-height: 24px;
-  color: var(--gray-1);
+  color: var(--tray-muted-foreground);
 }
 .page-header .note {
   font-size: 14px;
   line-height: 22px;
-  color: var(--gray-2);
+  color: var(--tray-faint-foreground);
 }
 
 /* ------------------------------------------------------------------ */
@@ -363,7 +346,7 @@ button {
   font-size: 20px;
   line-height: 28px;
   letter-spacing: var(--track);
-  color: var(--ink);
+  color: var(--tray-foreground);
 }
 .works {
   display: flex;
@@ -373,7 +356,7 @@ button {
   line-height: 20px;
 }
 .works-label {
-  color: var(--gray-2);
+  color: var(--tray-faint-foreground);
 }
 .marquee {
   display: flex;
@@ -426,7 +409,7 @@ button {
   -webkit-mask: var(--logo) center / contain no-repeat;
 }
 .works-more {
-  color: var(--gray-2);
+  color: var(--tray-faint-foreground);
 }
 @media (prefers-reduced-motion: reduce) {
   .marquee {
@@ -468,10 +451,10 @@ button {
   content: "";
   flex: 1 1 0;
   height: 1px;
-  background: var(--hairline);
+  background: var(--tray-border);
 }
 .prose h2 a:hover {
-  color: var(--blue);
+  color: var(--tray-accent);
 }
 
 .signature {
@@ -486,11 +469,11 @@ button {
 
 .badge {
   padding: 3px 8px;
-  background: var(--code-bg);
+  background: var(--tray-muted);
   font-size: 12px;
   line-height: 16px;
   font-weight: 400;
-  color: var(--gray-on-gray);
+  color: var(--tray-muted-foreground);
 }
 
 .prose h3.label {
@@ -499,7 +482,7 @@ button {
   font-weight: 400;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--gray-2);
+  color: var(--tray-faint-foreground);
 }
 
 .prose code {
@@ -509,12 +492,12 @@ button {
 
 /* Links: in text, deep blue with a 1.5px underline; on hover, ink. */
 .prose p a {
-  color: var(--blue);
-  border-bottom: 1.5px solid var(--blue);
+  color: var(--tray-accent);
+  border-bottom: 1.5px solid var(--tray-accent);
 }
 .prose p a:hover {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
+  color: var(--tray-foreground);
+  border-bottom-color: var(--tray-border-strong);
 }
 .prose p.more a {
   font-size: 14px;
@@ -522,7 +505,7 @@ button {
   border-bottom-color: transparent;
 }
 .prose p.more a:hover {
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--tray-border-strong);
 }
 
 /* ------------------------------------------------------------------ */
@@ -533,7 +516,7 @@ button {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  background: var(--code-bg);
+  background: var(--tray-muted);
   padding: 18px 22px;
   font-size: 14px;
   line-height: 22px;
@@ -571,14 +554,14 @@ button {
 .line {
   display: block;
   white-space: pre;
-  color: var(--ink);
+  color: var(--tray-foreground);
 }
 .line.cmd {
   display: flex;
   gap: 12px;
 }
 .prompt {
-  color: var(--blue-on-gray);
+  color: var(--tray-accent-on-muted);
   flex-shrink: 0;
 }
 .line.cont {
@@ -586,23 +569,23 @@ button {
 }
 .line.out {
   padding-left: 22px;
-  color: var(--gray-on-gray);
+  color: var(--tray-muted-foreground);
 }
 .line.comment {
-  color: var(--comment-on-gray);
+  color: var(--tray-faint-foreground);
 }
 .line.gap {
   height: 10px;
 }
 .code.response .line.plain {
-  color: var(--blue-on-gray);
+  color: var(--tray-accent-on-muted);
 }
 .code-title {
   display: block;
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.04em;
-  color: var(--gray-on-gray);
+  color: var(--tray-muted-foreground);
 }
 
 /* Prompt blocks: one copy button per prompt, its result dimmed below */
@@ -627,7 +610,7 @@ button {
 .prompt-text {
   flex: 1 1 auto;
   min-width: 0;
-  color: var(--ink);
+  color: var(--tray-foreground);
   overflow-wrap: anywhere;
 }
 .prompt-row .copy {
@@ -636,7 +619,7 @@ button {
 .prompt-result {
   padding-left: 22px;
   padding-right: 64px;
-  color: var(--gray-on-gray);
+  color: var(--tray-muted-foreground);
   overflow-wrap: anywhere;
 }
 
@@ -647,25 +630,25 @@ button {
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--tray-border);
   font-size: 12px;
   line-height: 16px;
-  color: var(--gray-on-gray);
+  color: var(--tray-muted-foreground);
 }
 .copy:hover {
-  color: var(--ink);
-  border-color: var(--ink);
+  color: var(--tray-foreground);
+  border-color: var(--tray-border-strong);
 }
 .copy.copied {
-  color: var(--ink);
-  border-color: var(--ink);
+  color: var(--tray-foreground);
+  border-color: var(--tray-border-strong);
 }
 .copy.copied::before {
   content: "";
   width: 5px;
   height: 5px;
   border-radius: 1px;
-  background: var(--blue-on-gray);
+  background: var(--tray-accent-on-muted);
 }
 
 /* Install tabs */
@@ -679,18 +662,18 @@ button {
   display: flex;
   gap: 22px;
   padding: 12px 22px;
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--tray-border);
 }
 .tablist [role="tab"] {
   font-size: 13px;
   line-height: 16px;
-  color: var(--ink);
+  color: var(--tray-foreground);
 }
 .tablist [role="tab"]:hover {
-  color: var(--blue-on-gray);
+  color: var(--tray-accent-on-muted);
 }
 .tablist [role="tab"][aria-selected="true"] {
-  color: var(--blue-on-gray);
+  color: var(--tray-accent-on-muted);
   font-weight: 600;
 }
 .tabpanel {
@@ -709,12 +692,12 @@ button {
 .prose table {
   width: 100%;
   border-collapse: collapse;
-  border-top: 1px solid var(--hairline);
+  border-top: 1px solid var(--tray-border);
   font-size: 14px;
   line-height: 22px;
 }
 .prose tr {
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--tray-border);
 }
 .prose th,
 .prose td {
@@ -722,13 +705,13 @@ button {
   vertical-align: top;
   text-align: left;
   font-weight: 400;
-  color: var(--gray-1);
+  color: var(--tray-muted-foreground);
 }
 .prose td {
   padding-left: 16px;
 }
 .prose th {
-  color: var(--ink);
+  color: var(--tray-foreground);
   font-weight: 500;
   overflow-wrap: normal;
 }
@@ -744,12 +727,12 @@ button {
 
 .t-steps th {
   width: 24px;
-  color: var(--blue);
+  color: var(--tray-accent);
   font-weight: 600;
 }
 .t-steps td:nth-child(2) {
   width: 252px;
-  color: var(--ink);
+  color: var(--tray-foreground);
   font-weight: 500;
 }
 
@@ -768,10 +751,10 @@ button {
   grid-row: span 2;
   font-size: 13px;
   font-weight: 600;
-  color: var(--blue);
+  color: var(--tray-accent);
 }
 .t-endpoints td:nth-child(2) {
-  color: var(--ink);
+  color: var(--tray-foreground);
   font-weight: 500;
 }
 
@@ -783,7 +766,7 @@ button {
   flex-direction: column;
   gap: 28px;
   padding-bottom: 72px;
-  border-top: 1px solid var(--hairline);
+  border-top: 1px solid var(--tray-border);
   padding-top: 28px;
 }
 .footer-row {
@@ -801,7 +784,7 @@ button {
 .footer p {
   font-size: 13px;
   line-height: 16px;
-  color: var(--gray-2);
+  color: var(--tray-faint-foreground);
 }
 .footer-end {
   display: flex;
@@ -821,22 +804,22 @@ button {
 .footer-links a {
   display: inline-block;
   padding-block: 4px;
-  color: var(--gray-2);
+  color: var(--tray-faint-foreground);
 }
 .footer-links a:hover {
-  color: var(--ink);
+  color: var(--tray-foreground);
 }
 .made .heart {
-  color: var(--blue);
+  color: var(--tray-accent);
 }
 .made a {
-  color: var(--blue);
+  color: var(--tray-accent);
   font-weight: 500;
   border-bottom: 1.5px solid transparent;
 }
 .made a:hover {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
+  color: var(--tray-foreground);
+  border-bottom-color: var(--tray-border-strong);
 }
 
 /* ------------------------------------------------------------------ */
@@ -868,8 +851,8 @@ button {
     overflow: visible;
     padding: 0 16px;
     gap: 0;
-    background: var(--paper);
-    border-bottom: 1px solid var(--hairline);
+    background: var(--tray-background);
+    border-bottom: 1px solid var(--tray-border);
   }
 
   .sidebar-top {
@@ -882,12 +865,12 @@ button {
   .menu {
     display: inline-block;
     padding: 4px 8px;
-    border: 1px solid var(--hairline);
+    border: 1px solid var(--tray-border);
     font-size: 13px;
     line-height: 16px;
   }
   .menu[aria-expanded="true"] {
-    border-color: var(--ink);
+    border-color: var(--tray-border-strong);
   }
 
   .js .sidebar-nav {
