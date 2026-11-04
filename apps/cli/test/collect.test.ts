@@ -221,19 +221,35 @@ describe("several files", () => {
     expect(c.generatedIndex).toBe("list");
     const html = text(c, "/index.html");
     expect(html).toContain("<title>Files</title>");
-    expect(html).toContain('<a href="/notes.pdf">notes.pdf</a>');
-    expect(html).not.toContain('class="grid"');
+    expect(html).toContain('<a href="/notes.pdf">');
+    expect(html).toContain('<span class="name">notes.pdf</span>');
   });
 
-  test("mostly images: a grid with the images inline", async () => {
-    const dir = tmp();
-    for (const n of ["a.png", "b b.jpg", "c.txt"]) writeFileSync(join(dir, n), "x");
-    const c = await collect([join(dir, "a.png"), join(dir, "b b.jpg"), join(dir, "c.txt")]);
-    expect(c.source).toBe(dir);
-    const html = text(c, "/index.html");
-    expect(html).toContain('<ul class="grid">');
-    expect(html).toContain('<img src="/b%20b.jpg" alt="" loading="lazy">');
-    expect(html).not.toContain('<img src="/c.txt"');
+  test("a folder without index.html gets a list in each folder, folders first", async () => {
+    const root = tmp();
+    mkdirSync(join(root, "guides/setup"), { recursive: true });
+    mkdirSync(join(root, "app"));
+    for (const p of ["b b.png", "guides/a.md", "guides/setup/laptop.md", "app/index.html"])
+      writeFileSync(join(root, p), "xx");
+    const c = await collect(root, { title: "handbook" });
+    expect(c.generatedIndex).toBe("list");
+    expect(paths(c.files).filter((p) => p.endsWith("index.html"))).toEqual([
+      "/app/index.html",
+      "/guides/index.html",
+      "/guides/setup/index.html",
+      "/index.html",
+    ]);
+    const home = text(c, "/index.html");
+    expect(home.indexOf("app/</span>")).toBeLessThan(home.indexOf("guides/</span>"));
+    expect(home.indexOf("guides/</span>")).toBeLessThan(home.indexOf("b b.png"));
+    expect(home).toContain('<a href="/b%20b.png">');
+    expect(home).toContain("2 folders · 1 file · 8 B");
+    expect(home).toContain("<h1>handbook</h1>");
+    const setup = text(c, "/guides/setup/index.html");
+    expect(setup).toContain(
+      '<h1><a href="/">handbook</a><span class="sep"> / </span><a href="/guides/">guides</a><span class="sep"> / </span>setup</h1>',
+    );
+    expect(setup).toContain('<a href="/guides/setup/laptop.md">');
   });
 
   test("the list page is headed by the site name when one is given", async () => {
@@ -279,11 +295,12 @@ describe("generated index", () => {
     writeFileSync(join(dir, "img/a.png"), "x");
     writeFileSync(join(dir, "notes.md"), "x");
     const c = await collect(dir);
-    expect(paths(c.files)).toEqual(["/img/a.png", "/index.html", "/notes.md"]);
+    expect(paths(c.files)).toEqual(["/img/a.png", "/img/index.html", "/index.html", "/notes.md"]);
     expect(c.generatedIndex).toBe("list");
     const html = text(c, "/index.html");
     expect(html).toContain("<h1>q3-review</h1>");
-    expect(html).toContain('<a href="/img/a.png"><img src="/img/a.png"');
+    expect(html).toContain('<a href="/img/">');
+    expect(text(c, "/img/index.html")).toContain('<a href="/img/a.png">');
   });
 
   test("a folder with index.html is unchanged", async () => {
