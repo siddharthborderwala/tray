@@ -123,7 +123,7 @@ ${themeCss(".root", { colorScheme: false })}
 .tip{position:fixed;z-index:2147483647;background:var(--tray-inverse);color:var(--tray-inverse-foreground);font-size:12px;line-height:18px;padding:4px 8px;white-space:nowrap;pointer-events:none;display:none}
 .handle:hover+.tip{display:block}
 .handle.dragging+.tip,.open+.tip{display:none!important}
-.panel{position:fixed;z-index:2147483647;width:340px;max-height:calc(100vh - 96px);overflow:auto;background:var(--tray-background);border:1px solid var(--tray-border-strong);display:none;flex-direction:column}
+.panel{position:fixed;z-index:2147483647;width:340px;max-height:calc(100vh - 96px);overflow:auto;background:var(--tray-background);border:1px solid var(--tray-outline);display:none;flex-direction:column}
 .panel.show{display:flex}
 .account{display:flex;align-items:center;gap:12px;padding:16px}
 .col{display:flex;flex-direction:column;min-width:0;flex:1}

@@ -27,8 +27,10 @@ export const tokens = {
   "faint-foreground": { light: "#666666", dark: "#8F8F88" },
   /** Hairlines. Decorative. */
   border: { light: "#DDDBD0", dark: "#34342F" },
-  /** Panel outlines, buttons. */
-  "border-strong": { light: palette.ink, dark: "#E8E8E2" },
+  /** Buttons and inputs: a visible edge (3:1). A gray in dark, not near-white. */
+  "border-strong": { light: palette.ink, dark: "#6E6E67" },
+  /** Floating panels (the toolbar): ink in light; in dark, the handle's quiet edge. Decorative. */
+  outline: { light: palette.ink, dark: "#3A3A3A" },
   /** Links, the `›` prompt, focus rings. */
   accent: { light: palette.blue, dark: palette.periwinkle },
   /** The accent on a `muted` surface. */
