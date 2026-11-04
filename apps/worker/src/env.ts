@@ -27,6 +27,8 @@ export interface Env {
    * setup never has to write to R2 itself and recovery works with all keys lost.
    */
   TRAY_SETUP_KEY?: string;
+  /** "1" only in local `wrangler dev` (wrangler.jsonc). Lets DOMAIN be `localhost`. Never set by `tray setup`. */
+  TRAY_DEV?: string;
 }
 
 export interface R2Object {

@@ -4,10 +4,9 @@
 // toolbar is inlined by a Bun macro, which wrangler's bundler can't run), so
 // wrangler doesn't bundle anything.
 //
-// lvh.me is a public domain whose every subdomain resolves to 127.0.0.1, and
-// unlike `localhost` it passes the Worker's domain check:
-//   http://tray.lvh.me:8787/v1/...   API
-//   http://<site>.lvh.me:8787/       sites
+// Locally, *.localhost resolves to 127.0.0.1, so with DOMAIN=localhost:
+//   http://tray.localhost:8787/v1/...   API
+//   http://<site>.localhost:8787/       sites
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "tray",
@@ -16,7 +15,9 @@
   "compatibility_date": "2026-10-01",
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "tray-dev" }],
   "vars": {
-    "DOMAIN": "lvh.me",
+    "DOMAIN": "localhost",
+    // Allows DOMAIN=localhost. Local only: tray setup never sets it.
+    "TRAY_DEV": "1",
     "OWNER_EMAIL": "you@example.com",
     "WORKER_NAME": "tray",
     // ACCESS_TEAM_DOMAIN, ACCESS_APPROVE_AUD, ACCESS_SIGNIN_AUD, ACCESS_SIGNIN_APP_ID,

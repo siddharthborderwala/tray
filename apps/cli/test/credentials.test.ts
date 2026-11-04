@@ -263,3 +263,23 @@ describe("domains", () => {
     );
   });
 });
+
+describe("localhost (local wrangler dev only)", () => {
+  test("TRAY_DOMAIN=localhost works only with TRAY_API_URL; never from --domain", async () => {
+    const { resolveDomain } = await import("../src/credentials.ts");
+    const none = { accounts: {} } as never;
+    expect(
+      resolveDomain(
+        undefined,
+        { TRAY_DOMAIN: "localhost", TRAY_API_URL: "http://tray.localhost:8787" },
+        none,
+      ),
+    ).toBe("localhost");
+    expect(() => resolveDomain(undefined, { TRAY_DOMAIN: "localhost" }, none)).toThrow(
+      "isn't a domain",
+    );
+    expect(() =>
+      resolveDomain("localhost", { TRAY_API_URL: "http://tray.localhost:8787" }, none),
+    ).toThrow("isn't a domain");
+  });
+});

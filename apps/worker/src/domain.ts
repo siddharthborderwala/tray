@@ -7,8 +7,12 @@ import { TrayError } from "./errors.ts";
 
 const parsed = new Map<string, string>();
 
-export function trayDomain(env: Pick<Env, "DOMAIN">): string {
+export function trayDomain(env: Pick<Env, "DOMAIN" | "TRAY_DEV">): string {
   const raw = env.DOMAIN ?? "";
+  // Local `wrangler dev` only: browsers send every *.localhost to this
+  // machine, so sites work at <site>.localhost:8787. Production Workers never
+  // have TRAY_DEV, so they can't run on localhost.
+  if (env.TRAY_DEV === "1" && raw === "localhost") return raw;
   const hit = parsed.get(raw);
   if (hit) return hit;
   const result = TrayDomainInput.safeParse(raw);
@@ -27,4 +31,4 @@ export function trayDomain(env: Pick<Env, "DOMAIN">): string {
 }
 
 /** `tray.<domain>`: the API and /approve host. */
-export const apiHost = (env: Pick<Env, "DOMAIN">) => `tray.${trayDomain(env)}`;
+export const apiHost = (env: Pick<Env, "DOMAIN" | "TRAY_DEV">) => `tray.${trayDomain(env)}`;

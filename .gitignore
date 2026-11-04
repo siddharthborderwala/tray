@@ -4,3 +4,6 @@ dist
 *.bun-build
 .wrangler
 .DS_Store
+
+# wrangler dev secrets (local only)
+.dev.vars

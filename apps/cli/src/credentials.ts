@@ -165,6 +165,9 @@ export function resolveDomain(
   accounts: Accounts,
 ): string {
   if (flag) return normalizeDomain(flag, "--domain");
+  // A local `wrangler dev` Worker: localhost, but only with TRAY_API_URL
+  // pointing the CLI at it. Never from --domain, setup or login.
+  if (env.TRAY_API_URL && env.TRAY_DOMAIN?.trim().toLowerCase() === "localhost") return "localhost";
   if (env.TRAY_DOMAIN) return normalizeDomain(env.TRAY_DOMAIN, "TRAY_DOMAIN");
   if (accounts.current) return normalizeDomain(accounts.current, "current account");
   throw noDomain();

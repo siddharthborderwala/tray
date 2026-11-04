@@ -16,6 +16,12 @@ describe("the DOMAIN binding", () => {
     expect(apiHost({ DOMAIN })).toBe(`tray.${out}`);
   });
 
+  test("localhost only with TRAY_DEV=1 (local wrangler dev)", () => {
+    expect(trayDomain({ DOMAIN: "localhost", TRAY_DEV: "1" })).toBe("localhost");
+    expect(() => trayDomain({ DOMAIN: "localhost" })).toThrow("isn't a domain");
+    expect(() => trayDomain({ DOMAIN: "localhost", TRAY_DEV: "true" })).toThrow("isn't a domain");
+  });
+
   test("a binding that isn't a domain is a clear 500", () => {
     for (const DOMAIN of ["", "sh", "co.uk", "localhost"]) {
       expect(() => trayDomain({ DOMAIN })).toThrow("isn't a domain");
