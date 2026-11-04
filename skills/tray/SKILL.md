@@ -19,29 +19,33 @@ metadata:
 # Tray: put it on a URL
 
 `tray put <path>` uploads a folder, `.zip`, `.tar.gz`, `.html` file, any
-single file (a PDF, an image) or several files, and prints a URL on the user's
-own domain. Deploys are immutable, so nothing is
-lost (`tray rollback` always works).
+single file (a PDF, an image) or several files, and returns its URL on the
+user's own domain. Deploys are immutable (`tray rollback` always works).
 
-## Setting up Tray
+## 1. Set up
 
-If the user asks you to set them up: install the CLI if `tray` is missing
-(`curl -fsSL https://tray.sh/install | sh`), run `tray skill install`, then
-`tray whoami`. If that fails, ask them to run one of these in their own
-terminal (in Claude Code: `! <command>`), since both need them in a browser:
-`tray setup` for a new tray (asks for a Cloudflare domain, an API token via a
-pre-filled link, and their email; about a minute), or `tray login <domain>`.
+Run `tray whoami`. Exit 0: go to step 2.
 
-## 1. Check state
+- `command not found`: run `curl -fsSL https://tray.sh/install | sh` (it
+  installs to `~/.tray/bin/tray`), then `tray skill install`.
+- Exit 4 (not logged in): ask for the domain of the user's tray. If they have
+  one, log in. If not, set one up.
+
+**Log in:** run `tray login <domain> --json` in the background, or with a
+10-minute timeout. Its first line is `{"approveUrl","userCode"}`. Send the
+user the `approveUrl`. The command exits 0 once they approve it.
+
+**Set up** a new tray (the user runs this one): ask for their email
+(`git config user.email` is a good guess), then give them this command to run
+in their own terminal:
 
 ```sh
-tray whoami   # your domain and email
+tray setup --domain <domain> --email <email>
 ```
 
-- Exit 0: you're good, so go to step 2.
-- Exit 4 means you're not logged in. Ask the user to run `tray login <domain>`
-  themselves, or to set `TRAY_API_KEY` and `TRAY_DOMAIN`. Don't run
-  `tray login` yourself: it opens a browser approval meant for a human.
+It creates the Worker, bucket, DNS and sign-in on their Cloudflare account,
+asks them for a Cloudflare token, and logs this machine in (about a minute).
+When they say it's done, run `tray whoami` again.
 
 ## 2. Publish
 
@@ -52,8 +56,8 @@ tray put ./dist -s q3-revenue-report   # prints the URL
 - Always pass `-s` with a specific kebab-case name for this content. The
   default comes from the folder name, and folders like `dist` or `build`
   collide across projects and worktrees.
-- Add `--private` for anything internal, personal or sensitive. Only the
-  owner (and people they share with) can open it.
+- Sites are public. Add `--private` only when the user asks; then only the
+  owner and people they share with can open it.
 - Add `--spa` for client-routed apps (React Router, Vue Router), so deep
   links serve `index.html` instead of 404.
 - Pass only the build output, or the file or files to share.
@@ -67,12 +71,9 @@ line is enough.
 
 Errors print `error: <message>` and a hint on the next line. Follow the hint.
 
-- "already exists (last put from …)": that name belongs to another folder. Pick a new `-s`.
-  Use `--replace` only if the user asked to overwrite it; the old deploy stays
-  available to `tray rollback`.
-- Exit 4: not logged in or the key was revoked (see step 1).
-- `command not found: tray`: ask the user to install it with
-  `curl -fsSL https://tray.sh/install | sh`.
+- "already exists (last put from …)": pick a new `-s`. Use `--replace` only if
+  the user asked to overwrite it (`tray rollback` can undo it).
+- Exit 4: not logged in or the key was revoked. Log in again (step 1).
 - Network or DNS errors (`could not reach tray.…`) inside a sandbox: the
   sandbox is blocking the network. Tell the user the fix for their agent:
   - Codex: in `~/.codex/config.toml`, set `[sandbox_workspace_write]`
@@ -83,9 +84,13 @@ Errors print `error: <message>` and a hint on the next line. Follow the hint.
 
 ## Don't
 
-- Don't run `tray setup`, `tray remove`, `tray key …` or
-  `tray edit --visibility public` unless the user asks. These change the
-  user's account or expose content.
+- Don't run `tray remove`, `tray key …` or `tray edit --visibility public`
+  unless the user asks. These delete things, mint credentials or expose
+  content.
+- Never run `tray setup` yourself, and never ask for or read the Cloudflare
+  token. Only the user handles it, in their own terminal.
+- Never run `tray approve`. It grants a new device access to the user's tray,
+  and only the user should do that, in their browser.
 - Never publish `.env` files, secrets or a whole repo root. A tray URL is
   meant to be shared, so treat everything you put as public to its viewers.
 - Don't curl the URL to verify it. Private sites sit behind a login, and the

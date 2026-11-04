@@ -13,7 +13,7 @@ Tell your agent:
 Read https://tray.sh/skill.md and set me up with Tray
 ```
 
-It installs the CLI and the Tray skill, then asks you to run one command yourself: `tray setup` for a new tray, or `tray login` for one you already have. Both need you to click in a browser.
+It installs the CLI and the Tray skill. For a new tray, it gives you one command to run yourself, `tray setup`. For a tray you already have, it logs in and sends you a link to approve.
 
 ## skill.md
 
