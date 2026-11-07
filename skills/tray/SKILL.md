@@ -12,7 +12,7 @@ license: MIT
 compatibility: Needs the `tray` CLI on PATH and network access to tray.<domain> (the user's tray API host).
 allowed-tools: Bash(tray:*)
 metadata:
-  version: 0.1.3
+  version: 0.2.0
   author: Siddharth Borderwala
 ---
 
@@ -32,8 +32,9 @@ Run `tray whoami`. Exit 0: go to step 2.
   one, log in. If not, set one up.
 
 **Log in:** run `tray login <domain> --json` in the background, or with a
-10-minute timeout. Its first line is `{"approveUrl","userCode"}`. Send the
-user the `approveUrl`. The command exits 0 once they approve it.
+10-minute timeout. Its first stderr line is
+`{"pending":{"approveUrl","userCode"}}`. Send the user the `approveUrl`. The
+command exits 0 once they approve it.
 
 **Set up** a new tray (the user runs this one): ask for their email
 (`git config user.email` is a good guess), then give them this command to run
@@ -69,7 +70,7 @@ line is enough.
 
 ## When it fails
 
-Errors print `error: <message>` and a hint on the next line. Follow the hint.
+Errors go to stderr, ending with the command that fixes it. Run that.
 
 - "already exists (last put from …)": pick a new `-s`. Use `--replace` only if
   the user asked to overwrite it (`tray rollback` can undo it).

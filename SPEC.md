@@ -67,18 +67,21 @@ Verified against `gh` and `vercel` docs.
 | Main object (sites) gets top-level verbs | `tray put`, `tray list`, `tray share` |
 | Sub-resources are noun → verb, singular (plural alias accepted) | `tray domain add` (`domains` works) |
 | The thing being acted on is positional; the parent site is a flag | `tray domain add docs.acme.com -s docs` |
-| Long names are canonical; short aliases exist | `list` / `ls`, `remove` / `rm` |
+| Long names are canonical; short aliases exist (accepted, never shown in help) | `list` / `ls`, `remove` / `rm` |
 | Create-time booleans, edit-time values | `put --private`, `edit --visibility public` |
 
 ### Global flags
 
 | Flag | Meaning |
 |---|---|
-| `--json` | Print one JSON object to stdout (results and errors). Implies non-interactive. |
+| `--json` | The result as one JSON object on stdout; errors as one JSON line on stderr. Implies non-interactive. |
 | `--non-interactive` | Never prompt. Missing input is an error. |
-| `-y, --yes` | Accept confirmations. |
+| `-y, --yes` | Accept confirmations (never fills in data). |
 | `--domain <d>` | Use this tray instead of the current account. |
-| `-h, --help` / `-v, --version` | Help / version. |
+| `--no-color` | No color (also `NO_COLOR`). |
+| `--no-open` | Print URLs; never open a browser (`open`, `login`, `setup`). |
+| `--debug` | One stderr line per API call (`GET <url> 200 84ms`); never headers or bodies. |
+| `-h, --help` / `-v, --version` | Help / version (`tray help <cmd>` too; `--version --json` is `{"version"}`). |
 
 ### Environment
 
@@ -97,8 +100,10 @@ Verified against `gh` and `vercel` docs.
 `TRAY_API_KEY` → saved key for that domain → error:
 
 ```
-error: not logged in to acme.dev
-Run `tray login acme.dev` or set TRAY_API_KEY.
+Error: Not logged in to acme.dev.
+
+Log in, or set TRAY_API_KEY:
+    tray login acme.dev
 ```
 
 **Where saved keys live.** The OS credential store via `Bun.secrets`, or
@@ -136,10 +141,25 @@ stdout stays plain text; `--json` is still opt-in. Detection is a hint, not
 proof (the variables are inherited by child shells), so `TRAY_INTERACTIVE=1`
 forces interactive mode back on, and `--non-interactive` always wins.
 
-- **stdout** carries only the result (a URL, a table, or JSON).
-- **stderr** carries progress, spinners, and hints.
+- **stdout** carries only the answer: a URL, an id, a table, or with
+  `--json` exactly one JSON document, on success only.
+- **stderr** carries everything else: the interactive frame, progress (one
+  plain line per phase when non-interactive), receipts (`✓ Removed q3-review`),
+  warnings, prompts, empty states and errors.
+- Tables are aligned with relative times on a terminal; piped, they're
+  tab-separated with ISO 8601 times. Empty results print a message and the
+  next command on stderr (piped stdout gets just the header row).
 - Every prompt maps to a flag. In non-interactive mode a missing value exits 2
-  naming the flag.
+  with the retry command. Commands that delete, change access or overwrite
+  (`remove`, `key revoke`, `unshare`, `edit --visibility public`, `put
+  --replace`) confirm interactively, or need `--yes`. `remove` looks the site
+  up and previews it first. `rollback` never infers its target
+  non-interactively: it needs `--to`.
+- Errors: a headline, detail lines (raw system text goes here, never in the
+  headline), then up to two exact commands that fix it on their own lines.
+  Unknown commands and options name the token and suggest the closest match.
+  Canceling prints `Canceled. Nothing was changed.` (exit 130).
+- Full contract: docs/design/cli.md.
 
 ### Exit codes
 
@@ -149,9 +169,13 @@ forces interactive mode back on, and `--non-interactive` always wins.
 | 1 | Operation failed (network, server, conflict) |
 | 2 | Bad usage or missing input |
 | 4 | Not authenticated / not authorized (same as `gh`) |
-| 130 | Cancelled: Ctrl-C, Escape, or "no" at a prompt (interactive only) |
+| 130 | Canceled: Ctrl-C, Escape, or "no" at a prompt |
 
-JSON errors: `{ "error": "message", "code": "site_exists", "hint": "…", "param": "…" }` (same shape as the API, §5).
+JSON results: lists are `{ "<things>": [...], "next"? }`, everything else
+`{ "<thing>": {...}, "outcome": "created" | "updated" | … }`, either with
+`warnings: [{ code, message }]` when there are any.
+
+JSON errors, one line on stderr: `{ "error": "message", "code": "site_exists", "hint": "…", "param": "…", "next": ["tray …"] }` (the API's shape, §5, plus `details` and `next`).
 
 ---
 
@@ -164,11 +188,12 @@ tray put <path...> [-s site] [--private] [--spa] [--replace]
 tray list | ls
 tray open <site>
 tray edit <site> --visibility public|private [--yes]
+tray deploys <site> [--limit N] [--next <deploy-id>]
 tray rollback <site> [--to <deploy-id>]
 tray remove | rm <site> [--yes]
 
 tray share <site> [<email|@domain>...]
-tray unshare <site> <email|@domain>...
+tray unshare <site> <email|@domain>... [--yes]
 
 tray domain add <host> -s <site>
 tray domain remove | rm <host> [--yes]
@@ -292,10 +317,16 @@ Opens the site in the default browser. Non-interactive: prints the URL.
 
 ### `tray rollback <site> [--to <deploy-id>]`
 
-Points the site at the previous deploy, or at `--to`. Prints the URL and the
-deploy id now live. Interactive with no `--to`: pick from recent deploys.
-Without `--to`, the CLI resolves "previous" from `GET /sites/<site>/deploys`
-and always sends an explicit `to` to the API.
+Points the site at `--to` and prints its URL. Interactive with no `--to`:
+pick from recent deploys (the previous one first). Non-interactive, `--to` is
+required: the error's retry command names the previous deploy. The CLI always
+sends an explicit `to` to the API.
+
+### `tray deploys <site> [--limit N] [--next <deploy-id>]`
+
+Lists deploys newest first (id, created, files, author; the live one marked
+`*`). With more than `--limit` (default 20, up to 100), `next` (JSON) or the
+stderr hint gives the `--next` to pass for the following page.
 
 ### `tray remove <site>` (alias `rm`)
 
@@ -365,7 +396,8 @@ Flow (device code):
 - Codes expire after 10 minutes and are single-use.
 - `--name <device>` sets the device/key name (default: hostname).
 - Non-interactive `login` prints the URL and code to stderr and keeps polling;
-  `--json` prints `{ "approveUrl", "userCode" }` first, then the result.
+  `--json` prints `{"pending":{"approveUrl","userCode","expiresAt"}}` as one
+  line on stderr while it waits; stdout gets only the result.
 - Multiple trays: log in to each domain once. `tray account list` shows them;
   `tray account switch <domain>` sets the current one; `--domain` overrides per
   command.

@@ -21,10 +21,13 @@ One file opens straight from the link. Several files, or a folder without `index
 ```sh
 $ tray put ./q3-review --json
 {
-  "site": "q3-review",
-  "url": "https://q3-review.acme.dev",
-  "visibility": "public",
-  "deploy": "lq3k2-8f1a",
+  "site": {
+    "name": "q3-review",
+    "url": "https://q3-review.acme.dev",
+    "visibility": "public",
+    "deploy": "lq3k2-8f1a"
+  },
+  "outcome": "created",
   "files": 42,
   "uploaded": 3,
   "bytes": 3145728
@@ -33,9 +36,9 @@ $ tray put ./q3-review --json
 
 ## list
 
-### `tray list` (alias `ls`)
+### `tray list`
 
-Your sites, with visibility, domains and when they changed.
+Your sites, with visibility, domains and when they changed. Piped, the table is tab-separated with ISO times.
 
 ```sh
 $ tray list
@@ -48,7 +51,7 @@ docs        https://docs.acme.dev        public        docs.acme.com   3d ago
 
 ### `tray open <site>`
 
-Opens the site in your browser. Without a terminal, prints the URL.
+Opens the site in your browser and prints its URL. Without a terminal (or with `--no-open`), only prints the URL.
 
 ## edit
 
@@ -61,21 +64,32 @@ Change a site’s visibility. Making a site public asks first.
 | `--visibility <v>` | public or private.     |
 | `-y, --yes`        | Skip the confirmation. |
 
+## deploys
+
+### `tray deploys <site>`
+
+Every version of a site, newest first. The live one is marked `*`.
+
+| Flag              | Meaning                                    |
+| ----------------- | ------------------------------------------ |
+| `--limit <n>`     | How many to show (default 20, up to 100).  |
+| `--next <deploy>` | The next page, after this deploy.          |
+
 ## rollback
 
 ### `tray rollback <site>`
 
-Go back to the previous version, or to a specific one.
+Go back to an earlier version.
 
-| Flag            | Meaning                                                         |
-| --------------- | --------------------------------------------------------------- |
-| `--to <deploy>` | Deploy id to go back to. Without it, you pick from recent ones. |
+| Flag            | Meaning                                                                                |
+| --------------- | -------------------------------------------------------------------------------------- |
+| `--to <deploy>` | Deploy id to go back to (from `tray deploys`). Without it, you pick from recent ones. In scripts and agents it's required. |
 
 ## remove
 
-### `tray remove <site>` (alias `rm`)
+### `tray remove <site>`
 
-Take a site down, with its domains and sharing. Asks first.
+Take a site down, with its deploys, domains and sharing. It shows what goes, then asks. This can't be undone.
 
 | Flag        | Meaning                |
 | ----------- | ---------------------- |
@@ -85,7 +99,7 @@ Take a site down, with its domains and sharing. Asks first.
 
 ### `tray share <site> [who...]`
 
-Who can see a private site. Add emails or @domain. With no one listed, prints who has access. Use `tray unshare` to remove.
+Who can see a private site. Add emails or @domain. With no one listed, prints who has access. Use `tray unshare` to remove people (it asks first, or pass `--yes`).
 
 ```sh
 $ tray share q3-review bob@acme.com @acme.com
@@ -101,8 +115,8 @@ Custom domains. The domain must be on the same Cloudflare account. Your tray use
 | Command                | Meaning                   |
 | ---------------------- | ------------------------- |
 | `add <host> -s <site>` | Point a domain at a site. |
-| `remove <host>`        | Remove it. Alias rm.      |
-| `list [-s <site>]`     | List domains. Alias ls.   |
+| `remove <host>`        | Remove it.                |
+| `list [-s <site>]`     | List domains.             |
 
 ## login
 
@@ -127,7 +141,7 @@ API keys for agents and CI. Use one with `TRAY_API_KEY`.
 | --------------------- | --------------------------------- |
 | `create [--name <n>]` | Print a new key. It’s shown once. |
 | `list`                | Your keys.                        |
-| `revoke <name>`       | Turn a key off.                   |
+| `revoke <name>`       | Turn a key off (asks first).      |
 
 ## setup
 
@@ -147,11 +161,14 @@ Without `CLOUDFLARE_API_TOKEN`, setup prints a link that pre-fills a token with 
 
 | Flag                | Meaning                                           |
 | ------------------- | ------------------------------------------------- |
-| `--json`            | Print one JSON object. Implies --non-interactive. |
+| `--json`            | The result as one JSON object. Implies --non-interactive. |
 | `--non-interactive` | Never prompt. Missing input is an error.          |
 | `-y, --yes`         | Accept confirmations.                             |
 | `--domain <d>`      | Use this tray instead of the default.             |
-| `-h, --help`        | Help for any command.                             |
+| `--no-color`        | No colors.                                        |
+| `--no-open`         | Print URLs; never open a browser.                 |
+| `--debug`           | Print each API call on stderr.                    |
+| `-h, --help`        | Help for any command (or `tray help <command>`).  |
 | `-v, --version`     | Print the version.                                |
 
 ## Environment
@@ -174,14 +191,10 @@ Without `CLOUDFLARE_API_TOKEN`, setup prints a link that pre-fills a token with 
 | `1`   | Something failed: network, server or a conflict. |
 | `2`   | Bad usage or missing input.                      |
 | `4`   | Not logged in, or not allowed.                   |
-| `130` | Cancelled: Ctrl-C, or no at a prompt.            |
+| `130` | Canceled: Ctrl-C, or no at a prompt.             |
 
-With `--json`, errors are JSON too:
+Errors go to stderr: what went wrong, then the command that fixes it. With `--json`, stdout stays empty and stderr gets one JSON line:
 
 ```json
-{
-  "error": "q3-review already exists",
-  "code": "site_exists",
-  "hint": "use --replace or -s <other>"
-}
+{"error":"q3-review already exists","code":"site_exists","hint":"Overwrite it, or pick another name:","next":["tray put ./q3-review --replace","tray put ./q3-review --site <OTHER>"]}
 ```
