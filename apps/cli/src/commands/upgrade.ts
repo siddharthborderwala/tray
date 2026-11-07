@@ -5,7 +5,7 @@ import { chmodSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { olderThan } from "../api.ts";
 import { apiUrl } from "../credentials.ts";
-import { info, result, spinner, success, warn, type Ctx } from "../ctx.ts";
+import { info, receipt, result, spinner, success, warn, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError, type ExitCode } from "../errors.ts";
 import { cloudflare, loadWorkerSource, updateWorkerCode } from "../setup/cloudflare.ts";
 import { detectTarget, fetchBinary, latestVersion, replaceableBinary } from "../setup/release.ts";
@@ -67,7 +67,7 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
       if (!replaceableBinary(execPath)) {
         spin.stop(`tray ${latest} is available`);
         throw new TrayError(
-          `can't replace ${execPath} in place`,
+          `Can't replace ${execPath} in place`,
           "not_standalone",
           EXIT.failed,
           /node_modules/.test(execPath)
@@ -95,7 +95,7 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
       });
       if (code !== 0)
         throw new TrayError(
-          `the new tray exited with code ${code}`,
+          `The new tray exited with code ${code}`,
           "upgrade_failed",
           code as ExitCode,
         );
@@ -146,8 +146,11 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
       failed.length === 1 ? first.hint : failed.map((f) => f.error.message).join("\n"),
     );
   }
-  const summary = from ? `Upgraded tray ${from} → ${version}` : `tray ${version} is up to date`;
-  result(ctx, summary, { version, upgradedFrom: from ?? null, skills, workers });
+  receipt(ctx, from ? `Upgraded tray ${from} → ${version}` : `tray ${version} is up to date`);
+  result(ctx, "", {
+    upgrade: { version, from: from ?? null, skills, workers },
+    outcome: from ? "updated" : "unchanged",
+  });
 }
 
 async function workerVersion(ctx: Ctx, domain: string): Promise<string | null> {

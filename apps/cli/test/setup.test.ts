@@ -228,6 +228,12 @@ function ctxFor(
   };
 }
 
+/** Warnings from the last --json result. */
+const warnings = () =>
+  (JSON.parse(out.at(-1) ?? "{}").warnings ?? [])
+    .map((w: { message: string }) => w.message)
+    .join("\n");
+
 const WORKER = "export default { fetch() { return new Response('tray') } }";
 
 describe("tray setup", () => {
@@ -325,9 +331,8 @@ describe("tray setup", () => {
     });
 
     expect(JSON.parse(out.at(-1)!)).toMatchObject({
-      domain: "acme.dev",
-      api: "https://tray.acme.dev/v1",
-      live: true,
+      tray: { domain: "acme.dev", api: "https://tray.acme.dev/v1", live: true },
+      outcome: "created",
     });
     expect(err.join("\n")).toContain("R2 bucket: tray-acme-dev");
     expect(err.join("\n")).toContain("Sign-in: *.acme.dev/.tray/signin (email code)");
@@ -397,7 +402,7 @@ describe("tray setup", () => {
       proxied: false,
     });
     await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
-    expect(err.join("\n")).toContain("isn't proxied");
+    expect(warnings()).toContain("isn't proxied");
   });
 
   test("warns about existing subdomains the wildcard route takes over", async () => {
@@ -411,7 +416,7 @@ describe("tray setup", () => {
       cf.state.dns.push({ id: name, name, type: "A", content: "192.0.2.1", proxied });
     }
     await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
-    const warning = err.find((l) => l.includes("now sends"))!;
+    const warning = warnings();
     expect(warning).toContain("blog.acme.dev, www.acme.dev to Tray");
     expect(warning).not.toContain("mail.acme.dev");
     expect(warning).not.toContain("*.acme.dev,");
@@ -420,7 +425,7 @@ describe("tray setup", () => {
   test("no takeover warning on a domain with no other subdomains", async () => {
     const cf = fakeCloudflare();
     await setup(ctxFor(cf.fetch), "sid@acme.com", { workerSource: WORKER });
-    expect(err.join("\n")).not.toContain("now sends");
+    expect(warnings()).not.toContain("now sends");
   });
 
   test("Zero Trust off → exit 1 with the enable link, before creating anything", async () => {
@@ -524,7 +529,6 @@ describe("tray setup", () => {
     expect(e.exit).toBe(2);
     expect(e.hint).toContain("dash.cloudflare.com");
     expect(keys.data["cloudflare:acme.dev"]).toBeUndefined();
-    expect(err.join("\n")).toContain("no longer accepts the token saved for acme.dev");
     expect(cf.state.scripts.size).toBe(0);
   });
 
@@ -552,9 +556,9 @@ describe("tray setup", () => {
         ? Promise.reject(new Error("ENOTFOUND"))
         : cf.fetch(input, init)) as typeof fetch;
     await setup(ctxFor(offline), "sid@acme.com", { workerSource: WORKER });
-    expect(JSON.parse(out.at(-1)!).live).toBe(false);
+    expect(JSON.parse(out.at(-1)!).tray.live).toBe(false);
     expect(keys.data["acme.dev"]).toMatch(/^tray_k_/);
-    expect(err.join("\n")).toContain("can take a few minutes");
+    expect(warnings()).toContain("can take a few minutes");
   });
 });
 
@@ -574,15 +578,15 @@ describe("tray setup flags (non-interactive)", () => {
 
   test("missing --domain exits 2 naming the flag", async () => {
     expect(await run(["setup", "--json"])).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--domain" });
+    expect(JSON.parse(err.at(-1)!)).toMatchObject({ code: "missing_input", param: "--domain" });
   });
 
   test("missing token exits 2 naming CLOUDFLARE_API_TOKEN", async () => {
     expect(await run(["setup", "--domain", "acme.dev", "--json"])).toBe(2);
-    expect(JSON.parse(out[0]!).hint).toContain(
+    expect(JSON.parse(err.at(-1)!).hint).toContain(
       "https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=",
     );
-    expect(JSON.parse(out[0]!)).toMatchObject({
+    expect(JSON.parse(err.at(-1)!)).toMatchObject({
       code: "missing_input",
       param: "CLOUDFLARE_API_TOKEN",
     });
@@ -592,7 +596,7 @@ describe("tray setup flags (non-interactive)", () => {
     expect(
       await run(["setup", "--domain", "acme.dev", "--json"], { CLOUDFLARE_API_TOKEN: "x" }),
     ).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--email" });
+    expect(JSON.parse(err.at(-1)!)).toMatchObject({ code: "missing_input", param: "--email" });
     // Only lookups happened before it asked: nothing was created.
     expect(cf.calls.every((c) => c.method === "GET")).toBe(true);
   });

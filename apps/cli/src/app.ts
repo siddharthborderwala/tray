@@ -13,14 +13,7 @@ import {
   toggle,
   version,
 } from "@bomb.sh/router";
-import {
-  DeployId,
-  Email,
-  HostnameInput,
-  ShareEntry,
-  SiteName,
-  TrayDomainInput,
-} from "@tray-sh/schema";
+import { DeployId, Email, HostnameInput, SiteName, TrayDomainInput } from "@tray-sh/schema";
 import * as z from "zod";
 import { VERSION } from "./version.ts";
 
@@ -45,10 +38,13 @@ const globals = extend(
   flag(
     "json",
     "--json",
-    "Print one JSON object to stdout (results and errors). Implies --non-interactive.",
+    "Print the result as one JSON object on stdout (errors: one JSON line on stderr). Implies --non-interactive.",
   ),
   flag("nonInteractive", "--non-interactive", "Never prompt. Missing input is an error."),
   flag("yes", "--yes", "Accept confirmations.", "-y"),
+  flag("noColor", "--no-color", "No color (also NO_COLOR)."),
+  flag("noOpen", "--no-open", "Print URLs; never open a browser."),
+  flag("debug", "--debug", "Print one line per API call on stderr."),
   option(
     name("domain"),
     label("--domain <DOMAIN>"),
@@ -70,15 +66,13 @@ const siteFlag = (desc: string, s = SiteName.optional()) =>
 
 export const app = route(
   name("tray"),
-  description("Turn a folder, a file, or a few files into a URL on your own domain."),
+  description("Build and share what your agents make, on your own domain"),
   version(VERSION),
   globals,
 
   command(
     name("put"),
-    description(
-      "Publish a folder, zip, HTML file, any other file (PDF, image…), several files, or - (HTML on stdin).",
-    ),
+    description("Publish a folder, a file, several files, or HTML on stdin"),
     argument(
       name("path"),
       label("<PATH...>"),
@@ -86,9 +80,7 @@ export const app = route(
       schema(z.array(z.string(), { error: "missing <path>" }).min(1, "missing <path>")),
       description("Folder, .zip, .tar.gz, .html, any file, several files, or - for stdin."),
     ),
-    siteFlag(
-      "Site name. Default: slug of the folder or file name (the parent folder for dist, out, build, public, site, _site, www). No default for several files.",
-    ),
+    siteFlag("Site name (default: from the folder or file name; required for several files)."),
     flag(
       "private",
       "--private",
@@ -98,16 +90,11 @@ export const app = route(
     flag("replace", "--replace", "Overwrite a site last put from a different source."),
     globals,
   ),
-  command(name("list"), description("List sites. Alias: ls."), globals),
-  command(
-    name("open"),
-    description("Open a site in the browser (prints the URL when non-interactive)."),
-    site(),
-    globals,
-  ),
+  command(name("list"), description("List sites"), globals),
+  command(name("open"), description("Open a site in the browser"), site(), globals),
   command(
     name("edit"),
-    description("Change a site's visibility."),
+    description("Make a site public or private"),
     site(),
     option(
       name("visibility"),
@@ -119,7 +106,7 @@ export const app = route(
   ),
   command(
     name("rollback"),
-    description("Point a site at its previous deploy, or at --to."),
+    description("Point a site at an earlier deploy"),
     site(),
     option(
       name("to"),
@@ -130,35 +117,53 @@ export const app = route(
     globals,
   ),
   command(
+    name("deploys"),
+    description("List a site's deploys, newest first"),
+    site(),
+    option(
+      name("limit"),
+      label("--limit <N>"),
+      schema(z.coerce.number().int().min(1).max(100).optional()),
+      description("How many to show (default 20, up to 100)."),
+    ),
+    option(
+      name("next"),
+      label("--next <DEPLOY>"),
+      schema(DeployId.optional()),
+      description("Show the page after this deploy (from the previous page)."),
+    ),
+    globals,
+  ),
+  command(
     name("remove"),
-    description("Delete a site and its custom domains. Alias: rm."),
+    description("Delete a site, its deploys and its custom domains"),
     site(),
     globals,
   ),
 
   command(
     name("share"),
-    description("Add people who can see a private site, or list them."),
+    description("List or add people who can see a private site"),
     site(),
     argument(
       name("entries"),
       label("[EMAIL|@DOMAIN...]"),
       multiple(),
-      schema(z.array(ShareEntry).default([])),
+      schema(z.array(z.string()).default([])),
       description("Emails or @domain."),
     ),
     globals,
   ),
   command(
     name("unshare"),
-    description("Remove people from a private site."),
+    description("Remove people from a private site"),
     site(),
     argument(
       name("entries"),
       label("<EMAIL|@DOMAIN...>"),
       multiple(),
       schema(
-        z.array(ShareEntry, { error: "missing <email|@domain>" }).min(1, "missing <email|@domain>"),
+        z.array(z.string(), { error: "missing <email|@domain>" }).min(1, "missing <email|@domain>"),
       ),
       description("Emails or @domain."),
     ),
@@ -167,11 +172,11 @@ export const app = route(
 
   route(
     name("domain"),
-    description("Custom domains. Alias: domains."),
+    description("Serve sites on your own hostnames"),
     globals,
     command(
       name("add"),
-      description("Attach a custom host to a site."),
+      description("Attach a hostname to a site"),
       argument(
         name("host"),
         schema(requiredAs("<host>", HostnameInput)),
@@ -182,13 +187,13 @@ export const app = route(
     ),
     command(
       name("remove"),
-      description("Detach a custom host. Alias: rm."),
+      description("Detach a hostname"),
       argument(name("host"), schema(requiredAs("<host>", HostnameInput))),
       globals,
     ),
     command(
       name("list"),
-      description("List custom hosts. Alias: ls."),
+      description("List custom hostnames"),
       siteFlag("Only hosts for this site."),
       globals,
     ),
@@ -196,7 +201,7 @@ export const app = route(
 
   command(
     name("login"),
-    description("Log in to a tray with the device-code flow."),
+    description("Log in to a tray (approve in your browser)"),
     argument(
       name("loginDomain"),
       label("[DOMAIN]"),
@@ -213,13 +218,13 @@ export const app = route(
   ),
   command(
     name("approve"),
-    description("Approve a login code from another device."),
+    description("Approve a login from another device"),
     argument(name("code"), schema(required("<code>"))),
     globals,
   ),
   command(
     name("logout"),
-    description("Revoke this device's key and forget it."),
+    description("Revoke this device's key and forget it"),
     argument(
       name("logoutDomain"),
       label("[DOMAIN]"),
@@ -228,19 +233,15 @@ export const app = route(
     ),
     globals,
   ),
-  command(
-    name("whoami"),
-    description("Show the tray, account and credential in use. Never prompts."),
-    globals,
-  ),
+  command(name("whoami"), description("Show the tray, account and key in use"), globals),
   route(
     name("account"),
-    description("Trays you are logged in to. Alias: accounts."),
+    description("Switch between trays you're logged in to"),
     globals,
-    command(name("list"), description("List accounts. Alias: ls."), globals),
+    command(name("list"), description("List trays you're logged in to"), globals),
     command(
       name("switch"),
-      description("Set the current account."),
+      description("Set the current tray"),
       argument(
         name("switchDomain"),
         label("<DOMAIN>"),
@@ -252,18 +253,18 @@ export const app = route(
 
   route(
     name("key"),
-    description("API keys for agents and CI. Alias: keys."),
+    description("Manage API keys for agents and CI"),
     globals,
     command(
       name("create"),
-      description("Create an API key (shown once)."),
+      description("Create an API key (shown once)"),
       option(name("name"), label("--name <NAME>"), schema(optional()), description("Key name.")),
       globals,
     ),
-    command(name("list"), description("List API keys. Alias: ls."), globals),
+    command(name("list"), description("List API keys"), globals),
     command(
       name("revoke"),
-      description("Revoke an API key."),
+      description("Revoke an API key"),
       argument(name("keyName"), label("<NAME>"), schema(required("<name>"))),
       globals,
     ),
@@ -271,11 +272,11 @@ export const app = route(
 
   command(
     name("skill"),
-    description("Print the full agent guide for this version of tray."),
+    description("Print the full agent guide"),
     globals,
     command(
       name("install"),
-      description("Install the Tray skill for coding agents (~/.agents, ~/.claude)."),
+      description("Install the Tray skill for coding agents"),
       flag(
         "project",
         "--project",
@@ -286,7 +287,7 @@ export const app = route(
   ),
   command(
     name("setup"),
-    description("Provision a tray on your Cloudflare account."),
+    description("Set up a tray on your Cloudflare account"),
     option(
       name("email"),
       label("--email <EMAIL>"),
@@ -300,7 +301,7 @@ export const app = route(
     ),
     globals,
   ),
-  command(name("upgrade"), description("Replace this binary with the latest release."), globals),
+  command(name("upgrade"), description("Update tray and your trays' Workers"), globals),
 );
 
 /** Command aliases, per route level. The router matches names exactly, so argv is rewritten first. */
@@ -319,6 +320,8 @@ const VALUE_FLAGS = new Set([
   "--to",
   "--name",
   "--email",
+  "--limit",
+  "--next",
 ]);
 
 /** Rewrite `tray ls` → `tray list`, `tray domains rm x` → `tray domain remove x`. Only command words are touched. */

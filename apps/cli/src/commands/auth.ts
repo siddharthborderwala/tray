@@ -6,15 +6,17 @@ import {
   askText,
   authedApi,
   confirm,
+  empty,
   info,
   openBrowser,
+  receipt,
   result,
   spinner,
   warn,
   type Ctx,
 } from "../ctx.ts";
 import { EXIT, TrayError, cancelled, notLoggedIn } from "../errors.ts";
-import { formatTable, toJson } from "../format.ts";
+import { formatPairs, formatTable } from "../format.ts";
 import type { Token } from "../api.ts";
 import { offerSkillInstall } from "../skill.ts";
 
@@ -51,12 +53,12 @@ export async function pollForKey(
         continue;
       }
       if (err.code === "access_denied")
-        throw new TrayError("login was denied", "access_denied", EXIT.auth);
+        throw new TrayError("Login was denied", "access_denied", EXIT.auth);
       if (err.code === "expired_token") break;
       throw err;
     }
   }
-  throw new TrayError("login code expired", "expired_token", EXIT.auth, "Run `tray login` again.");
+  throw new TrayError("Login code expired", "expired_token", EXIT.auth, "Run `tray login` again.");
 }
 
 export async function login(
@@ -78,15 +80,18 @@ export async function login(
   const device = await api.startDevice(nameFlag ?? shortHostname());
   // Built here, not taken from the server, so a bad Worker can't choose what we open.
   const url = apiUrl(domain, ctx.env, `approve?code=${encodeURIComponent(device.userCode)}`);
-  if (ctx.mode.json)
-    ctx.stdout(toJson({ approveUrl: url, userCode: device.userCode }, ctx.mode.prettyJson));
+  // stdout holds only the result; the link goes on stderr (one JSON line with
+  // --json) so an agent can relay it while this waits.
+  const expiresAt = new Date(Date.now() + device.expiresIn * 1000).toISOString();
   const how = `${url}\n  or on a logged-in machine: tray approve ${device.userCode}`;
-  if (ctx.mode.interactive) {
+  if (ctx.mode.json)
+    ctx.stderr(
+      JSON.stringify({ pending: { approveUrl: url, userCode: device.userCode, expiresAt } }),
+    );
+  else if (ctx.mode.interactive && !ctx.noOpen) {
     info(ctx, `Opening ${how}`);
     openBrowser(url);
-  } else {
-    ctx.stderr(`Open ${how}\nwaiting…`);
-  }
+  } else ctx.stderr(`Open ${how}\nwaiting…`);
 
   const spin = spinner(ctx);
   spin.start("waiting…");
@@ -107,10 +112,10 @@ export async function login(
   accounts.accounts[domain] = { email: token.email, keyName: token.name };
   accounts.current = domain;
   saveAccounts(ctx.configDir, accounts);
-  result(ctx, `✓ Logged in as ${token.email} on ${domain}`, {
-    domain,
-    email: token.email,
-    name: token.name,
+  receipt(ctx, `Logged in as ${token.email} on ${domain}`);
+  result(ctx, "", {
+    account: { domain, email: token.email, name: token.name },
+    outcome: "logged_in",
   });
   await offerSkillInstall(ctx);
 }
@@ -121,14 +126,17 @@ export async function approve(ctx: Ctx, code: string): Promise<void> {
   const pending = await api.getDevice(userCode);
   // Shown before a yes/no that mints a key: never let server text move the cursor or add lines.
   const plain = (s: string) => s.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, "�");
-  info(ctx, `Device: ${plain(pending.name)}\nIP:     ${plain(pending.ip)}`);
-  if (!(await confirm(ctx, "Approve?"))) throw cancelled();
+  info(ctx, `Device  ${plain(pending.name)}\nIP      ${plain(pending.ip)}`);
+  const ok = await confirm(
+    ctx,
+    `Approve the login for ${plain(pending.name)}? It gets its own key for this tray.`,
+  );
+  if (!ok) throw cancelled();
   await api.approveDevice(userCode);
-  result(ctx, `✓ Approved ${pending.name}`, {
-    userCode,
-    name: pending.name,
-    ip: pending.ip,
-    approved: true,
+  receipt(ctx, `Approved ${plain(pending.name)}`);
+  result(ctx, "", {
+    login: { userCode, name: pending.name, ip: pending.ip },
+    outcome: "approved",
   });
 }
 
@@ -152,7 +160,8 @@ export async function logout(ctx: Ctx, domainArg: string | undefined): Promise<v
   delete accounts.accounts[domain];
   if (accounts.current === domain) accounts.current = Object.keys(accounts.accounts)[0];
   saveAccounts(ctx.configDir, accounts);
-  result(ctx, `Logged out of ${domain}`, { domain, loggedOut: true });
+  receipt(ctx, `Logged out of ${domain}`);
+  result(ctx, "", { account: { domain }, outcome: "logged_out" });
 }
 
 /** `tray whoami`: domain, email, key name, and where the credential came from. Never prompts. */
@@ -173,28 +182,24 @@ export async function whoami(ctx: Ctx): Promise<void> {
     source === "env" ? "TRAY_API_KEY" : source === "keychain" ? "the keychain" : "auth.json";
   // A saved key with no local login record (accounts.json missing or wiped): the key works,
   // but who it belongs to isn't known locally. Say so instead of printing nulls silently.
-  const unknown = source !== "env" && !account;
   const me = {
     domain,
     email: source === "env" ? null : (account?.email ?? null),
-    key: source === "env" ? "TRAY_API_KEY" : (account?.keyName ?? null),
+    key: source === "env" ? null : (account?.keyName ?? null),
     source,
-    ...(unknown
-      ? {
-          warning: `a key for ${domain} is saved in ${where}, but there's no local login record, so its email and name are unknown. Run \`tray login ${domain}\` to refresh it.`,
-        }
-      : {}),
   };
-  const text = unknown
-    ? [
-        `key for ${domain} in ${where}`,
-        `email and key name unknown: no local login record (run \`tray login ${domain}\` to refresh)`,
-      ].join("\n")
-    : [
-        `${me.email ?? "(API key)"} on ${domain}`,
-        `key: ${me.key ?? "unknown"} (${source === "env" ? "TRAY_API_KEY" : source})`,
-      ].join("\n");
-  result(ctx, text, me);
+  if (source !== "env" && !account)
+    warn(
+      ctx,
+      `a key for ${domain} is saved in ${where}, but there's no local login record, so its email and name are unknown. Run \`tray login ${domain}\` to refresh it.`,
+      "no_login_record",
+    );
+  const rows: [string, string][] = [
+    ["domain", domain],
+    ["email", me.email ?? (source === "env" ? "(API key)" : "unknown")],
+    ["key", source === "env" ? "from TRAY_API_KEY" : `${me.key ?? "unknown"} (in ${where})`],
+  ];
+  result(ctx, formatPairs(rows, ctx.mode.stdoutTTY !== false), { account: me });
 }
 
 export async function accountList(ctx: Ctx): Promise<void> {
@@ -205,13 +210,15 @@ export async function accountList(ctx: Ctx): Promise<void> {
     name: a.keyName,
     current: domain === current,
   }));
-  const text = data.length
-    ? formatTable(
-        ["", "DOMAIN", "EMAIL", "DEVICE"],
-        data.map((a) => [a.current ? "*" : "", a.domain, a.email, a.name]),
-      )
-    : "Not logged in to any tray. Run `tray login <domain>`.";
-  result(ctx, text, { current: current ?? null, data });
+  const headers = ["", "DOMAIN", "EMAIL", "DEVICE"];
+  if (!data.length && !ctx.mode.json)
+    return empty(ctx, headers, "Not logged in to any tray.", "tray login <DOMAIN>");
+  const text = formatTable(
+    headers,
+    data.map((a) => [a.current ? "*" : "", a.domain, a.email, a.name]),
+    ctx.mode.stdoutTTY !== false,
+  );
+  result(ctx, text, { accounts: data, current: current ?? null });
 }
 
 export async function accountSwitch(ctx: Ctx, domainArg: string): Promise<void> {
@@ -220,5 +227,6 @@ export async function accountSwitch(ctx: Ctx, domainArg: string): Promise<void> 
   if (!accounts.accounts[domain]) throw notLoggedIn(domain);
   accounts.current = domain;
   saveAccounts(ctx.configDir, accounts);
-  result(ctx, `Switched to ${domain}`, { current: domain });
+  receipt(ctx, `Switched to ${domain}`);
+  result(ctx, "", { account: { domain }, outcome: "updated" });
 }

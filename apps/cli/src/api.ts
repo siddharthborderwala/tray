@@ -118,11 +118,14 @@ export function createApi({ baseUrl, key, fetch: fetchImpl, onOutdated }: ApiOpt
     try {
       res = await request();
     } catch (err) {
+      // The headline is ours; the runtime's own text goes in a detail line.
       throw new TrayError(
-        `could not reach ${host}: ${(err as Error).message}`,
+        `Couldn't reach ${host}`,
         "network",
         EXIT.failed,
         "Check your connection and the tray domain.",
+        undefined,
+        { details: [(err as Error).message] },
       );
     }
     const worker = res.headers.get("tray-version");
@@ -141,7 +144,7 @@ export function createApi({ baseUrl, key, fetch: fetchImpl, onOutdated }: ApiOpt
       return (await res.json()) as Ok<R>;
     } catch {
       throw new TrayError(
-        `unexpected response from ${host}`,
+        `Unexpected response from ${host}`,
         "bad_response",
         EXIT.failed,
         "The Worker may be a different version; try `tray upgrade`.",

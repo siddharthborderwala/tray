@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { rewriteAliases } from "../src/app.ts";
+import { parse } from "@bomb.sh/router";
+import { app, rewriteAliases } from "../src/app.ts";
+import { EXAMPLES } from "../src/help.ts";
 import { pollForKey } from "../src/commands/auth.ts";
 import { keyIdFor } from "../src/commands/key.ts";
 import { previousDeploy } from "../src/commands/sites.ts";
 import { createApi } from "../src/api.ts";
 import { loadAccounts, saveAccounts } from "../src/config.ts";
-import { main, mergeGlobals } from "../src/main.ts";
+import { main, mergeGlobals, normalizeArgv } from "../src/main.ts";
 import { memoryKeyStore, mockFetch, tmp } from "./helpers.ts";
 
 const siteBody = (over: Record<string, unknown> = {}) => ({
@@ -93,10 +95,8 @@ describe("tray put", () => {
     expect(out.length).toBe(1);
     const json = JSON.parse(out[0]!);
     expect(json).toMatchObject({
-      site: "report",
-      url: "https://report.acme.dev",
-      visibility: "private",
-      deploy: "d3",
+      site: { name: "report", url: "https://report.acme.dev", visibility: "private", deploy: "d3" },
+      outcome: "created",
       files: 2,
       uploaded: 2,
     });
@@ -134,11 +134,11 @@ describe("tray put", () => {
         ),
     });
     expect(await done).toBe(1);
-    const json = JSON.parse(out[0]!);
+    const json = JSON.parse(err[0]!);
     expect(json.code).toBe("site_exists");
     expect(json.error).toContain("last put from ~/work/x on mbp");
-    expect(json.hint).toContain("--replace");
-    expect(json.hint).toContain("-s <other>");
+    expect(json.next[0]).toContain("--replace");
+    expect(json.next[1]).toContain("--site <OTHER>");
   });
 
   test("--replace sends replace: true", async () => {
@@ -176,7 +176,7 @@ describe("tray put", () => {
   test("invalid site name is exit 2 naming --site", async () => {
     const { done } = run(["put", siteDir(), "-s", "Bad_Name", "--json"]);
     expect(await done).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "invalid_usage", param: "--site" });
+    expect(JSON.parse(err[0]!)).toMatchObject({ code: "invalid_usage", param: "--site" });
   });
 
   test("several files: one site, each file at /<name>, plus a generated list", async () => {
@@ -196,7 +196,7 @@ describe("tray put", () => {
     expect(Object.keys(deploy.body.files).sort()).toEqual(["/a.png", "/b.png", "/index.html"]);
     expect(deploy.body.source.path).toBe(dir);
     expect(JSON.parse(out[0]!).files).toBe(3); // counts the generated index
-    expect(err).toEqual(["No index.html, so Tray added one that lists the files."]);
+    expect(err).toEqual([]); // --json: stderr stays clean
   });
 
   test("several files without -s, non-interactive: exit 2 before any request", async () => {
@@ -205,7 +205,8 @@ describe("tray put", () => {
     writeFileSync(join(dir, "b.png"), "b");
     const { done, calls } = run(["put", join(dir, "a.png"), join(dir, "b.png"), "--json"]);
     expect(await done).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--site" });
+    expect(out).toEqual([]);
+    expect(JSON.parse(err[0]!)).toMatchObject({ code: "missing_input", param: "--site" });
     expect(calls.length).toBe(0);
   });
 
@@ -221,7 +222,12 @@ describe("tray put", () => {
     const deploy = calls.find((c) => c.path === "/v1/sites/q3-report/deploys")!;
     expect(Object.keys(deploy.body.files).sort()).toEqual(["/Q3 Report.pdf", "/index.html"]);
     expect(deploy.body.files["/Q3 Report.pdf"].type).toBe("application/pdf");
-    expect(err).toEqual(["The link opens Q3 Report.pdf directly."]);
+    // Non-interactive progress: one plain line per phase, on stderr.
+    expect(err).toEqual([
+      "Collected 2 files · 2.9 KB",
+      "The link opens Q3 Report.pdf directly.",
+      "No changed files",
+    ]);
   });
 
   test("over the size limit exits 1 before any request", async () => {
@@ -241,7 +247,7 @@ describe("auth + modes", () => {
     expect(await done).toBe(4);
     expect(out).toEqual([]);
     expect(err.join("\n")).toBe(
-      "error: not logged in to acme.dev\nRun `tray login acme.dev` or set TRAY_API_KEY.",
+      "Error: Not logged in to acme.dev.\n\nLog in, or set TRAY_API_KEY:\n    tray login acme.dev",
     );
   });
 
@@ -261,22 +267,31 @@ describe("auth + modes", () => {
         Response.json({ error: "bad key", code: "unauthenticated" }, { status: 401 }),
     });
     expect(await done).toBe(4);
-    expect(JSON.parse(out[0]!).code).toBe("unauthenticated");
+    expect(out).toEqual([]); // failure: stdout empty, one JSON line on stderr
+    expect(JSON.parse(err[0]!).code).toBe("unauthenticated");
   });
 
-  test("confirmation without a TTY needs --yes (exit 2)", async () => {
-    const { done, calls } = run(["remove", "report"]);
+  const removable = {
+    "GET /v1/sites/report": () => siteBody({ domains: ["docs.acme.com"] }),
+    "GET /v1/sites/report/deploys": () => ({ data: [], hasMore: false }),
+    "DELETE /v1/sites/report": () => new Response(null, { status: 204 }),
+  };
+
+  test("remove: looks the site up first; without a TTY it needs --yes, and says the retry", async () => {
+    expect(await run(["remove", "nope"], { "GET /v1/sites/nope": () => notFound() }).done).toBe(1);
+    err = [];
+    const { done, calls } = run(["remove", "report"], removable);
     expect(await done).toBe(2);
-    expect(err.join("\n")).toContain("--yes");
-    expect(calls.length).toBe(0);
+    expect(err.join("\n")).toEndWith("Confirm with --yes:\n    tray remove report --yes");
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
   });
 
-  test("remove --yes", async () => {
-    const { done, calls } = run(["rm", "report", "-y"], {
-      "DELETE /v1/sites/report": () => new Response(null, { status: 204 }),
-    });
+  test("remove --yes deletes and prints just the name", async () => {
+    const { done, calls } = run(["rm", "report", "-y"], removable);
     expect(await done).toBe(0);
-    expect(calls[0]!.method).toBe("DELETE");
+    expect(calls.at(-1)!.method).toBe("DELETE");
+    expect(out).toEqual(["report"]);
+    expect(err).toEqual(["✓ Removed report"]);
   });
 
   test("logout revokes the current key and forgets it", async () => {
@@ -304,7 +319,7 @@ describe("auth + modes", () => {
     expect(calls[1]!.body).toEqual({ userCode: "QXFT-7K2M", approve: true });
   });
 
-  test("login --json prints {approveUrl,userCode} then the result, and saves the key", async () => {
+  test("login --json: the approve link as one JSON line on stderr, the result alone on stdout", async () => {
     keys = memoryKeyStore();
     let polls = 0;
     const { done } = run(["login", "new.dev", "--json", "--name", "ci"], {
@@ -322,9 +337,12 @@ describe("auth + modes", () => {
           : { key: "tray_k_new", email: "sid@acme.com", name: "ci" },
     });
     expect(await done).toBe(0);
+    expect(JSON.parse(err[0]!).pending).toMatchObject({
+      approveUrl: "https://tray.new.dev/approve?code=AAAA-BBBB",
+      userCode: "AAAA-BBBB",
+    });
     expect(out.map((l) => JSON.parse(l))).toEqual([
-      { approveUrl: "https://tray.new.dev/approve?code=AAAA-BBBB", userCode: "AAAA-BBBB" },
-      { domain: "new.dev", email: "sid@acme.com", name: "ci" },
+      { account: { domain: "new.dev", email: "sid@acme.com", name: "ci" }, outcome: "logged_in" },
     ]);
     expect(keys.data["new.dev"]).toBe("tray_k_new");
     expect(loadAccounts(join(configHome, "tray")).current).toBe("new.dev");
@@ -332,11 +350,11 @@ describe("auth + modes", () => {
 });
 
 describe("other commands", () => {
-  test("rollback without --to resolves the previous deploy and sends it", async () => {
-    const { done, calls } = run(["rollback", "report"], {
-      "GET /v1/sites/report": () => siteBody({ currentDeploy: "d3" }),
+  test("rollback never guesses: without --to it fails naming the previous deploy; with it, it sends it", async () => {
+    const routes = {
+      "GET /v1/sites/report": () => siteBody({ currentDeploy: "mh7q2k1c-0003" }),
       "GET /v1/sites/report/deploys": () => ({
-        data: ["d3", "d2", "d1"].map((id) => ({
+        data: ["mh7q2k1c-0003", "mh7q2k1c-0002", "mh7q2k1c-0001"].map((id) => ({
           id,
           files: 1,
           bytes: 1,
@@ -346,15 +364,18 @@ describe("other commands", () => {
         })),
         hasMore: false,
       }),
-      "POST /v1/sites/report/rollback": () => siteBody({ currentDeploy: "d2" }),
-    });
+      "POST /v1/sites/report/rollback": () => siteBody({ currentDeploy: "mh7q2k1c-0002" }),
+    };
+    expect(await run(["rollback", "report"], routes).done).toBe(2);
+    expect(err.join("\n")).toEndWith("    tray rollback report --to mh7q2k1c-0002");
+    const { done, calls } = run(["rollback", "report", "--to", "mh7q2k1c-0002"], routes);
     expect(await done).toBe(0);
-    expect(calls.at(-1)!.body).toEqual({ to: "d2" });
-    expect(out[0]).toContain("d2");
+    expect(calls.at(-1)!.body).toEqual({ to: "mh7q2k1c-0002" });
+    expect(out).toEqual(["https://report.acme.dev"]);
   });
 
   test("unshare deletes each entry, then lists", async () => {
-    const { done, calls } = run(["unshare", "report", "bob@acme.com", "@acme.com"], {
+    const { done, calls } = run(["unshare", "report", "bob@acme.com", "@acme.com", "--yes"], {
       "DELETE /v1/sites/report/shares/:entry": () => new Response(null, { status: 204 }),
       "GET /v1/sites/report/shares": () => ({ data: [{ entry: "sid@acme.com", owner: true }] }),
     });
@@ -364,13 +385,16 @@ describe("other commands", () => {
       "DELETE /v1/sites/report/shares/%40acme.com",
       "GET /v1/sites/report/shares",
     ]);
-    expect(out).toEqual(["sid@acme.com (owner)"]);
+    expect(out).toEqual(["WHO\tROLE\nsid@acme.com\towner"]); // piped: TSV
   });
 
-  test("share rejects things that aren't emails or @domains (exit 2)", async () => {
-    const { done, calls } = run(["share", "report", "bob"]);
+  test("share rejects things that aren't emails or @domains (exit 2), naming each", async () => {
+    const { done, calls } = run(["share", "report", "bob", "x@"]);
     expect(await done).toBe(2);
     expect(calls.length).toBe(0);
+    expect(err.join("\n")).toContain(
+      "2 entries are invalid.\n  bob: not an email or @domain\n  x@:",
+    );
   });
 
   test("key revoke maps the name to an id", async () => {
@@ -381,7 +405,7 @@ describe("other commands", () => {
       createdAt: "2026-10-26T09:12:03Z",
       lastUsedAt: null,
     });
-    const { done, calls } = run(["key", "revoke", "ci"], {
+    const { done, calls } = run(["key", "revoke", "ci", "--yes"], {
       "GET /v1/keys": () => ({ data: [key("aaaaaaaaaaaa", "mbp"), key("bbbbbbbbbbbb", "ci")] }),
       "DELETE /v1/keys/:id": () => new Response(null, { status: 204 }),
     });
@@ -391,7 +415,7 @@ describe("other commands", () => {
 
   test("setup without --domain exits 2 naming the flag (full flow: setup.test.ts)", async () => {
     expect(await run(["setup", "--json"]).done).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "missing_input", param: "--domain" });
+    expect(JSON.parse(err[0]!)).toMatchObject({ code: "missing_input", param: "--domain" });
   });
 });
 
@@ -399,26 +423,23 @@ describe("whoami and skill", () => {
   test("whoami --json: domain, email, key name, source", async () => {
     expect(await run(["whoami", "--json"]).done).toBe(0);
     expect(JSON.parse(out[0]!)).toEqual({
-      domain: "acme.dev",
-      email: "sid@acme.com",
-      key: "mbp",
-      source: "keychain",
+      account: { domain: "acme.dev", email: "sid@acme.com", key: "mbp", source: "keychain" },
     });
   });
 
   test("whoami reports TRAY_API_KEY as source env", async () => {
     keys = memoryKeyStore();
     expect(await run(["whoami", "--json"], {}, { TRAY_API_KEY: "tray_k_x" }).done).toBe(0);
-    expect(JSON.parse(out[0]!)).toMatchObject({ domain: "acme.dev", source: "env" });
+    expect(JSON.parse(out[0]!).account).toMatchObject({ domain: "acme.dev", source: "env" });
   });
 
   test("whoami: a saved key without a local login record says so", async () => {
     saveAccounts(join(configHome, "tray"), { accounts: {} });
     expect(await run(["whoami", "--json", "--domain", "acme.dev"]).done).toBe(0);
     const me = JSON.parse(out[0]!);
-    expect(me).toMatchObject({ domain: "acme.dev", email: null, key: null });
-    expect(me.warning).toContain("no local login record");
-    expect(me.warning).toContain("tray login acme.dev");
+    expect(me.account).toMatchObject({ domain: "acme.dev", email: null, key: null });
+    expect(me.warnings[0].message).toContain("no local login record");
+    expect(me.warnings[0].message).toContain("tray login acme.dev");
   });
 
   test("whoami exits 4 when not logged in, with no network calls", async () => {
@@ -438,7 +459,7 @@ describe("whoami and skill", () => {
     const home = tmp();
     expect(await run(["skill", "install", "--json"], {}, { HOME: home }).done).toBe(0);
     const res = JSON.parse(out[0]!);
-    expect(res.written).toEqual([
+    expect(res.skill.written).toEqual([
       join(home, ".agents/skills/tray/SKILL.md"),
       join(home, ".claude/skills/tray/SKILL.md"),
     ]);
@@ -460,12 +481,12 @@ describe("inputs parsed with the shared schemas", () => {
     const { done, calls } = run(["list", "--json"], {}, { TRAY_DOMAIN: "co.uk" });
     expect(await done).toBe(2);
     expect(calls.length).toBe(0);
-    expect(JSON.parse(out[0]!).error).toStartWith("TRAY_DOMAIN:");
+    expect(JSON.parse(err[0]!).error).toStartWith("TRAY_DOMAIN:");
   });
 
   test("an invalid --domain is a usage error naming the flag", async () => {
     expect(await run(["list", "--json", "--domain", "localhost"]).done).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "invalid_usage", param: "--domain" });
+    expect(JSON.parse(err[0]!)).toMatchObject({ code: "invalid_usage", param: "--domain" });
   });
 
   test("domain add normalizes the host", async () => {
@@ -482,7 +503,7 @@ describe("inputs parsed with the shared schemas", () => {
 
   test("domain add rejects a bare public suffix", async () => {
     expect(await run(["domain", "add", "co.uk", "-s", "report", "--json"]).done).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "invalid_usage", param: "host" });
+    expect(JSON.parse(err[0]!)).toMatchObject({ code: "invalid_usage", param: "host" });
   });
 
   test("--to must be a deploy id", async () => {
@@ -498,22 +519,86 @@ describe("--json output", () => {
     expect(out).toEqual(['{"sites":[]}']);
   });
 
-  test("indented when stdout is a terminal (results and errors)", async () => {
+  test("results indented on a terminal; errors always one line on stderr, stdout empty", async () => {
     expect(
       await run(["list", "--json"], { "GET /v1/sites": () => ({ data: [] }) }, {}, true).done,
     ).toBe(0);
-    expect(out[0]).toBe('{\n  "sites": []\n}');
+    expect(out).toEqual(['{\n  "sites": []\n}']);
     expect(await run(["put", "--json"], {}, {}, true).done).toBe(2);
-    expect(out[1]).toStartWith('{\n  "error": ');
+    expect(out).toHaveLength(1);
+    expect(JSON.parse(err[0]!)).toMatchObject({ code: "invalid_usage", next: ["tray put --help"] });
+  });
+
+  test("deploys: the live one marked, a cursor when there's more; --debug logs each call", async () => {
+    const d = (id: string) => ({
+      id,
+      files: 1,
+      bytes: 1,
+      spa: false,
+      createdAt: "2026-10-26T09:12:03Z",
+      createdBy: "sid@acme.com",
+    });
+    const routes = {
+      "GET /v1/sites/report": () => siteBody({ currentDeploy: "mh7q2k1c-0002" }),
+      "GET /v1/sites/report/deploys": () => ({
+        data: [d("mh7q2k1c-0002"), d("mh7q2k1c-0001")],
+        hasMore: true,
+      }),
+    };
+    expect(await run(["deploys", "report", "--json", "--limit", "2"], routes).done).toBe(0);
+    const json = JSON.parse(out[0]!);
+    expect(json.deploys.map((x: any) => x.current)).toEqual([true, false]);
+    expect(json.next).toBe("mh7q2k1c-0001");
+    out = [];
+    const { done, calls } = run(
+      ["deploys", "report", "--next", "mh7q2k1c-0001", "--debug"],
+      routes,
+    );
+    expect(await done).toBe(0);
+    expect(calls.at(-1)!.url).toContain("before=mh7q2k1c-0001");
+    expect(out[0]).toStartWith("\tDEPLOY\tCREATED\tFILES\tBY\n*\tmh7q2k1c-0002");
+    expect(err[0]).toMatch(/^GET https:\/\/tray\.acme\.dev\/v1\/sites\/report 200 \d+ms$/);
+  });
+
+  test("human tables: TSV with ISO times when piped; empty results go to stderr", async () => {
+    const sites = { "GET /v1/sites": () => ({ data: [siteBody()] }) };
+    expect(await run(["list"], sites).done).toBe(0);
+    expect(out[0]).toBe(
+      "SITE\tURL\tVISIBILITY\tDOMAINS\tUPDATED\nreport\thttps://report.acme.dev\tpublic\t\t2026-10-26T09:12:03Z",
+    );
+    out = [];
+    expect(await run(["list"], { "GET /v1/sites": () => ({ data: [] }) }).done).toBe(0);
+    expect(out).toEqual(["SITE\tURL\tVISIBILITY\tDOMAINS\tUPDATED"]); // just the header
+    expect(err).toEqual(["No sites on acme.dev.\n    tray put <PATH>"]);
   });
 });
 
 describe("parsing", () => {
-  test("usage errors are exit 2, JSON with --json", async () => {
-    expect(await run(["put", "--json"]).done).toBe(2);
-    expect(JSON.parse(out[0]!)).toMatchObject({ code: "invalid_usage" });
-    expect(await run(["put", "x", "--bogus"]).done).toBe(2);
-    expect(err.at(-1)).toContain("--bogus");
+  test("usage errors: the first unknown token, a suggestion, and where to look (exit 2)", async () => {
+    const cases: [string[], string][] = [
+      [
+        ["pt"],
+        "Error: Unknown command pt for tray. Did you mean put?\n\nSee all commands:\n    tray --help",
+      ],
+      [
+        ["put", "--prvate", "x"],
+        "Error: Unknown option --prvate for tray put. Did you mean --private?",
+      ],
+      [["foo", "--json"], "Unknown command foo for tray."], // --json isn't reported too
+      [["list", "extra"], "Unexpected argument extra for tray list."],
+      [["put", "x", "-s", "Bad Name"], 'Invalid --site "Bad Name": invalid site name.'],
+    ];
+    expect(normalizeArgv(["key", "list", "--yes", "-y", "--json", "--json"])).toEqual([
+      "key",
+      "list",
+      "--yes",
+      "--json",
+    ]);
+    for (const [argv, message] of cases) {
+      err = [];
+      expect(await run(argv).done).toBe(2);
+      expect(err.join("\n")).toContain(message);
+    }
   });
 
   test("--help and --version exit 0 on stdout", async () => {
@@ -523,10 +608,42 @@ describe("parsing", () => {
     expect(out[1]).toMatch(/^tray \d+\.\d+\.\d+/);
   });
 
-  test("bare `tray` prints help (exit 0); bare group prints its help (exit 2)", async () => {
-    expect(await run([]).done).toBe(0);
-    expect(await run(["key"]).done).toBe(2);
-    expect(err.at(-1)).toContain("tray key");
+  test("bare `tray`, a bare group, and `tray help <cmd>` print help on stdout (exit 0)", async () => {
+    for (const argv of [[], ["key"], ["help", "put"]]) expect(await run(argv).done).toBe(0);
+    expect(out[1]).toContain("tray key");
+    expect(out[2]).toContain("Usage:\n  tray put");
+    expect(await run(["--version", "--json"]).done).toBe(0);
+    expect(JSON.parse(out[3]!)).toHaveProperty("version");
+  });
+
+  test("every help example parses", () => {
+    for (const [path, examples] of Object.entries(EXAMPLES))
+      for (const ex of examples) {
+        const argv = ex
+          .replace(/ < .*$/, "")
+          .split(" ")
+          .slice(1);
+        const r = parse(app, { argv: rewriteAliases(argv) });
+        expect({ ex, ok: r.ok, path: r.ok ? r.route : path }).toMatchObject({ ex, ok: true });
+      }
+  });
+
+  test("after --, arguments are values: put -- -weird.html publishes the file", async () => {
+    const dir = tmp();
+    writeFileSync(join(dir, "-weird.html"), "<p>");
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const { done, calls } = run(["put", "-s", "w", "--", "-weird.html"], {
+        "GET /v1/sites/w": () => notFound(),
+        "POST /v1/blobs/check": () => ({ missing: [] }),
+        "POST /v1/sites/w/deploys": () => Response.json(deployBody("d1"), { status: 201 }),
+      });
+      expect(await done).toBe(0);
+      expect(calls.some((c) => c.path === "/v1/sites/w/deploys")).toBe(true);
+    } finally {
+      process.chdir(cwd);
+    }
   });
 
   test("aliases only touch command words", () => {
@@ -548,12 +665,7 @@ describe("parsing", () => {
         "/": { json: true, domain: "a.app" },
         "/put": { yes: true, domain: "b.app" },
       }),
-    ).toEqual({
-      json: true,
-      nonInteractive: false,
-      yes: true,
-      domain: "b.app",
-    });
+    ).toMatchObject({ json: true, nonInteractive: false, yes: true, domain: "b.app" });
   });
 });
 
@@ -641,15 +753,15 @@ describe("pure helpers", () => {
     const keys = [k("aaa", "mbp"), k("bbb", "ci"), k("ccc", "ci")];
     expect(keyIdFor(keys, "mbp")).toBe("aaa");
     expect(keyIdFor(keys, "ccc")).toBe("ccc");
-    expect(() => keyIdFor(keys, "nope")).toThrow("no key named nope");
+    expect(() => keyIdFor(keys, "nope")).toThrow("No key named nope");
     try {
       keyIdFor(keys, "ci");
       throw new Error("expected ambiguity");
     } catch (e: any) {
       expect(e.code).toBe("ambiguous_key");
       expect(e.exit).toBe(2);
-      expect(e.hint).toContain("bbb");
-      expect(e.hint).toContain("ccc");
+      expect(e.details.join(" ")).toContain("bbb");
+      expect(e.details.join(" ")).toContain("ccc");
     }
     // A planted key named like another key's id can't redirect the revoke.
     const planted = [k("0123456789ab", "ci"), k("ddd", "0123456789ab")];

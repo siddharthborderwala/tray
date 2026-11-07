@@ -29,8 +29,12 @@ export function relativeTime(iso: string | null | undefined, now = Date.now()): 
   return `${Math.floor(d / 30)}mo ago`;
 }
 
-/** Plain aligned columns, like `gh` and `vercel` print. */
-export function formatTable(headers: string[], rows: string[][]): string {
+/**
+ * A table for stdout. On a terminal: aligned columns, like `gh` and `vercel`.
+ * Piped: tab-separated (cells never contain tabs), so `cut -f2` works.
+ */
+export function formatTable(headers: string[], rows: string[][], tty = true): string {
+  if (!tty) return [headers, ...rows].map((r) => r.join("\t")).join("\n");
   const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => (r[i] ?? "").length)));
   const line = (cells: string[]) =>
     cells
@@ -40,27 +44,72 @@ export function formatTable(headers: string[], rows: string[][]): string {
   return [line(headers), ...rows.map(line)].join("\n");
 }
 
+/** `key  value` rows (whoami, previews): aligned on a terminal, tab-separated when piped. */
+export function formatPairs(rows: [string, string][], tty = true): string {
+  const w = Math.max(...rows.map(([k]) => k.length));
+  return rows.map(([k, v]) => (tty ? `${k.padEnd(w + 2)}${v}` : `${k}\t${v}`)).join("\n");
+}
+
+/** A time cell: `3d ago` on a terminal, ISO 8601 (or empty) when piped. */
+export const timeCell = (iso: string | null | undefined, tty: boolean) =>
+  tty ? relativeTime(iso) : (iso ?? "");
+
+/** An empty cell: `—` on a terminal, nothing when piped. */
+export const emptyCell = (tty: boolean) => (tty ? "—" : "");
+
 /** `--json` output: 2-space indented for a terminal, one compact line when piped or redirected. */
 export function toJson(value: unknown, pretty: boolean): string {
   return pretty ? JSON.stringify(value, null, 2) : JSON.stringify(value);
 }
 
-export function formatError(err: TrayError, json: boolean, pretty = false): string {
-  if (json) {
+/**
+ * A headline ends in a period. Not capitalized here: CLI messages are written
+ * capitalized, and ones that start with a name (a site, from the Worker) keep it as is.
+ */
+export function sentence(text: string): string {
+  const t = text.trim();
+  return /[.!?:]$/.test(t) ? t : t + ".";
+}
+
+/**
+ * An error for stderr. JSON: one line with the API's keys plus `details` and
+ * `next`. Human:
+ *
+ *   ✗ Not logged in to acme.dev.
+ *     <detail>
+ *
+ *   Log in, or set TRAY_API_KEY:
+ *       tray login acme.dev
+ *
+ * `✗` only with color; `Error:` otherwise. Canceling isn't an error: its
+ * notice prints as is.
+ */
+export function formatError(
+  err: TrayError,
+  opts: { json: boolean; color?: boolean; warnings?: { code: string; message: string }[] },
+): string {
+  if (opts.json) {
     // API errors keep their extra fields (e.g. `missing`), as SPEC §3 promises the API's shape.
     const body = (err as TrayError & { body?: Record<string, unknown> }).body;
-    return toJson(
-      {
-        ...body,
-        error: err.message,
-        code: err.code,
-        ...(err.hint ? { hint: err.hint } : {}),
-        ...(err.param ? { param: err.param } : {}),
-      },
-      pretty,
-    );
+    return JSON.stringify({
+      ...body,
+      error: err.message,
+      code: err.code,
+      ...(err.hint ? { hint: err.hint } : {}),
+      ...(err.param ? { param: err.param } : {}),
+      ...(err.details ? { details: err.details } : {}),
+      ...(err.next ? { next: err.next } : {}),
+      ...(opts.warnings?.length ? { warnings: opts.warnings } : {}),
+    });
   }
-  return err.hint ? `error: ${err.message}\n${err.hint}` : `error: ${err.message}`;
+  if (err.code === "canceled") return err.message;
+  const mark = opts.color ? "\x1b[31m✗\x1b[0m " : "Error: ";
+  const lines = [mark + sentence(err.message), ...(err.details ?? []).map((d) => `  ${d}`)];
+  const hint = err.hint?.replaceAll("`", "");
+  if (hint || err.next) lines.push("");
+  if (hint) lines.push(hint);
+  if (err.next) lines.push(...err.next.map((c) => `    ${c}`));
+  return lines.join("\n");
 }
 
 /** `/Users/sid/work/x` → `~/work/x` */

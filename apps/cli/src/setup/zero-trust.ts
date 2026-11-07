@@ -60,8 +60,10 @@ export async function requireZeroTrust(
 
   p.log.info(`Tray uses Zero Trust for sign-in. ${ZERO_TRUST_STEPS}`, { output: process.stderr });
   const wait = deps.waitForEnter ?? pressEnter;
-  await wait("Press Enter to open Cloudflare");
-  (deps.open ?? openBrowser)(ZERO_TRUST_URL);
+  if (!ctx.noOpen) {
+    await wait("Press Enter to open Cloudflare");
+    (deps.open ?? openBrowser)(ZERO_TRUST_URL);
+  } else p.log.info(ZERO_TRUST_URL, { output: process.stderr });
   while (!team) {
     await wait("Press Enter once it's enabled");
     team = await zeroTrustTeam(cf, accountId);

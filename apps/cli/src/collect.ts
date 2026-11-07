@@ -117,7 +117,7 @@ export function filesFromZip(data: Uint8Array): SiteFile[] {
   try {
     entries = unzipSync(data);
   } catch (err) {
-    throw usageError(`could not read zip: ${(err as Error).message}`);
+    throw usageError(`Could not read zip: ${(err as Error).message}`);
   }
   const files: SiteFile[] = [];
   for (const [name, bytes] of Object.entries(entries)) {
@@ -132,7 +132,7 @@ export async function filesFromTarGz(data: Uint8Array): Promise<SiteFile[]> {
   try {
     entries = await new Bun.Archive(data).files();
   } catch (err) {
-    throw usageError(`could not read tar.gz: ${(err as Error).message}`);
+    throw usageError(`Could not read tar.gz: ${(err as Error).message}`);
   }
   const files: SiteFile[] = [];
   for (const [name, file] of entries) {
@@ -229,16 +229,16 @@ function statInput(input: string, abs: string): Stats {
   try {
     return statSync(abs);
   } catch {
-    throw usageError(`no such file or folder: ${input}`);
+    throw usageError(`No such file or folder: ${input}`);
   }
 }
 
 /** A plain file at `/<name>`. Dotfiles are refused so `.env` is never put by accident. */
 async function plainFile(abs: string, st: Stats): Promise<SiteFile> {
   const name = basename(abs);
-  if (!st.isFile()) throw usageError(`can't put ${name}`, "Pass a regular file or a folder.");
+  if (!st.isFile()) throw usageError(`Can't put ${name}`, "Pass a regular file or a folder.");
   if (shouldSkip(name))
-    throw usageError(`won't put ${name}`, "Dotfiles are never published. Rename it to put it.");
+    throw usageError(`Won't put ${name}`, "Dotfiles are never published. Rename it to put it.");
   return { path: `/${name}`, data: await Bun.file(abs).bytes(), type: contentType(abs) };
 }
 
@@ -264,7 +264,7 @@ async function collectOne(input: string, opts: CollectOptions): Promise<Collecte
 /** Several files, each at `/<name>` as is (archives and .html aren't unpacked). No default name. */
 async function collectFiles(inputs: string[], opts: CollectOptions): Promise<Collected> {
   const several = () =>
-    usageError("put one folder, or several files", "Pass one folder on its own, or files only.");
+    usageError("Put one folder, or several files", "Pass one folder on its own, or files only.");
   if (inputs.includes("-")) throw several();
   const abs = inputs.map((i) => resolve(opts.cwd ?? process.cwd(), i));
   const stats = inputs.map((input, i) => statInput(input, abs[i]!));
@@ -274,7 +274,7 @@ async function collectFiles(inputs: string[], opts: CollectOptions): Promise<Col
     const file = await plainFile(path, stats[i]!);
     if (files.some((f) => f.path === file.path))
       throw usageError(
-        `two files named ${file.path.slice(1)}`,
+        `Two files named ${file.path.slice(1)}`,
         "Each file goes to /<name>, so names must differ.",
       );
     files.push(file);

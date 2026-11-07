@@ -5,6 +5,10 @@ export interface Mode {
   json: boolean;
   /** Indent JSON output: stdout is a terminal. Piped or redirected output stays one compact line. */
   prettyJson: boolean;
+  /** stdout is a terminal: aligned tables and relative times; otherwise TSV and ISO times. */
+  stdoutTTY?: boolean;
+  /** Color on stderr: a terminal, and neither NO_COLOR nor --no-color. */
+  color?: boolean;
 }
 
 export interface ModeInput {
@@ -12,6 +16,8 @@ export interface ModeInput {
   nonInteractive: boolean;
   stdinTTY: boolean;
   stdoutTTY: boolean;
+  stderrTTY?: boolean;
+  noColor?: boolean;
   env: Record<string, string | undefined>;
 }
 
@@ -56,5 +62,12 @@ export function detectMode(input: ModeInput): Mode {
     !input.json &&
     !input.nonInteractive &&
     (forced || !automated);
-  return { interactive, json: input.json, prettyJson: input.json && input.stdoutTTY };
+  const color = !!input.stderrTTY && !input.noColor && !env.NO_COLOR;
+  return {
+    interactive,
+    json: input.json,
+    prettyJson: input.json && input.stdoutTTY,
+    stdoutTTY: input.stdoutTTY,
+    color,
+  };
 }

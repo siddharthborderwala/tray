@@ -1,40 +1,57 @@
 import type { Api } from "../api.ts";
-import { authedApi, result, type Ctx } from "../ctx.ts";
-import { usageError } from "../errors.ts";
+import { authedApi, confirm, receipt, result, type Ctx } from "../ctx.ts";
+import { EXIT, TrayError, cancelled } from "../errors.ts";
+import { formatTable, plural } from "../format.ts";
 import { ShareEntry } from "@tray-sh/schema";
 import type { Share } from "../api.ts";
 
-export function validateEntries(entries: string[]): string[] {
+/** Lowercased entries, or one error naming every invalid one. */
+export function validateEntries(site: string, entries: string[]): string[] {
   const clean = entries.map((e) => e.trim().toLowerCase());
   const bad = clean.filter((e) => !ShareEntry.safeParse(e).success);
   if (bad.length)
-    throw usageError(
-      `not an email or @domain: ${bad.join(", ")}`,
-      "Examples: bob@acme.com, @acme.com",
+    throw new TrayError(
+      `Can't share ${site}: ${bad.length === 1 ? "1 entry is" : `${bad.length} entries are`} invalid`,
+      "invalid_usage",
+      EXIT.usage,
+      "Use an email (bob@acme.com) or a whole domain (@acme.com).",
       "entries",
+      { details: bad.map((e) => `${e}: not an email or @domain`) },
     );
   return clean;
 }
 
-function render(ctx: Ctx, site: string, shares: Share[]): void {
-  const lines = shares.map((s) => (s.owner ? `${s.entry} (owner)` : s.entry));
-  result(ctx, lines.join("\n"), { site, data: shares });
+/** The share list: the resulting table on stdout. */
+function render(ctx: Ctx, site: string, shares: Share[], outcome?: string): void {
+  const rows = shares.map((s) => [s.entry, s.owner ? "owner" : "viewer"]);
+  result(ctx, formatTable(["WHO", "ROLE"], rows, ctx.mode.stdoutTTY !== false), {
+    site: { name: site },
+    shares,
+    ...(outcome ? { outcome } : {}),
+  });
 }
 
 /** `tray share <site>` lists; with entries it adds them. */
 export async function share(ctx: Ctx, site: string, entries: string[]): Promise<void> {
   const { api } = await authedApi(ctx);
-  const { data } = entries.length
-    ? await api.addShares(site, validateEntries(entries))
-    : await api.listShares(site);
-  render(ctx, site, data);
+  if (!entries.length) return render(ctx, site, (await api.listShares(site)).data);
+  const { data } = await api.addShares(site, validateEntries(site, entries));
+  receipt(
+    ctx,
+    `Shared ${site} with ${entries.length === 1 ? entries[0] : plural(entries.length, "entry")}`,
+  );
+  render(ctx, site, data, "added");
 }
 
-/** DELETE is one entry per call; then show what's left. */
+/** Changes who can see it, so it's confirmed. DELETE is one entry per call; then show what's left. */
 export async function unshare(ctx: Ctx, site: string, entries: string[]): Promise<void> {
+  const clean = validateEntries(site, entries);
   const { api } = await authedApi(ctx);
-  await removeAll(api, site, validateEntries(entries));
-  render(ctx, site, (await api.listShares(site)).data);
+  const who = clean.length === 1 ? clean[0]! : plural(clean.length, "entry");
+  if (!(await confirm(ctx, `Remove ${who} from ${site}? They lose access.`))) throw cancelled();
+  await removeAll(api, site, clean);
+  receipt(ctx, `Removed ${who} from ${site}`);
+  render(ctx, site, (await api.listShares(site)).data, "removed");
 }
 
 async function removeAll(api: Api, site: string, entries: string[]) {

@@ -90,7 +90,7 @@ export function cloudflare(token: string, fetchImpl: Fetch = fetch) {
       });
     } catch (err) {
       throw new TrayError(
-        `could not reach the Cloudflare API: ${(err as Error).message}`,
+        `Could not reach the Cloudflare API: ${(err as Error).message}`,
         "network",
         EXIT.failed,
       );

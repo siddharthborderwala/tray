@@ -4,7 +4,18 @@
 import * as p from "@clack/prompts";
 import { loadAccounts, saveAccounts, shortHostname } from "../config.ts";
 import { apiUrl, normalizeDomain } from "../credentials.ts";
-import { askText, info, intro, openBrowser, outro, spinner, step, warn, type Ctx } from "../ctx.ts";
+import {
+  askText,
+  info,
+  intro,
+  openBrowser,
+  outro,
+  spinner,
+  step,
+  warn,
+  receipt,
+  type Ctx,
+} from "../ctx.ts";
 import { EXIT, TrayError, cancelled } from "../errors.ts";
 import {
   type Binding,
@@ -63,7 +74,7 @@ async function askToken(
   const link = tokenTemplateUrl(domain);
   if (!ctx.mode.interactive) {
     throw new TrayError(
-      "missing Cloudflare API token",
+      "Missing Cloudflare API token",
       "missing_input",
       EXIT.usage,
       `Create one with everything pre-filled: ${link}\nThen set CLOUDFLARE_API_TOKEN. It needs ${TOKEN_PERMISSIONS}`,
@@ -75,8 +86,10 @@ async function askToken(
     `Create a Cloudflare API token (this link pre-fills everything; click Continue, then Create):\n${link}`,
   );
   // Let them read the instructions first; open the browser when they're ready.
-  await (deps.waitForEnter ?? pressEnter)("Press Enter to open Cloudflare");
-  (deps.open ?? openBrowser)(link);
+  if (!ctx.noOpen) {
+    await (deps.waitForEnter ?? pressEnter)("Press Enter to open Cloudflare");
+    (deps.open ?? openBrowser)(link);
+  }
   const answer = await p.password({
     message: "Paste the token",
     validate: (v) => (v?.trim() ? undefined : "required"),
@@ -164,7 +177,7 @@ export async function setup(
     .toLowerCase();
   if (!Email.safeParse(email).success)
     throw new TrayError(
-      `invalid email: ${email}`,
+      `Invalid email: ${email}`,
       "invalid_usage",
       EXIT.usage,
       undefined,
@@ -291,16 +304,21 @@ export async function setup(
   );
 
   await offerSkillInstall(ctx);
-  outro(ctx, `Your tray is ready at ${domain}. This machine is logged in.`, {
-    domain,
-    email,
-    api: `https://${api}/v1`,
-    worker: name,
-    bucket,
-    accountId,
-    key: machine,
-    live,
+  outro(ctx, `Your tray is ready at ${domain}. This machine is logged in.`, "", {
+    tray: {
+      domain,
+      email,
+      api: `https://${api}/v1`,
+      worker: name,
+      bucket,
+      accountId,
+      key: machine,
+      live,
+    },
+    outcome: previous ? "updated" : "created",
   });
+  if (!ctx.mode.interactive)
+    receipt(ctx, `Your tray is ready at ${domain}. This machine is logged in.`);
 }
 
 function fail(spin: { error(msg: string): void }, err: unknown): never {

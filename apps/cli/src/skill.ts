@@ -19,7 +19,7 @@ import skillMd from "../../../skills/tray/SKILL.md" with { type: "text" };
 import guideMd from "../../../skills/tray/guide.md" with { type: "text" };
 import { app } from "./app.ts";
 import { loadAccounts } from "./config.ts";
-import { result, type Ctx } from "./ctx.ts";
+import { info, receipt, result, warn, type Ctx } from "./ctx.ts";
 import { helpText } from "./help.ts";
 import { VERSION } from "./version.ts";
 
@@ -42,42 +42,25 @@ export function commandPaths(): string[][] {
   return out;
 }
 
-const GLOBAL_FLAG =
-  /^\s+(--json|--non-interactive|--yes, -y|--domain <DOMAIN>|-h, --help|-v, --version)\s/;
-
-/** Drop the global flags (listed once at the top of the guide), including their wrapped lines. */
-export function dropGlobalFlags(help: string): string {
-  const out: string[] = [];
-  let dropping = false;
-  for (const line of help.split("\n")) {
-    if (GLOBAL_FLAG.test(line)) dropping = true;
-    else if (!(dropping && /^\s{8,}\S/.test(line))) dropping = false;
-    if (!dropping) out.push(line);
-  }
-  return out.join("\n");
-}
-
 /** `tray skill`: the skill, every command's help (generated from the router), then guide.md. */
 export function fullGuide(): string {
   const commands = commandPaths().map((path) => {
     const help = parse(app, { argv: [...path, "--help"] });
     if (!help.ok || help.method !== "help") return `tray ${path.join(" ")}`;
-    return dropGlobalFlags(helpText(help))
-      .trimEnd()
-      .replace(/\n+Options:$/, "");
+    return helpText(help, { compact: true });
   });
   return [
     `# Tray agent guide (tray ${VERSION})`,
     skillBody().replace(/^# .*\n+/, ""),
     "## Commands",
-    "Global flags on every command: `--json`, `--non-interactive`, `-y, --yes`, `--domain <DOMAIN>`, `-h, --help`.",
+    "Global options on every command: `--json`, `--non-interactive`, `-y, --yes`, `--domain <DOMAIN>`, `--no-color`, `--no-open`, `--debug`, `-h, --help`.",
     ...commands.map((c) => "```\n" + c + "\n```"),
     guideMd.trim(),
   ].join("\n\n");
 }
 
 export async function printGuide(ctx: Ctx): Promise<void> {
-  result(ctx, fullGuide(), { version: VERSION, guide: fullGuide() });
+  result(ctx, fullGuide(), { guide: { version: VERSION, text: fullGuide() } });
 }
 
 // --- install ---------------------------------------------------------------------
@@ -168,17 +151,14 @@ export async function skillInstall(ctx: Ctx, project: boolean): Promise<void> {
   const home = homeOf(ctx);
   const res = installSkill({ home, cwd: process.cwd(), project });
   const hint = networkHint(home, domainOf(ctx));
-  if (hint && !ctx.mode.json) ctx.stderr(hint);
-  const files = [...res.written, ...res.unchanged, ...res.skipped];
-  const label = (f: string) =>
-    res.written.includes(f)
-      ? "wrote"
-      : res.unchanged.includes(f)
-        ? "up to date"
-        : "skipped (a symlink, or outside this project)";
-  result(ctx, files.map((f) => `${label(f)}  ${f}`).join("\n"), {
-    ...res,
-    ...(hint ? { hint } : {}),
+  for (const f of res.written) receipt(ctx, `Wrote ${f}`);
+  for (const f of res.unchanged) receipt(ctx, `Up to date: ${f}`);
+  for (const f of res.skipped)
+    warn(ctx, `skipped ${f} (a symlink, or outside this project)`, "skill_skipped");
+  if (hint) info(ctx, hint);
+  result(ctx, "", {
+    skill: res,
+    outcome: res.written.length ? "updated" : "unchanged",
   });
 }
 
@@ -197,7 +177,12 @@ export function skillInstalled(home: string, cwd: string): boolean {
 export async function offerSkillInstall(ctx: Ctx): Promise<void> {
   if (!ctx.mode.interactive) return;
   if (skillInstalled(homeOf(ctx), process.cwd())) {
-    refreshInstalledSkills(homeOf(ctx), process.cwd());
+    const refreshed = refreshInstalledSkills(homeOf(ctx), process.cwd());
+    if (refreshed.length)
+      info(
+        ctx,
+        `Updated the Tray skill in ${refreshed.length === 1 ? "1 place" : `${refreshed.length} places`}.`,
+      );
     return;
   }
   const yes = await p.confirm({

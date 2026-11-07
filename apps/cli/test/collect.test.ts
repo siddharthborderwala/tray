@@ -267,11 +267,11 @@ describe("several files", () => {
     mkdirSync(join(root, "other"));
     for (const p of ["a.png", "sub/a.png", ".env"]) writeFileSync(join(root, p), "x");
     const cases: [string[], string][] = [
-      [["a.png", "sub"], "put one folder, or several files"],
-      [["a.png", "-"], "put one folder, or several files"],
-      [["a.png", ".env"], "won't put .env"],
-      [["a.png", "sub/a.png"], "two files named a.png"],
-      [["a.png", "nope.png"], "no such file or folder: nope.png"],
+      [["a.png", "sub"], "Put one folder, or several files"],
+      [["a.png", "-"], "Put one folder, or several files"],
+      [["a.png", ".env"], "Won't put .env"],
+      [["a.png", "sub/a.png"], "Two files named a.png"],
+      [["a.png", "nope.png"], "No such file or folder: nope.png"],
     ];
     for (const [inputs, message] of cases) {
       const err = await collect(inputs, { cwd: root }).catch((e) => e);

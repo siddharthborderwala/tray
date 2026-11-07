@@ -25,31 +25,52 @@ describe("format", () => {
     expect(relativeTime("2026-01-07T12:00:00Z", now)).toBe("3d ago");
   });
 
-  test("formatTable aligns columns and trims trailing space", () => {
-    const t = formatTable(
-      ["SITE", "URL"],
-      [
-        ["report", "https://report.acme.dev"],
-        ["docs", "https://docs.acme.dev"],
-      ],
+  test("formatTable: aligned on a terminal, tab-separated when piped", () => {
+    const rows = [
+      ["report", "https://report.acme.dev"],
+      ["docs", "https://docs.acme.dev"],
+    ];
+    expect(formatTable(["SITE", "URL"], rows)).toBe(
+      "SITE     URL\nreport   https://report.acme.dev\ndocs     https://docs.acme.dev",
     );
-    expect(t).toBe(
-      ["SITE     URL", "report   https://report.acme.dev", "docs     https://docs.acme.dev"].join(
-        "\n",
-      ),
+    expect(formatTable(["SITE", "URL"], rows, false)).toBe(
+      "SITE\tURL\nreport\thttps://report.acme.dev\ndocs\thttps://docs.acme.dev",
     );
-  });
-
-  test("toJson: indented for a terminal, one line otherwise", () => {
-    expect(toJson({ a: 1, b: [2] }, false)).toBe('{"a":1,"b":[2]}');
     expect(toJson({ a: 1 }, true)).toBe('{\n  "a": 1\n}');
-    const err = new TrayError("x", "y");
-    expect(formatError(err, true, true)).toBe('{\n  "error": "x",\n  "code": "y"\n}');
-    expect(formatError(err, true)).toBe('{"error":"x","code":"y"}');
+    expect(toJson({ a: 1, b: [2] }, false)).toBe('{"a":1,"b":[2]}');
   });
 
-  test("formatError: API errors keep param and extra fields in JSON", () => {
-    const err = apiError(
+  test("formatError: headline, details, label and commands; JSON is one line with the same parts", () => {
+    const err = new TrayError(
+      "Not logged in to acme.dev",
+      "not_logged_in",
+      4,
+      "Log in:",
+      undefined,
+      {
+        details: ["the key was revoked"],
+        next: ["tray login acme.dev"],
+      },
+    );
+    expect(formatError(err, { json: false })).toBe(
+      "Error: Not logged in to acme.dev.\n  the key was revoked\n\nLog in:\n    tray login acme.dev",
+    );
+    expect(formatError(err, { json: false, color: true })).toStartWith(
+      "\x1b[31m✗\x1b[0m Not logged in",
+    );
+    expect(JSON.parse(formatError(err, { json: true }))).toEqual({
+      error: "Not logged in to acme.dev",
+      code: "not_logged_in",
+      hint: "Log in:",
+      details: ["the key was revoked"],
+      next: ["tray login acme.dev"],
+    });
+    // Canceling isn't an error.
+    expect(
+      formatError(new TrayError("Canceled. Nothing was changed.", "canceled"), { json: false }),
+    ).toBe("Canceled. Nothing was changed.");
+    // API errors keep their extra fields.
+    const api = apiError(
       { status: 409, headers: new Headers() },
       {
         error: "2 blob(s) not uploaded yet",
@@ -58,25 +79,9 @@ describe("format", () => {
         missing: ["a"],
       },
     );
-    expect(JSON.parse(formatError(err, true))).toEqual({
-      error: "2 blob(s) not uploaded yet",
-      code: "missing_blobs",
+    expect(JSON.parse(formatError(api, { json: true }))).toMatchObject({
       param: "files",
       missing: ["a"],
-    });
-  });
-
-  test("formatError: text and JSON shapes", () => {
-    const err = new TrayError("report already exists", "SITE_EXISTS", 1, "use --replace");
-    expect(formatError(err, false)).toBe("error: report already exists\nuse --replace");
-    expect(JSON.parse(formatError(err, true))).toEqual({
-      error: "report already exists",
-      code: "SITE_EXISTS",
-      hint: "use --replace",
-    });
-    expect(JSON.parse(formatError(new TrayError("x", "Y"), true))).toEqual({
-      error: "x",
-      code: "Y",
     });
   });
 

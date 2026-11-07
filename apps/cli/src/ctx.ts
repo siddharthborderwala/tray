@@ -21,46 +21,94 @@ export interface Ctx {
   sleep?: (ms: number) => Promise<unknown>;
   stdout: (text: string) => void;
   stderr: (text: string) => void;
+  /** The command line as typed (after `tray`), for retry commands in errors. */
+  argv?: string[];
+  /** --no-open: print URLs, never launch a browser. */
+  noOpen?: boolean;
+  /** --debug: one stderr line per API call. */
+  debug?: boolean;
+  /** With --json, warnings go here and into the result's `warnings`, not on stderr. */
+  warnings?: { code: string; message: string }[];
 }
 
 const ui = { output: process.stderr };
 
 // --- output -----------------------------------------------------------------
 
-/** Print the command's result: `json` with --json, otherwise `text`. */
-export function result(ctx: Ctx, text: string, json: unknown): void {
-  ctx.stdout(ctx.mode.json ? toJson(json, ctx.mode.prettyJson) : text);
+/**
+ * The command's answer, the only thing on stdout: `json` (one document, plus
+ * any `warnings`) with --json, otherwise `text` (a URL, a table, an id).
+ * Empty `text` prints nothing.
+ */
+export function result(ctx: Ctx, text: string, json: object): void {
+  if (ctx.mode.json) {
+    const warnings = ctx.warnings?.length ? { warnings: ctx.warnings } : {};
+    ctx.stdout(toJson({ ...json, ...warnings }, ctx.mode.prettyJson));
+  } else if (text) ctx.stdout(text);
 }
 
-/** Like `result`, but closes the Clack frame (└  text) in interactive mode. The result still goes to stdout. */
-export function outro(ctx: Ctx, text: string, json: unknown): void {
-  if (ctx.mode.interactive) p.outro(text, { output: process.stdout });
-  else result(ctx, text, json);
+/**
+ * Like `result`, closing the Clack frame (`└ frame`) on stderr first in
+ * interactive mode. The answer itself still goes to stdout.
+ */
+export function outro(ctx: Ctx, frame: string, text: string, json: object): void {
+  if (ctx.mode.interactive) p.outro(frame, ui);
+  result(ctx, text, json);
 }
 
-/** Progress / hints. Never on stdout. */
+/** What happened, on stderr (`✓ Removed q3-review.`). Silent with --json. */
+export function receipt(ctx: Ctx, message: string): void {
+  if (ctx.mode.json) return;
+  if (ctx.mode.interactive) p.log.success(message, ui);
+  else ctx.stderr(`✓ ${message}`);
+}
+
+/**
+ * Nothing to show: the message and next command on stderr. stdout gets
+ * nothing on a terminal, and just the header row when piped (so a script
+ * reading columns sees the shape).
+ */
+export function empty(ctx: Ctx, headers: string[], message: string, next?: string): void {
+  ctx.stderr(next ? `${message}\n    ${next}` : message);
+  if (ctx.mode.stdoutTTY === false) ctx.stdout(headers.join("\t"));
+}
+
+/** Progress / hints, on stderr. Silent with --json. */
 export function info(ctx: Ctx, message: string): void {
+  if (ctx.mode.json) return;
   if (ctx.mode.interactive) p.log.info(message, ui);
   else ctx.stderr(message);
 }
 
 export function success(ctx: Ctx, message: string): void {
-  if (ctx.mode.interactive) p.log.success(message, ui);
-  else ctx.stderr(message);
+  receipt(ctx, message);
 }
 
-export function warn(ctx: Ctx, message: string): void {
-  if (ctx.mode.interactive) p.log.warn(message, ui);
-  else ctx.stderr(`warning: ${message}`);
+/** A warning: stderr, or the result's `warnings` with --json. */
+export function warn(ctx: Ctx, message: string, code = "warning"): void {
+  if (ctx.mode.json) (ctx.warnings ??= []).push({ code, message: message.replaceAll("`", "") });
+  else if (ctx.mode.interactive) p.log.warn(message, ui);
+  else ctx.stderr(`warning: ${message.replaceAll("`", "")}`);
+}
+
+/** `tray <what was typed> <extra>`: a retry command for errors. */
+export function retry(ctx: Ctx, extra: string): string | undefined {
+  if (!ctx.argv) return undefined;
+  const words = ctx.argv.filter((a) => a !== "--json" && a !== "--non-interactive");
+  return ["tray", ...words, extra].join(" ");
 }
 
 export function intro(ctx: Ctx): void {
   if (ctx.mode.interactive) p.intro("tray", ui);
 }
 
-/** Interactive: Clack step that completes immediately (◇ message). */
+/**
+ * A finished phase: a Clack step (◇ message) interactively, one plain stderr
+ * line otherwise (so CI logs show progress). Silent with --json.
+ */
 export function step(ctx: Ctx, message: string): void {
   if (ctx.mode.interactive) p.log.step(message, ui);
+  else if (!ctx.mode.json) ctx.stderr(message);
 }
 
 export interface Spinner {
@@ -70,9 +118,10 @@ export interface Spinner {
   error(msg: string): void;
 }
 
+/** Interactive: a Clack spinner. Otherwise only its final line, via `step`. */
 export function spinner(ctx: Ctx): Spinner {
   if (ctx.mode.interactive) return p.spinner(ui);
-  return { start() {}, message() {}, stop() {}, error() {} };
+  return { start() {}, message() {}, stop: (m) => step(ctx, m), error() {} };
 }
 
 // --- prompts ------------------------------------------------------------------
@@ -83,18 +132,21 @@ function cancel(): never {
 
 /**
  * Confirmation. `--yes` accepts it; interactive asks; non-interactive exits 2
- * naming the flag.
+ * with the retry command (the same line plus `--yes`).
  */
 export async function confirm(ctx: Ctx, message: string): Promise<boolean> {
   if (ctx.yes) return true;
-  if (!ctx.mode.interactive)
+  if (!ctx.mode.interactive) {
+    const again = retry(ctx, "--yes");
     throw new TrayError(
-      `confirmation required: ${message}`,
+      "This needs confirmation in non-interactive mode",
       "confirmation_required",
       EXIT.usage,
-      "Pass --yes.",
+      again ? "Confirm with --yes:" : "Pass --yes.",
       "--yes",
+      { details: [message], next: again ? [again] : undefined },
     );
+  }
   const answer = await p.confirm({ message, initialValue: false, ...ui });
   if (p.isCancel(answer)) cancel();
   return answer;
@@ -111,7 +163,7 @@ export async function askText(
     validate?: (v: string) => string | undefined;
   },
 ): Promise<string> {
-  if (!ctx.mode.interactive) throw missingFlag(opts.flag);
+  if (!ctx.mode.interactive) throw missingFlag(opts.flag, opts.flag, retry(ctx, opts.flag));
   const answer = await p.text({
     message: opts.message,
     placeholder: opts.placeholder,
@@ -127,7 +179,7 @@ export async function askSelect<T extends string>(
   ctx: Ctx,
   opts: { flag: string; message: string; options: { value: T; label?: string; hint?: string }[] },
 ): Promise<T> {
-  if (!ctx.mode.interactive) throw missingFlag(opts.flag);
+  if (!ctx.mode.interactive) throw missingFlag(opts.flag, opts.flag, retry(ctx, opts.flag));
   const answer = await p.select<T>({ message: opts.message, options: opts.options as any, ...ui });
   if (p.isCancel(answer)) cancel();
   return answer as T;
@@ -151,12 +203,32 @@ export function apiFor(ctx: Ctx, domain: string, key?: string): Api {
   return createApi({
     baseUrl: apiBaseUrl(domain, ctx.env),
     key,
-    fetch: ctx.fetch,
+    fetch: ctx.debug ? debugFetch(ctx) : ctx.fetch,
     onOutdated: (v) =>
-      ctx.stderr(
-        `warning: the tray Worker on ${domain} is v${v}, older than this CLI (v${VERSION}); run \`tray upgrade\``,
+      warn(
+        ctx,
+        `the tray Worker on ${domain} is v${v}, older than this CLI (v${VERSION}); run \`tray upgrade\``,
+        "worker_outdated",
       ),
   });
+}
+
+/** --debug: `GET https://tray.acme.dev/v1/sites 200 84ms` per call. Never headers or bodies. */
+function debugFetch(ctx: Ctx): typeof fetch {
+  const base = ctx.fetch ?? fetch;
+  return (async (input: Request | string | URL, init?: RequestInit) => {
+    const started = performance.now();
+    const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+    const url = input instanceof Request ? input.url : String(input);
+    try {
+      const res = await base(input, init);
+      ctx.stderr(`${method} ${url} ${res.status} ${Math.round(performance.now() - started)}ms`);
+      return res;
+    } catch (err) {
+      ctx.stderr(`${method} ${url} failed ${Math.round(performance.now() - started)}ms`);
+      throw err;
+    }
+  }) as typeof fetch;
 }
 
 /**

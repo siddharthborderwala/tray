@@ -9,6 +9,7 @@ import {
   info,
   intro,
   outro,
+  retry,
   spinner,
   step,
   warn,
@@ -44,7 +45,7 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
   const collected = await collect(args.paths, { title: args.site });
   if (collected.files.length === 0)
     throw usageError(
-      `nothing to put: ${args.paths[0]} has no files`,
+      `Nothing to put: ${args.paths[0]} has no files`,
       "Dotfiles, .git and node_modules are skipped.",
     );
   const site = await siteName(ctx, args.site ?? collected.defaultSite, args.paths);
@@ -100,8 +101,13 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
         err.message,
         "site_exists",
         EXIT.failed,
-        "Use --replace to overwrite it, or -s <other> to pick another name.",
+        "Overwrite it, or pick another name:",
         "site",
+        {
+          next: [retry(ctx, "--replace"), retry(ctx, "--site <OTHER>")].filter(
+            (c): c is string => !!c,
+          ),
+        },
       );
     }
     if (!(await confirm({ ...ctx, yes: false }, `${err.message}. Replace?`))) throw cancelled();
@@ -121,11 +127,15 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
   // 4. Report.
   const live = deployed.site;
   const who = live.visibility === "private" ? audience(live.shareCount) : "public";
-  outro(ctx, ctx.mode.interactive ? `${live.url}   (${who})` : live.url, {
-    site: live.name,
-    url: live.url,
-    visibility: live.visibility,
-    deploy: deployed.deploy.id,
+  const outcome = !deployed.created ? "unchanged" : existing ? "updated" : "created";
+  outro(ctx, `Live · ${who}`, live.url, {
+    site: {
+      name: live.name,
+      url: live.url,
+      visibility: live.visibility,
+      deploy: deployed.deploy.id,
+    },
+    outcome,
     files: files.length,
     uploaded,
     bytes,
@@ -181,7 +191,7 @@ async function siteName(ctx: Ctx, candidate: string | undefined, paths: string[]
   }
   if (!SiteName.safeParse(name).success) {
     throw usageError(
-      `invalid site name: ${name}`,
+      `Invalid site name: ${name}`,
       "Use lowercase letters, digits and dashes (max 63), not `tray`.",
       "--site",
     );

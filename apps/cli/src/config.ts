@@ -4,7 +4,7 @@
 //   auth.json       { [domain]: key }   (only when the keychain is unavailable; mode 600)
 //   sites.json      { [domain]: { [site]: { absolutePath, machineId } } }
 //   machine.json    { machineId }
-import { chmodSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir, hostname as osHostname } from "node:os";
 import { join } from "node:path";
 
@@ -21,10 +21,16 @@ export function readJson<T>(file: string, fallback: T): T {
   }
 }
 
+/**
+ * Write atomically: a temp file in the same folder, then a rename, so a crash
+ * or a concurrent run never leaves half a file (or a lost key).
+ */
 export function writeJson(file: string, data: unknown, mode?: number): void {
   mkdirSync(join(file, ".."), { recursive: true, mode: 0o700 });
-  writeFileSync(file, JSON.stringify(data, null, 2) + "\n", mode ? { mode } : undefined);
-  if (mode) chmodSync(file, mode); // writeFileSync's mode only applies on create
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", { mode: mode ?? 0o644 });
+  if (mode) chmodSync(tmp, mode);
+  renameSync(tmp, file);
 }
 
 // --- accounts ---------------------------------------------------------------

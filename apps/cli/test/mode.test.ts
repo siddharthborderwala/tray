@@ -21,6 +21,8 @@ describe("detectMode", () => {
       interactive: false,
       json: true,
       prettyJson: true,
+      stdoutTTY: true,
+      color: false,
     });
     expect(detectMode({ ...tty, json: true, stdoutTTY: false }).prettyJson).toBe(false);
     expect(detectMode(tty).prettyJson).toBe(false);

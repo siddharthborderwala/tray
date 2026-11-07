@@ -67,8 +67,8 @@ describe("resolveKey: TRAY_API_KEY → saved key → error", () => {
     const err = await resolveKey("acme.dev", {}, memoryKeyStore()).catch((e) => e);
     expect(err).toBeInstanceOf(TrayError);
     expect(err.exit).toBe(4);
-    expect(err.message).toBe("not logged in to acme.dev");
-    expect(err.hint).toBe("Run `tray login acme.dev` or set TRAY_API_KEY.");
+    expect(err.message).toBe("Not logged in to acme.dev");
+    expect(err.next).toEqual(["tray login acme.dev"]);
   });
 });
 

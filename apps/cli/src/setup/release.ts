@@ -17,11 +17,11 @@ export function detectTarget(
 ): string {
   const os = platform === "win32" ? "windows" : platform;
   if (!["darwin", "linux", "windows"].includes(os)) {
-    throw new TrayError(`unsupported OS: ${platform}`, "unsupported_platform", EXIT.failed);
+    throw new TrayError(`Unsupported OS: ${platform}`, "unsupported_platform", EXIT.failed);
   }
   let cpu = arch === "x64" ? "x64" : arch === "arm64" ? "arm64" : null;
   if (!cpu)
-    throw new TrayError(`unsupported architecture: ${arch}`, "unsupported_platform", EXIT.failed);
+    throw new TrayError(`Unsupported architecture: ${arch}`, "unsupported_platform", EXIT.failed);
   const rosetta =
     probe.rosetta ??
     (() => spawnSync("sysctl", ["-n", "sysctl.proc_translated"]).stdout?.toString().trim() === "1");
@@ -43,27 +43,27 @@ export async function latestVersion(fetchImpl: Fetch): Promise<string> {
   const res = await fetchImpl(`https://api.github.com/repos/${REPO}/releases/latest`, {
     headers: { accept: "application/vnd.github+json" },
   }).catch((err: Error) => {
-    throw new TrayError(`could not reach GitHub: ${err.message}`, "network", EXIT.failed);
+    throw new TrayError(`Could not reach GitHub: ${err.message}`, "network", EXIT.failed);
   });
   if (!res.ok)
     throw new TrayError(
-      `could not look up the latest release (HTTP ${res.status})`,
+      `Could not look up the latest release (HTTP ${res.status})`,
       "release_lookup_failed",
       EXIT.failed,
     );
   const { tag_name } = (await res.json()) as { tag_name?: string };
   if (!tag_name)
-    throw new TrayError("the latest release has no tag", "release_lookup_failed", EXIT.failed);
+    throw new TrayError("The latest release has no tag", "release_lookup_failed", EXIT.failed);
   return tag_name.replace(/^v/, "");
 }
 
 async function download(fetchImpl: Fetch, url: string): Promise<Uint8Array> {
   const res = await fetchImpl(url).catch((err: Error) => {
-    throw new TrayError(`download failed: ${url}: ${err.message}`, "network", EXIT.failed);
+    throw new TrayError(`Download failed: ${url}: ${err.message}`, "network", EXIT.failed);
   });
   if (!res.ok)
     throw new TrayError(
-      `download failed: ${url} (HTTP ${res.status})`,
+      `Download failed: ${url} (HTTP ${res.status})`,
       "download_failed",
       EXIT.failed,
     );
@@ -93,10 +93,10 @@ export async function fetchBinary(
     .map((line) => line.trim().split(/\s+/))
     .find((parts) => parts[1]?.replace(/^\*/, "") === asset)?.[0];
   if (!expected)
-    throw new TrayError(`no checksum for ${asset} in SHA256SUMS`, "checksum_missing", EXIT.failed);
+    throw new TrayError(`No checksum for ${asset} in SHA256SUMS`, "checksum_missing", EXIT.failed);
   if (sha256Hex(archive) !== expected.toLowerCase()) {
     throw new TrayError(
-      `checksum mismatch for ${asset}`,
+      `Checksum mismatch for ${asset}`,
       "checksum_mismatch",
       EXIT.failed,
       "The download was corrupted or tampered with. Nothing was changed.",

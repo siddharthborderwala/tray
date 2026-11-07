@@ -37,7 +37,7 @@ export function checkSize(files: SiteFile[], limit = MAX_DEPLOY_BYTES): void {
     .map((f) => `  ${formatBytes(f.data.byteLength).padStart(8)}  ${f.path}`)
     .join("\n");
   throw new TrayError(
-    `deploy is ${formatBytes(total)}, over the ${formatBytes(limit)} limit`,
+    `Deploy is ${formatBytes(total)}, over the ${formatBytes(limit)} limit`,
     "too_large",
     EXIT.failed,
     `Largest files:\n${largest}`,

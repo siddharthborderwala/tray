@@ -4,7 +4,6 @@ import { join } from "node:path";
 import {
   SKILL_MD,
   commandPaths,
-  dropGlobalFlags,
   fullGuide,
   installSkill,
   networkHint,
@@ -84,24 +83,6 @@ describe("tray skill guide", () => {
     for (const code of ["| 0 |", "| 1 |", "| 2 |", "| 4 |", "| 130 |"])
       expect(guide).toContain(code);
     expect(guide).not.toContain("license: MIT"); // no frontmatter
-  });
-
-  test("dropGlobalFlags removes global flags and their wrapped lines only", () => {
-    const help = [
-      "Options:",
-      "  --spa              Unknown paths serve /index.html.",
-      "  --json             Print one JSON object to stdout (results and errors).",
-      "                     Implies --non-interactive.",
-      "  -h, --help         Print help",
-      "  --replace          Overwrite a site.",
-    ].join("\n");
-    expect(dropGlobalFlags(help)).toBe(
-      [
-        "Options:",
-        "  --spa              Unknown paths serve /index.html.",
-        "  --replace          Overwrite a site.",
-      ].join("\n"),
-    );
   });
 });
 

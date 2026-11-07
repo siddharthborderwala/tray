@@ -199,9 +199,12 @@ describe("tray upgrade", () => {
     // No GitHub check the second time round.
     expect(w.seen.some((s) => s.url.includes("api.github.com"))).toBe(false);
     expect(JSON.parse(out.at(-1)!)).toMatchObject({
-      version: "0.2.0",
-      upgradedFrom: "0.1.0",
-      workers: [{ domain: "acme.dev", from: "0.1.0", to: "0.2.0", redeployed: true }],
+      upgrade: {
+        version: "0.2.0",
+        from: "0.1.0",
+        workers: [{ domain: "acme.dev", from: "0.1.0", to: "0.2.0", redeployed: true }],
+      },
+      outcome: "updated",
     });
   });
 
@@ -217,8 +220,8 @@ describe("tray upgrade", () => {
       "https://tray.acme.dev/v1/openapi.json",
     ]);
     expect(JSON.parse(out.at(-1)!)).toMatchObject({
-      upgradedFrom: null,
-      workers: [{ redeployed: false }],
+      upgrade: { from: null, workers: [{ redeployed: false }] },
+      outcome: "unchanged",
     });
   });
 
@@ -229,7 +232,8 @@ describe("tray upgrade", () => {
       version: "0.2.0",
       workerSource: "x",
     });
-    expect(err.join("\n")).toContain("CLOUDFLARE_API_TOKEN");
+    // --json: the warning is in the result, not on stderr.
+    expect(JSON.parse(out.at(-1)!).warnings[0].message).toContain("CLOUDFLARE_API_TOKEN");
     expect(w.seen.some((s) => s.method === "PUT")).toBe(false);
   });
 });
