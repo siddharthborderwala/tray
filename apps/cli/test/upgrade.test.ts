@@ -293,7 +293,8 @@ describe("tray upgrade", () => {
   test("a saved token the keychain didn't hand over in time: says so, not 'set a token'", async () => {
     keys = {
       ...memoryKeyStore(),
-      keychainTimedOut: (name: string) => name === "cloudflare:acme.dev",
+      keychainProblem: (name: string) =>
+        name === "cloudflare:acme.dev" ? ("timeout" as const) : undefined,
     };
     const w = world({ release: release({ version: "0.2.0" }), workerVersion: "0.1.0" });
     const err = await upgrade(ctxFor(w.fetch, { TRAY_UPGRADED_FROM: "0.1.0" }), {

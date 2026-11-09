@@ -84,6 +84,21 @@ describe("resolveKey: TRAY_API_KEY → saved key → error", () => {
     expect(keychainTimeout("acme.dev", "linux").hint).toContain("Unlock it");
   });
 
+  test("a keychain that refuses (Deny on macOS) isn't reported as logged out either", async () => {
+    const denied = {
+      get: () => Promise.reject(new Error("User canceled the operation")),
+    } as unknown as typeof Bun.secrets;
+    const mac = defaultKeyStore(tmp(), { secrets: denied, platform: "darwin", macosSigned: true });
+    const err = await resolveKey("acme.dev", {}, mac).catch((e) => e);
+    expect(err.code).toBe("keychain_refused");
+    expect(err.message).toBe("The keychain refused access");
+    expect(err.hint).toContain("Always Allow");
+    expect(err.next).toEqual(["tray whoami --domain acme.dev"]);
+    // Elsewhere an error usually means no keyring at all: auth.json, then "not logged in".
+    const linux = defaultKeyStore(tmp(), { secrets: denied, platform: "linux" });
+    expect((await resolveKey("acme.dev", {}, linux).catch((e) => e)).code).toBe("not_logged_in");
+  });
+
   test("a timeout is remembered per keychain item, not for the whole process", async () => {
     const secrets = {
       get: ({ name }: { name: string }) =>
@@ -97,8 +112,8 @@ describe("resolveKey: TRAY_API_KEY → saved key → error", () => {
     });
     expect(await store.get("slow.dev")).toBeNull();
     expect(await store.get("fast.dev")).toBe("tray_k_fast");
-    expect(store.keychainTimedOut!("slow.dev")).toBe(true);
-    expect(store.keychainTimedOut!("fast.dev")).toBe(false);
+    expect(store.keychainProblem!("slow.dev")).toBe("timeout");
+    expect(store.keychainProblem!("fast.dev")).toBeUndefined();
     expect(await resolveKey("fast.dev", {}, store)).toBe("tray_k_fast");
   });
 });

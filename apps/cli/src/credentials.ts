@@ -2,7 +2,13 @@
 import { join } from "node:path";
 import { readJson, writeJson, type Accounts } from "./config.ts";
 import { TrayDomainInput } from "@tray-sh/schema";
-import { keychainTimeout, noDomain, notLoggedIn, usageError } from "./errors.ts";
+import {
+  keychainTimeout,
+  noDomain,
+  notLoggedIn,
+  usageError,
+  type KeychainProblem,
+} from "./errors.ts";
 
 export type KeySource = "keychain" | "file";
 
@@ -12,8 +18,12 @@ export interface KeyStore {
   delete(domain: string): Promise<void>;
   /** Where the saved key for `domain` lives, for `tray whoami`. */
   source?(domain: string): Promise<KeySource | null>;
-  /** True when the last keychain read of `name` timed out, so "no key" may really mean "no answer". */
-  keychainTimedOut?(name: string): boolean;
+  /**
+   * Why the last keychain read of `name` came back empty, when it wasn't simply
+   * "not there": no answer in time, or (macOS) access denied. "No key" may then
+   * really mean "a key we weren't given".
+   */
+  keychainProblem?(name: string): KeychainProblem | undefined;
 }
 
 const SERVICE = "sh.tray.cli";
@@ -98,19 +108,24 @@ export interface KeyStoreOptions {
 export function defaultKeyStore(dir: string, opts: KeyStoreOptions = {}): KeyStore {
   const secrets = "secrets" in opts ? opts.secrets : Bun.secrets;
   const timeoutMs = opts.timeoutMs ?? KEYCHAIN_TIMEOUT_MS;
-  const preferred = preferredKeyStore(opts.platform ?? process.platform, opts.macosSigned ?? false);
+  const platform = opts.platform ?? process.platform;
+  const preferred = preferredKeyStore(platform, opts.macosSigned ?? false);
   const file = fileKeyStore(dir);
-  const timedOut = new Set<string>();
+  const problems = new Map<string, KeychainProblem>();
 
   const keychain = {
     async get(domain: string): Promise<string | null> {
       if (!secrets) return null;
       try {
         const value = await withTimeout(secrets.get({ service: SERVICE, name: domain }), timeoutMs);
-        timedOut.delete(domain);
+        problems.delete(domain);
         return value || null;
       } catch (err) {
-        if (err instanceof KeychainTimeout) timedOut.add(domain);
+        // A missing item is `null`, not an error. On macOS an error means the item
+        // is there but access was denied; elsewhere it usually means no keyring
+        // at all, and auth.json is the right fallback.
+        if (err instanceof KeychainTimeout) problems.set(domain, "timeout");
+        else if (platform === "darwin") problems.set(domain, "refused");
         return null;
       }
     },
@@ -159,7 +174,7 @@ export function defaultKeyStore(dir: string, opts: KeyStoreOptions = {}): KeySto
       await file.delete(domain);
       await keychain.delete(domain);
     },
-    keychainTimedOut: (name) => timedOut.has(name),
+    keychainProblem: (name) => problems.get(name),
   };
 }
 
@@ -188,7 +203,8 @@ export async function resolveKey(
   const saved = await store.get(domain);
   if (saved) return saved;
   // A key may well be there: macOS is likely waiting on an "allow access?" prompt.
-  if (store.keychainTimedOut?.(domain)) throw keychainTimeout(domain);
+  const problem = store.keychainProblem?.(domain);
+  if (problem) throw keychainTimeout(domain, process.platform, problem);
   throw notLoggedIn(domain);
 }
 

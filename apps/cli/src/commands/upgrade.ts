@@ -15,7 +15,7 @@ import {
   latestVersion,
   replaceableBinary,
 } from "../setup/release.ts";
-import { loadSetups, savedToken, tokenTimedOut } from "../setup/state.ts";
+import { loadSetups, savedToken, tokenProblem } from "../setup/state.ts";
 import { refreshInstalledSkills } from "../skill.ts";
 import { VERSION } from "../version.ts";
 
@@ -204,8 +204,8 @@ async function redeployIfOlder(
     return { domain, from: current, to: current, redeployed: false };
   }
   const token = ctx.env.CLOUDFLARE_API_TOKEN?.trim() || (await savedToken(ctx.keyStore, domain));
-  if (!token && tokenTimedOut(ctx.keyStore, domain))
-    throw tokenKeychainTimeout(domain, "tray upgrade");
+  const problem = token ? undefined : tokenProblem(ctx.keyStore, domain);
+  if (problem) throw tokenKeychainTimeout(domain, "tray upgrade", problem);
   if (!token) {
     warn(
       ctx,

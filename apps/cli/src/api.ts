@@ -152,7 +152,7 @@ export function createApi({
           `${host} didn't answer in time`,
           "timeout",
           EXIT.failed,
-          "The request may have gone through anyway. Check (tray list, tray deploys), then retry: tray put is safe to repeat.",
+          "It may have gone through anyway: check with `tray list`, then retry (repeating `tray put` is safe).",
         );
       // The headline is ours; the runtime's own text goes in a detail line.
       throw new TrayError(

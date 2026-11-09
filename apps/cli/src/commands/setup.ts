@@ -43,7 +43,7 @@ import {
   savedToken,
   saveToken,
   tokenSlotFor,
-  tokenTimedOut,
+  tokenProblem,
 } from "../setup/state.ts";
 import { offerSkillInstall } from "../skill.ts";
 import { Email } from "@tray-sh/schema";
@@ -74,8 +74,8 @@ async function askToken(
   const saved = useSaved ? await savedToken(ctx.keyStore, domain) : null;
   if (saved) return { token: saved, saved: true };
   // Saved but unreadable (an unanswered keychain prompt): don't ask for a new one.
-  if (useSaved && tokenTimedOut(ctx.keyStore, domain))
-    throw tokenKeychainTimeout(domain, `tray setup --domain ${domain}`);
+  const problem = useSaved ? tokenProblem(ctx.keyStore, domain) : undefined;
+  if (problem) throw tokenKeychainTimeout(domain, `tray setup --domain ${domain}`, problem);
   const link = tokenTemplateUrl(domain);
   if (!ctx.mode.interactive) {
     throw new TrayError(

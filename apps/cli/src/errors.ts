@@ -80,30 +80,47 @@ const KEYCHAIN_WAIT: Partial<Record<NodeJS.Platform, string>> = {
 const keychainWait = (platform: NodeJS.Platform) =>
   KEYCHAIN_WAIT[platform] ?? "the system keychain didn't respond. Try again.";
 
-export const keychainTimeout = (domain: string, platform: NodeJS.Platform = process.platform) =>
-  new TrayError(
-    "The keychain didn't answer in time",
-    "keychain_timeout",
-    EXIT.auth,
-    `Your key for ${domain} may be saved, but ${keychainWait(platform)} No prompt? Run this in a terminal once:`,
-    undefined,
-    { next: [`tray whoami --domain ${domain}`] },
-  );
+/** Why a saved secret couldn't be read: no answer in time, or (macOS) access denied. */
+export type KeychainProblem = "timeout" | "refused";
 
-/** The saved Cloudflare token couldn't be read in time (`retry`: the command that needs it). */
+function keychainError(
+  what: string,
+  problem: KeychainProblem,
+  platform: NodeJS.Platform,
+  retry: string,
+) {
+  return problem === "refused"
+    ? new TrayError(
+        "The keychain refused access",
+        "keychain_refused",
+        EXIT.auth,
+        `${what} is saved, but macOS denied tray access to it (Deny was clicked on its prompt). Run this in a terminal and click Always Allow:`,
+        undefined,
+        { next: [retry] },
+      )
+    : new TrayError(
+        "The keychain didn't answer in time",
+        "keychain_timeout",
+        EXIT.auth,
+        `${what} may be saved, but ${keychainWait(platform)} No prompt? Run this in a terminal:`,
+        undefined,
+        { next: [retry] },
+      );
+}
+
+export const keychainTimeout = (
+  domain: string,
+  platform: NodeJS.Platform = process.platform,
+  problem: KeychainProblem = "timeout",
+) => keychainError(`Your key for ${domain}`, problem, platform, `tray whoami --domain ${domain}`);
+
+/** The saved Cloudflare token couldn't be read (`retry`: the command that needs it). */
 export const tokenKeychainTimeout = (
   domain: string,
   retry: string,
+  problem: KeychainProblem = "timeout",
   platform: NodeJS.Platform = process.platform,
-) =>
-  new TrayError(
-    "The keychain didn't answer in time",
-    "keychain_timeout",
-    EXIT.auth,
-    `The Cloudflare token for ${domain} may be saved, but ${keychainWait(platform)} No prompt? Run this in a terminal:`,
-    undefined,
-    { next: [retry] },
-  );
+) => keychainError(`The Cloudflare token for ${domain}`, problem, platform, retry);
 
 export const noDomain = () =>
   new TrayError(

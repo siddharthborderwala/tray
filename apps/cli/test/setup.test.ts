@@ -534,11 +534,15 @@ describe("tray setup", () => {
 
   test("a saved token the keychain didn't hand over: says so instead of asking for a new one", async () => {
     const cf = fakeCloudflare();
-    keys = { ...memoryKeyStore(), keychainTimedOut: (n: string) => n === "cloudflare:acme.dev" };
+    keys = {
+      ...memoryKeyStore(),
+      keychainProblem: (n: string) =>
+        n === "cloudflare:acme.dev" ? ("refused" as const) : undefined,
+    };
     const e = await setup(ctxFor(cf.fetch, {}), "sid@acme.com", { workerSource: WORKER }).catch(
       (x) => x,
     );
-    expect(e.code).toBe("keychain_timeout");
+    expect(e.code).toBe("keychain_refused");
     expect(e.next).toEqual(["tray setup --domain acme.dev"]);
     expect(cf.state.scripts.size).toBe(0);
   });
