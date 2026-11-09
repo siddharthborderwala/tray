@@ -8,6 +8,7 @@ import {
   relativeTime,
   tildify,
   toJson,
+  withDomain,
 } from "../src/format.ts";
 
 describe("format", () => {
@@ -97,5 +98,25 @@ describe("format", () => {
   test("tildify", () => {
     expect(tildify("/Users/sid/work/x", "/Users/sid")).toBe("~/work/x");
     expect(tildify("/Users/sidney", "/Users/sid")).toBe("/Users/sidney");
+  });
+});
+
+describe("withDomain", () => {
+  test("adds the typed --domain to suggested tray commands", () => {
+    expect(withDomain("tray list", "acme.dev")).toBe("tray list --domain acme.dev");
+    expect(withDomain("Run `tray list` to see your sites.", "acme.dev")).toBe(
+      "Run `tray list --domain acme.dev` to see your sites.",
+    );
+    expect(withDomain("tray list", undefined)).toBe("tray list");
+  });
+
+  test("leaves commands alone that have one already or don't act on a tray", () => {
+    expect(withDomain("tray list --domain x.dev", "acme.dev")).toBe("tray list --domain x.dev");
+    expect(withDomain("tray list --domain=x.dev", "acme.dev")).toBe("tray list --domain=x.dev");
+    expect(withDomain("tray login acme.dev", "acme.dev")).toBe("tray login acme.dev");
+    expect(withDomain("tray upgrade", "acme.dev")).toBe("tray upgrade");
+    expect(withDomain("https://tray.acme.dev/approve?code=X", "acme.dev")).toBe(
+      "https://tray.acme.dev/approve?code=X",
+    );
   });
 });

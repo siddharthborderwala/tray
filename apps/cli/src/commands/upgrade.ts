@@ -8,7 +8,13 @@ import { apiUrl } from "../credentials.ts";
 import { info, receipt, result, spinner, success, warn, type Ctx } from "../ctx.ts";
 import { EXIT, TrayError, type ExitCode } from "../errors.ts";
 import { cloudflare, loadWorkerSource, updateWorkerCode } from "../setup/cloudflare.ts";
-import { detectTarget, fetchBinary, latestVersion, replaceableBinary } from "../setup/release.ts";
+import {
+  assertReleaseExists,
+  detectTarget,
+  fetchBinary,
+  latestVersion,
+  replaceableBinary,
+} from "../setup/release.ts";
 import { loadSetups, savedToken } from "../setup/state.ts";
 import { refreshInstalledSkills } from "../skill.ts";
 import { VERSION } from "../version.ts";
@@ -70,6 +76,11 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
         throw err;
       }));
     if (exact ? exact !== version : olderThan(version, latest)) {
+      if (exact)
+        await assertReleaseExists(fetchImpl, exact).catch((err) => {
+          spin.error(`tray ${exact} wasn't found`);
+          throw err;
+        });
       if (!replaceableBinary(execPath)) {
         spin.stop(`tray ${latest} is available`);
         throw new TrayError(

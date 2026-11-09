@@ -14,7 +14,7 @@ describe("shares", () => {
       expect(res.status).toBe(409);
       const body = await res.json();
       expect(body.code).toBe("site_public");
-      expect(body.hint).toBe("Make it private first: tray edit report --visibility private");
+      expect(body.hint).toBe("Make it private first: `tray edit report --visibility private`");
     }
   });
 

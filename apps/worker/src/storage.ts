@@ -107,15 +107,25 @@ export async function updateMeta(
   bucket: R2Bucket,
   name: string,
   change: (meta: SiteMeta) => boolean | void,
+  /** meta.json as already read (with its etag): the first attempt skips the read. */
+  known?: { meta: SiteMeta; etag: string },
 ): Promise<SiteMeta | null> {
   for (let attempt = 0; attempt < 8; attempt++) {
-    const obj = await bucket.get(paths.meta(name));
-    if (!obj) return null;
-    const meta = await obj.json<SiteMeta>();
+    let meta: SiteMeta;
+    let etag: string;
+    if (attempt === 0 && known) {
+      meta = structuredClone(known.meta);
+      etag = known.etag;
+    } else {
+      const obj = await bucket.get(paths.meta(name));
+      if (!obj) return null;
+      meta = await obj.json<SiteMeta>();
+      etag = obj.etag;
+    }
     if (change(meta) === false) return meta;
     const written = await bucket.put(paths.meta(name), JSON.stringify(meta), {
       httpMetadata: { contentType: "application/json" },
-      onlyIf: { etagMatches: obj.etag },
+      onlyIf: { etagMatches: etag },
     });
     if (written) return meta;
   }
@@ -258,11 +268,13 @@ export function toSite(env: Env, name: string, meta: SiteMeta, current: string |
 }
 
 export async function loadSite(env: Env, name: string) {
-  const [meta, current] = await Promise.all([
-    getJson<SiteMeta>(env.BUCKET, paths.meta(name)),
+  const [obj, current] = await Promise.all([
+    env.BUCKET.get(paths.meta(name)),
     getText(env.BUCKET, paths.current(name)),
   ]);
-  return meta ? { meta, current } : null;
+  if (!obj) return null;
+  // `etag` lets a later updateMeta write without reading meta.json again.
+  return { meta: await obj.json<SiteMeta>(), current, etag: obj.etag };
 }
 
 // --- crypto helpers ----------------------------------------------------------

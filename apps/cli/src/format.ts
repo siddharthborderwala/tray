@@ -90,10 +90,35 @@ export function sentence(text: string): string {
  * `✗` only with color; `Error:` otherwise. Canceling isn't an error: its
  * notice prints as is.
  */
+/** Commands that don't act on one tray, so never get `--domain` added. */
+const NO_DOMAIN = /^tray (login|setup|upgrade|skill|account|help)\b|^tray --/;
+
+/**
+ * `tray list` → `tray list --domain acme.dev`: a suggested command acts on the
+ * tray the user picked with --domain, not their current account. Commands
+ * inside backticks in a hint are rewritten too.
+ */
+export function withDomain(text: string, domain: string | undefined): string {
+  if (!domain) return text;
+  const add = (cmd: string) =>
+    !cmd.startsWith("tray ") || NO_DOMAIN.test(cmd) || /(^|\s)--domain(\s|=|$)/.test(cmd)
+      ? cmd
+      : `${cmd} --domain ${domain}`;
+  if (text.startsWith("tray ")) return add(text);
+  return text.replace(/`(tray [^`]*)`/g, (_, cmd: string) => `\`${add(cmd)}\``);
+}
+
 export function formatError(
-  err: TrayError,
-  opts: { json: boolean; color?: boolean; warnings?: { code: string; message: string }[] },
+  e: TrayError,
+  opts: {
+    json: boolean;
+    color?: boolean;
+    warnings?: { code: string; message: string }[];
+    /** The --domain the user typed: added to suggested commands. */
+    domain?: string;
+  },
 ): string {
+  const err = opts.domain ? suggestFor(e, opts.domain) : e;
   if (opts.json) {
     // API errors keep their extra fields (e.g. `missing`), as SPEC §3 promises the API's shape.
     const body = (err as TrayError & { body?: Record<string, unknown> }).body;
@@ -120,6 +145,17 @@ export function formatError(
   if (hint) lines.push(hint);
   if (err.next) lines.push(...err.next.map((c) => `    ${plain(c)}`));
   return lines.join("\n");
+}
+
+/** The same error, its hint and commands acting on `domain`. Fields are kept; only those two change. */
+function suggestFor(err: TrayError, domain: string): TrayError {
+  return new Proxy(err, {
+    get(target, prop, receiver) {
+      if (prop === "hint") return target.hint && withDomain(target.hint, domain);
+      if (prop === "next") return target.next?.map((c) => withDomain(c, domain));
+      return Reflect.get(target, prop, receiver);
+    },
+  });
 }
 
 /** `/Users/sid/work/x` → `~/work/x` */

@@ -75,7 +75,9 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
     spin.error("Upload failed");
     throw err;
   }
-  spin.stop(uploaded === 0 ? "No changed files" : `Uploaded ${plural(uploaded, "changed file")}`);
+  spin.stop(
+    uploaded === 0 ? "All files already uploaded" : `Uploaded ${plural(uploaded, "new file")}`,
+  );
 
   // 3. Deploy. The Worker compares `source` and answers 409 site_exists for a site put from elsewhere.
   const id = machineId(ctx.configDir);

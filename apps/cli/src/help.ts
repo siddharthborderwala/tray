@@ -47,7 +47,7 @@ export const EXAMPLES: Record<string, string[]> = {
   list: ["tray list", "tray list --json"],
   open: ["tray open q3-review"],
   deploys: ["tray deploys q3-review", "tray deploys q3-review --limit 50"],
-  rollback: ["tray rollback q3-review", "tray rollback q3-review --to mh7q2k1c-8f1a"],
+  rollback: ["tray rollback q3-review", "tray rollback q3-review mh7q2k1c-8f1a"],
   remove: ["tray remove q3-review", "tray remove q3-review --yes"],
   edit: ["tray edit q3-review --visibility private"],
   share: ["tray share q3-review", "tray share q3-review bob@acme.com @acme.com"],
@@ -77,7 +77,7 @@ const NOTES: Record<string, string[]> = {
   ],
   open: ["Non-interactive, it only prints the URL."],
   rollback: [
-    "Interactive with no --to, you pick from recent deploys. Non-interactive, --to is required.",
+    "Interactive with no DEPLOY, you pick from recent deploys. Non-interactive, it is required. --to <DEPLOY> works too.",
   ],
   whoami: ["Never prompts, so it's safe in scripts."],
   share: ["With no emails, it lists who can see the site."],

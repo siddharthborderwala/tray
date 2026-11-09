@@ -77,13 +77,9 @@ Every version of a site, newest first. The live one is marked `*`.
 
 ## rollback
 
-### `tray rollback <site>`
+### `tray rollback <site> [deploy]`
 
-Go back to an earlier version.
-
-| Flag            | Meaning                                                                                |
-| --------------- | -------------------------------------------------------------------------------------- |
-| `--to <deploy>` | Deploy id to go back to (from `tray deploys`). Without it, you pick from recent ones. In scripts and agents it's required. |
+Go back to an earlier version: `tray rollback q3-review mh7q2k1c-8f1a`. The deploy id comes from `tray deploys`. Without it, you pick from recent ones; in scripts and agents it's required. `--to <deploy>` does the same.
 
 ## remove
 
@@ -147,7 +143,7 @@ API keys for agents and CI. Use one with `TRAY_API_KEY`.
 
 ### `tray setup`
 
-Create or update your tray on Cloudflare. Safe to run again. `tray upgrade` updates the CLI and your Workers to the latest stable release; `tray upgrade beta` the newest beta, and `tray upgrade 0.2.0-beta.1` that exact release.
+Create or update your tray on Cloudflare. Safe to run again. `tray upgrade` (or `tray upgrade latest`) updates the CLI and your Workers to the latest stable release; `tray upgrade beta` the newest beta, and `tray upgrade 0.2.0-beta.1` that exact release. To install a beta from scratch: `curl -fsSL https://tray.sh/install | TRAY_VERSION=beta sh`.
 
 Without `CLOUDFLARE_API_TOKEN`, setup prints a link that pre-fills a token with everything it needs, opens it, and asks you to paste the token. It saves the token in your OS keychain for re-runs and `tray upgrade`. If Cloudflare later rejects it (revoked or expired), setup asks for a new one. It also needs Cloudflare Zero Trust turned on (the Free plan is enough).
 

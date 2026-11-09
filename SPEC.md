@@ -189,7 +189,7 @@ tray list | ls
 tray open <site>
 tray edit <site> --visibility public|private [--yes]
 tray deploys <site> [--limit N] [--next <deploy-id>]
-tray rollback <site> [--to <deploy-id>]
+tray rollback <site> [<deploy-id>]
 tray remove | rm <site> [--yes]
 
 tray share <site> [<email|@domain>...]
@@ -280,7 +280,7 @@ with `--replace`. Use `tray edit` to change it.
 # interactive
 ┌  tray
 ◇  Collected 42 files · 3.1 MB
-◇  Uploaded 3 changed files
+◇  Uploaded 3 new files
 └  https://report.acme.dev   (private · you)
 
 # non-interactive
@@ -315,11 +315,12 @@ Opens the site in the default browser. Non-interactive: prints the URL.
   `report will be visible to anyone with the link. Continue? y/N`
 - Existing share lists are kept while private and restored if made private again.
 
-### `tray rollback <site> [--to <deploy-id>]`
+### `tray rollback <site> [<deploy-id>]`
 
-Points the site at `--to` and prints its URL. Interactive with no `--to`:
-pick from recent deploys (the previous one first). Non-interactive, `--to` is
-required: the error's retry command names the previous deploy. The CLI always
+Points the site at the deploy (also accepted as `--to <deploy-id>`) and prints
+its URL. Interactive with no deploy: pick from recent deploys (the previous one
+first). Non-interactive, the deploy is required: the error's retry command
+names the previous deploy. The CLI always
 sends an explicit `to` to the API.
 
 ### `tray deploys <site> [--limit N] [--next <deploy-id>]`
@@ -347,7 +348,7 @@ tray share report                          # list who can see it
 ```
 
 - On a public site: exit 1 with
-  `report is public. Make it private first: tray edit report --visibility private`.
+  ``report is public. Make it private first: `tray edit report --visibility private` ``.
 - The owner is always included and cannot be removed.
 - Stored in `meta.json` (`sharedWith[]`) and enforced by the Worker. No per-site
   Cloudflare Access apps (see "Private sites" in §5).

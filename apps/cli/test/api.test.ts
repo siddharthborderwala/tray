@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { ApiFailure, apiError, createApi, exitForStatus, olderThan } from "../src/api.ts";
+import {
+  ApiFailure,
+  apiError,
+  createApi,
+  exitForStatus,
+  olderThan,
+  requestTimeout,
+} from "../src/api.ts";
 import { TrayError } from "../src/errors.ts";
 import { VERSION } from "../src/version.ts";
 import { mockFetch } from "./helpers.ts";
@@ -276,5 +283,24 @@ describe("tray-version", () => {
     expect(olderThan("1.0.0", "1.0.0")).toBe(false);
     expect(olderThan("v1.2.0", "1.1.9")).toBe(false);
     expect(olderThan("1.2.0-beta.1", "1.2.1")).toBe(true);
+  });
+});
+
+describe("timeouts", () => {
+  test("a request that never answers fails with a timeout instead of hanging", async () => {
+    const never = ((_: unknown, init?: RequestInit) =>
+      new Promise((_, reject) =>
+        init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)),
+      )) as typeof fetch;
+    const api = createApi({ baseUrl: "https://tray.acme.dev", fetch: never, timeoutMs: 20 });
+    const err = await api.listSites().catch((e) => e);
+    expect(err).toBeInstanceOf(TrayError);
+    expect(err.code).toBe("timeout");
+    expect(err.message).toBe("tray.acme.dev didn't answer in time");
+  });
+
+  test("uploads get extra time for their size", () => {
+    expect(requestTimeout(60_000, undefined)).toBe(60_000);
+    expect(requestTimeout(60_000, new Uint8Array(64 * 1000))).toBe(61_000);
   });
 });

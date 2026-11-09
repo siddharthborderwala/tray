@@ -61,7 +61,7 @@ async function privateSite(env: Env, name: string) {
   if (site.meta.visibility !== "private") {
     throw new TrayError(409, "site_public", `${name} is public`, {
       param: "site",
-      hint: `Make it private first: tray edit ${name} --visibility private`,
+      hint: `Make it private first: \`tray edit ${name} --visibility private\``,
     });
   }
   return site.meta;

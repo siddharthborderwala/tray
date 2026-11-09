@@ -10,8 +10,8 @@
 - Piped tables are tab-separated, with ISO 8601 times.
 - In non-interactive mode a value that would have been prompted for is an
   error (exit 2) whose last line is the command to run instead. Confirmations
-  need `--yes`; `--yes` never fills in data. `tray rollback` needs `--to`
-  (`tray deploys <site>` lists ids).
+  need `--yes`; `--yes` never fills in data. `tray rollback` needs a deploy
+  id (`tray deploys <site>` lists them).
 
 ## Environment
 

@@ -2,6 +2,7 @@
 # Installs the tray CLI.  curl -fsSL https://tray.sh/install | sh
 #
 #   TRAY_VERSION=v0.1.0   install a specific version (default: latest; the v is optional)
+#   TRAY_VERSION=beta     install the newest release, betas included
 #   TRAY_INSTALL=~/.tray  install directory (binary goes in $TRAY_INSTALL/bin)
 #   TRAY_NO_MODIFY_PATH=1 don't touch shell rc files (PATH)
 #
@@ -17,9 +18,18 @@ main() {
   need mktemp
 
   target="$(detect_target)"
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+
   version="${TRAY_VERSION:-latest}"
   case "$version" in
     latest | v*) ;;
+    beta)
+      # The newest published release, betas included (GitHub lists newest first).
+      download "https://api.github.com/repos/$REPO/releases?per_page=1" "$tmp/releases.json"
+      version="$(grep -m 1 '"tag_name"' "$tmp/releases.json" | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
+      [ -n "$version" ] || fail "couldn't find the newest release"
+      ;;
     *) version="v$version" ;; # TRAY_VERSION=0.1.0 works too
   esac
   if [ "$version" = "latest" ]; then
@@ -31,8 +41,6 @@ main() {
   install_dir="${TRAY_INSTALL:-$HOME/.tray}"
   bin_dir="$install_dir/bin"
   archive="tray-$target.tar.gz"
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
 
   say "Downloading tray ($target)"
   download "$base/$archive" "$tmp/$archive"

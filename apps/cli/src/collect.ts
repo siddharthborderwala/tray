@@ -37,8 +37,31 @@ export function shouldSkipPath(relPath: string): boolean {
   return relPath.split("/").some((s) => s !== "" && shouldSkip(s));
 }
 
+/** Source and config files browsers should show as text, not download. */
+const PLAIN_TEXT = new Set(
+  (
+    "py rb go rs sh bash zsh fish ps1 toml ini cfg conf log sql java kt kts swift c h cc cpp hpp " +
+    "cs php pl lua r dart scala ex exs erl hs ml vue svelte diff patch tex rst adoc org proto graphql gql"
+  ).split(" "),
+);
+
+/** The upload's content type. Text is UTF-8, said explicitly so browsers don't guess. */
 export function contentType(path: string): string {
-  return Bun.file(path).type || "application/octet-stream";
+  const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  const type = Bun.file(path).type || "application/octet-stream";
+  if (type === "application/octet-stream" && PLAIN_TEXT.has(ext)) return "text/plain;charset=utf-8";
+  return isText(type) && !/;\s*charset=/i.test(type) ? `${type};charset=utf-8` : type;
+}
+
+function isText(type: string): boolean {
+  const base = type.split(";")[0]!.trim();
+  return (
+    base.startsWith("text/") ||
+    base.endsWith("+json") ||
+    base.endsWith("+xml") ||
+    base === "application/json" ||
+    base === "application/xml"
+  );
 }
 
 export type InputKind = "stdin" | "folder" | "zip" | "tar.gz" | "html" | "file";

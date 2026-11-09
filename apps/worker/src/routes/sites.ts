@@ -231,6 +231,8 @@ export const sites = newRouter()
     }
 
     const existing = await loadSite(c.env, name);
+    // As read, before this deploy changes it: updateMeta's first write is conditional on it.
+    const loaded = existing && { meta: structuredClone(existing.meta), etag: existing.etag };
     const src = existing?.meta.source;
     if (
       src &&
@@ -276,7 +278,7 @@ export const sites = newRouter()
         await putJson(bucket, paths.meta(name), meta);
         return meta;
       }
-      const saved = (await updateMeta(bucket, name, apply)) ?? meta;
+      const saved = (await updateMeta(bucket, name, apply, loaded ?? undefined)) ?? meta;
       if (req.replace && req.visibility) await syncSigninPolicy(c);
       return saved;
     };
@@ -322,8 +324,8 @@ export const sites = newRouter()
       createdAt: summary.createdAt,
       createdBy: summary.createdBy,
     });
-    await bucket.put(paths.current(name), record.id);
-    const saved = await save();
+    // The record exists, so the pointer and the meta can be written together.
+    const [, saved] = await Promise.all([bucket.put(paths.current(name), record.id), save()]);
     return c.json({ site: toSite(c.env, name, saved, record.id), deploy: summary }, 201);
   })
 
@@ -373,9 +375,9 @@ export const sites = newRouter()
         ? await c.env.BUCKET.head(paths.deploy(name, to))
         : null;
       if (!target) {
-        throw new TrayError(404, "deploy_not_found", `deploy ${to} not found on ${name}`, {
+        throw new TrayError(404, "deploy_not_found", `${name} has no deploy ${to}`, {
           param: "to",
-          hint: `Run \`tray rollback ${name}\` to pick from recent deploys.`,
+          hint: `Run \`tray deploys ${name}\` to see its deploys.`,
         });
       }
       await c.env.BUCKET.put(paths.current(name), to);

@@ -17,6 +17,22 @@ export interface ApiOptions {
   fetch?: typeof fetch;
   /** Called once if the Worker reports an older `tray-version` than this CLI. */
   onOutdated?: (workerVersion: string) => void;
+  /** Base time limit per request, in ms (uploads get more per byte). Default 60 s. */
+  timeoutMs?: number;
+}
+
+/** Slowest upload speed we wait for before giving up on a request body: 64 KB/s. */
+const MIN_UPLOAD_BYTES_PER_MS = 64;
+
+/** A request's time limit: the base, plus time to send its body at a slow upload speed. */
+export function requestTimeout(base: number, body: unknown): number {
+  const bytes =
+    body instanceof Uint8Array || body instanceof ArrayBuffer
+      ? body.byteLength
+      : typeof body === "string"
+        ? body.length
+        : 0;
+  return base + Math.ceil(bytes / MIN_UPLOAD_BYTES_PER_MS);
 }
 
 export type Api = ReturnType<typeof createApi>;
@@ -101,13 +117,26 @@ export type Token = OkOf<Client["auth"]["token"]["$post"]>;
 export type DeployRequest = InferRequestType<Client["sites"][":site"]["deploys"]["$post"]>["json"];
 export type Manifest = DeployRequest["files"];
 
-export function createApi({ baseUrl, key, fetch: fetchImpl, onOutdated }: ApiOptions) {
+export function createApi({
+  baseUrl,
+  key,
+  fetch: fetchImpl,
+  onOutdated,
+  timeoutMs = 60_000,
+}: ApiOptions) {
   const base = new URL(baseUrl);
   if (!base.pathname.endsWith("/")) base.pathname += "/";
   const root = new URL("v1", base).href;
+  const baseFetch = fetchImpl ?? fetch;
+  // Every request has a time limit: a lost response must not hang the CLI (or the agent running it).
+  const timedFetch = ((input: string | URL | Request, init?: RequestInit) =>
+    baseFetch(input, {
+      ...init,
+      signal: init?.signal ?? AbortSignal.timeout(requestTimeout(timeoutMs, init?.body)),
+    })) as typeof fetch;
   const client = hc<AppType>(root, {
     headers: key ? { authorization: `Bearer ${key}` } : {},
-    ...(fetchImpl ? { fetch: fetchImpl } : {}),
+    fetch: timedFetch,
   });
   const host = new URL(root).host;
   let warned = false;
@@ -118,6 +147,13 @@ export function createApi({ baseUrl, key, fetch: fetchImpl, onOutdated }: ApiOpt
     try {
       res = await request();
     } catch (err) {
+      if ((err as Error)?.name === "TimeoutError")
+        throw new TrayError(
+          `${host} didn't answer in time`,
+          "timeout",
+          EXIT.failed,
+          "The request may have gone through anyway. Check (tray list, tray deploys), then retry: tray put is safe to repeat.",
+        );
       // The headline is ours; the runtime's own text goes in a detail line.
       throw new TrayError(
         `Couldn't reach ${host}`,

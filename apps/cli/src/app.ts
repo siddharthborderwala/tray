@@ -108,11 +108,17 @@ export const app = route(
     name("rollback"),
     description("Point a site at an earlier deploy"),
     site(),
+    argument(
+      name("deploy"),
+      label("[DEPLOY]"),
+      schema(DeployId.optional()),
+      description("Deploy id to make live (from tray deploys)."),
+    ),
     option(
       name("to"),
       label("--to <DEPLOY>"),
       schema(DeployId.optional()),
-      description("Deploy id to make live."),
+      description("Same as DEPLOY."),
     ),
     globals,
   ),
@@ -310,12 +316,15 @@ export const app = route(
       schema(
         z
           .string()
-          .regex(/^(beta|v?\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)$/, "beta, or a version like 0.2.0")
-          .transform((v) => v.replace(/^v/, ""))
+          .regex(
+            /^(latest|beta|v?\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)$/,
+            "latest, beta, or a version like 0.2.0",
+          )
+          .transform((v) => (v === "latest" ? undefined : v.replace(/^v/, "")))
           .optional(),
       ),
       description(
-        'Default: the latest stable release. "beta" for the newest beta, or an exact version like 0.2.0-beta.1.',
+        'Default (or "latest"): the latest stable release. "beta" for the newest beta, or an exact version like 0.2.0-beta.1.',
       ),
     ),
     globals,

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createAccessVerifier } from "../src/access.ts";
 import { FONT_PATH } from "../src/pages.tsx";
-import { resolvePath, safeNext } from "../src/serve.ts";
+import { resolvePath, safeNext, withCharset } from "../src/serve.ts";
 import { accessJwt, APPROVE_AUD, certsFetch, OWNER, setup, SIGNIN_AUD } from "./helpers.ts";
 
 const cookie = async (email: string, aud = SIGNIN_AUD) => ({
@@ -349,5 +349,18 @@ describe("Access certs", () => {
     const forged = `${header.replace(/=+$/, "")}.e30.c2ln`;
     for (let i = 0; i < 5; i++) expect(await verify(forged, opts)).toBeNull();
     expect(fetches).toBe(1);
+  });
+});
+
+describe("withCharset", () => {
+  test("text without a charset is served as UTF-8; everything else is unchanged", () => {
+    expect(withCharset("text/markdown")).toBe("text/markdown; charset=utf-8");
+    expect(withCharset("text/csv")).toBe("text/csv; charset=utf-8");
+    expect(withCharset("application/json")).toBe("application/json; charset=utf-8");
+    expect(withCharset("image/svg+xml")).toBe("image/svg+xml; charset=utf-8");
+    expect(withCharset("text/html;charset=utf-8")).toBe("text/html;charset=utf-8");
+    expect(withCharset("text/plain; charset=iso-8859-1")).toBe("text/plain; charset=iso-8859-1");
+    expect(withCharset("image/png")).toBe("image/png");
+    expect(withCharset("application/octet-stream")).toBe("application/octet-stream");
   });
 });

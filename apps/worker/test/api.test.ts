@@ -142,7 +142,7 @@ describe("errors", () => {
     expect(await res.json()).toMatchObject({
       code: "site_not_found",
       param: "site",
-      error: "site ghost not found",
+      error: "No site named ghost",
     });
   });
 });

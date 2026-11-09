@@ -91,6 +91,15 @@ export function closest(word: string, candidates: string[]): string | undefined 
   return best;
 }
 
+/** Flags people reach for from other CLIs, and the Tray flag that does that job. */
+const FLAG_SYNONYMS: Record<string, string[]> = {
+  "--name": ["--site"],
+  "-n": ["--site"],
+  "--force": ["--replace", "--yes"],
+  "-f": ["--replace", "--yes"],
+  "--deploy": ["--to"],
+};
+
 type RouteDef = {
   phases: {
     routes: { name: string }[];
@@ -116,7 +125,9 @@ function usageFailure(
           (param.cli?.syntax?.label ?? "").split(/[\s,]+/).filter((t) => t.startsWith("-")),
         ),
       );
-      const guess = closest(token.split("=")[0]!, [...flags, "--help"]);
+      const typed = token.split("=")[0]!;
+      const synonym = FLAG_SYNONYMS[typed]?.find((f) => flags.includes(f) || f === "--yes");
+      const guess = synonym ?? closest(typed, [...flags, "--help"]);
       return new TrayError(
         `Unknown option ${token} for ${where}.${guess ? ` Did you mean ${guess}?` : ""}`,
         "unknown_option",
@@ -235,7 +246,11 @@ function badParam(result: {
     }[];
   };
   const syntax = route.phases.map((p) => p.model.params[key]?.cli?.syntax).find(Boolean);
-  if (syntax?.type !== "option") return key;
+  if (syntax?.type !== "option") {
+    // A positional is named as its usage shows it (`[VERSION]` → VERSION), not by its internal key.
+    const shown = syntax?.label?.replace(/^[[<]|[\]>]$/g, "");
+    return shown && shown.toLowerCase() !== key.toLowerCase() ? shown : key;
+  }
   return syntax.label.split(/[\s,]+/).find((t) => t.startsWith("--")) ?? key;
 }
 
@@ -318,7 +333,12 @@ export async function main(argv: string[], deps: MainDeps = {}): Promise<number>
         ? e
         : new TrayError((e as Error)?.message ?? String(e), "internal", EXIT.failed);
     stderr(
-      formatError(err, { json: ctx.mode.json, color: ctx.mode.color, warnings: ctx.warnings }),
+      formatError(err, {
+        json: ctx.mode.json,
+        color: ctx.mode.color,
+        warnings: ctx.warnings,
+        domain: ctx.domainFlag,
+      }),
     );
     return err.exit;
   }
@@ -345,7 +365,7 @@ async function run(ctx: Ctx, intent: Execute): Promise<void> {
     case "/edit":
       return edit(ctx, intent.model.site, intent.model.visibility);
     case "/rollback":
-      return rollback(ctx, intent.model.site, intent.model.to);
+      return rollback(ctx, intent.model.site, intent.model.deploy ?? intent.model.to);
     case "/deploys":
       return deploys(ctx, intent.model.site, {
         limit: intent.model.limit,

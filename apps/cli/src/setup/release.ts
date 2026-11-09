@@ -38,15 +38,18 @@ export function detectTarget(
 export const assetName = (target: string) =>
   `tray-${target}${target.startsWith("windows") ? ".zip" : ".tar.gz"}`;
 
+export const RELEASES_URL = `https://github.com/${REPO}/releases`;
+
 async function github<T>(fetchImpl: Fetch, path: string): Promise<T> {
   const res = await fetchImpl(`https://api.github.com/repos/${REPO}/${path}`, {
     headers: { accept: "application/vnd.github+json" },
+    signal: AbortSignal.timeout(30_000),
   }).catch((err: Error) => {
     throw new TrayError(`Could not reach GitHub: ${err.message}`, "network", EXIT.failed);
   });
   if (!res.ok)
     throw new TrayError(
-      `Could not look up the latest release (HTTP ${res.status})`,
+      `Could not look up tray releases (HTTP ${res.status})`,
       "release_lookup_failed",
       EXIT.failed,
     );
@@ -70,8 +73,31 @@ export async function latestVersion(fetchImpl: Fetch, channel?: "beta"): Promise
   return versions.reduce((a, b) => (Bun.semver.order(a, b) < 0 ? b : a));
 }
 
+/** Throws a usage error if there's no published release for `version` (e.g. `0.2.0-beta.1`). */
+export async function assertReleaseExists(fetchImpl: Fetch, version: string): Promise<void> {
+  const res = await fetchImpl(`https://api.github.com/repos/${REPO}/releases/tags/v${version}`, {
+    headers: { accept: "application/vnd.github+json" },
+    signal: AbortSignal.timeout(30_000),
+  }).catch((err: Error) => {
+    throw new TrayError(`Could not reach GitHub: ${err.message}`, "network", EXIT.failed);
+  });
+  if (res.status === 404)
+    throw new TrayError(
+      `There's no tray ${version}`,
+      "version_not_found",
+      EXIT.usage,
+      `See the published versions: ${RELEASES_URL}`,
+    );
+  if (!res.ok)
+    throw new TrayError(
+      `Could not look up tray releases (HTTP ${res.status})`,
+      "release_lookup_failed",
+      EXIT.failed,
+    );
+}
+
 async function download(fetchImpl: Fetch, url: string): Promise<Uint8Array> {
-  const res = await fetchImpl(url).catch((err: Error) => {
+  const res = await fetchImpl(url, { signal: AbortSignal.timeout(300_000) }).catch((err: Error) => {
     throw new TrayError(`Download failed: ${url}: ${err.message}`, "network", EXIT.failed);
   });
   if (!res.ok)

@@ -141,6 +141,42 @@ describe("tray put", () => {
     expect(json.next[1]).toContain("--site <OTHER>");
   });
 
+  test("site_exists retry commands replace a typed --site/-s instead of repeating it", async () => {
+    const dir = siteDir();
+    const routes = {
+      "GET /v1/sites/report": () => siteBody(),
+      "POST /v1/blobs/check": () => ({ missing: [] }),
+      "POST /v1/sites/report/deploys": () =>
+        Response.json({ error: "report already exists", code: "site_exists" }, { status: 409 }),
+    };
+    for (const flag of ["--site", "-s"]) {
+      err = [];
+      const { done } = run(["put", dir, flag, "report", "--domain", "acme.dev", "--json"], routes);
+      expect(await done).toBe(1);
+      expect(JSON.parse(err[0]!).next).toEqual([
+        `tray put ${dir} ${flag} report --domain acme.dev --replace`,
+        `tray put ${dir} --domain acme.dev --site <OTHER>`,
+      ]);
+    }
+  });
+
+  test("suggested commands keep the --domain that was typed", async () => {
+    const { done } = run(["open", "ghost", "--domain", "acme.dev", "--no-open"], {
+      "GET /v1/sites/ghost": () =>
+        Response.json(
+          {
+            error: "No site named ghost",
+            code: "site_not_found",
+            hint: "Run `tray list` to see your sites.",
+          },
+          { status: 404 },
+        ),
+    });
+    expect(await done).toBe(1);
+    expect(err[0]).toStartWith("Error: No site named ghost");
+    expect(err.join("\n")).toContain("    tray list --domain acme.dev");
+  });
+
   test("--replace sends replace: true", async () => {
     const { done, calls } = run(["put", siteDir(), "--replace"], {
       "GET /v1/sites/report": () => siteBody(),
@@ -226,7 +262,7 @@ describe("tray put", () => {
     expect(err).toEqual([
       "Collected 2 files · 2.9 KB",
       "The link opens Q3 Report.pdf directly.",
-      "No changed files",
+      "All files already uploaded",
     ]);
   });
 
@@ -342,7 +378,7 @@ describe("auth + modes", () => {
 });
 
 describe("other commands", () => {
-  test("rollback never guesses: without --to it fails naming the previous deploy; with it, it sends it", async () => {
+  test("rollback never guesses: without a deploy it fails naming the previous deploy; with it, it sends it", async () => {
     const routes = {
       "GET /v1/sites/report": () => siteBody({ currentDeploy: "mh7q2k1c-0003" }),
       "GET /v1/sites/report/deploys": () => ({
@@ -359,11 +395,15 @@ describe("other commands", () => {
       "POST /v1/sites/report/rollback": () => siteBody({ currentDeploy: "mh7q2k1c-0002" }),
     };
     expect(await run(["rollback", "report"], routes).done).toBe(2);
-    expect(err.join("\n")).toEndWith("    tray rollback report --to mh7q2k1c-0002");
-    const { done, calls } = run(["rollback", "report", "--to", "mh7q2k1c-0002"], routes);
+    expect(err.join("\n")).toEndWith("    tray rollback report mh7q2k1c-0002");
+    const { done, calls } = run(["rollback", "report", "mh7q2k1c-0002"], routes);
     expect(await done).toBe(0);
     expect(calls.at(-1)!.body).toEqual({ to: "mh7q2k1c-0002" });
     expect(out).toEqual(["https://report.acme.dev"]);
+    // --to still works.
+    const legacy = run(["rollback", "report", "--to", "mh7q2k1c-0001"], routes);
+    expect(await legacy.done).toBe(0);
+    expect(legacy.calls.at(-1)!.body).toEqual({ to: "mh7q2k1c-0001" });
   });
 
   test("unshare deletes each entry, then lists", async () => {
@@ -579,6 +619,12 @@ describe("parsing", () => {
       [["foo", "--json"], "Unknown command foo for tray."], // --json isn't reported too
       [["list", "extra"], "Unexpected argument extra for tray list."],
       [["put", "x", "-s", "Bad Name"], 'Invalid --site "Bad Name": invalid site name.'],
+      // Flags from other CLIs point at Tray's own.
+      [["put", "x", "--name", "y"], "Unknown option --name for tray put. Did you mean --site?"],
+      [["put", "x", "--force"], "Did you mean --replace?"],
+      [["remove", "x", "--force"], "Did you mean --yes?"],
+      // A positional is named as usage shows it, not by its internal key.
+      [["upgrade", "nope"], "Invalid VERSION: latest, beta, or a version like 0.2.0."],
     ];
     expect(normalizeArgv(["key", "list", "--yes", "-y", "--json", "--json"])).toEqual([
       "key",

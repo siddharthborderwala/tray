@@ -94,7 +94,7 @@ export const keys = newRouter()
   .openapi(revokeKey, async (c) => {
     const { id } = c.req.valid("param");
     if (!(await c.env.BUCKET.head(paths.key(id)))) {
-      throw new TrayError(404, "key_not_found", `key ${id} not found`, {
+      throw new TrayError(404, "key_not_found", `No key ${id}`, {
         param: "id",
         hint: "Run `tray key list` to see keys.",
       });

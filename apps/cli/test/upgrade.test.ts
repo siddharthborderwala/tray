@@ -62,6 +62,10 @@ function world(opts: { release?: ReturnType<typeof release>; workerVersion?: str
     seen.push({ method, url, body });
     if (url === "https://api.github.com/repos/siddharthborderwala/tray/releases/latest")
       return Response.json({ tag_name: `v${rel.version}` });
+    if (
+      url === `https://api.github.com/repos/siddharthborderwala/tray/releases/tags/v${rel.version}`
+    )
+      return Response.json({ tag_name: `v${rel.version}` });
     const base = `https://github.com/siddharthborderwala/tray/releases/download/v${rel.version}/`;
     if (url === base + rel.asset) return new Response(rel.archive as Uint8Array<ArrayBuffer>);
     if (url === base + "SHA256SUMS") return new Response(rel.sums);
@@ -160,6 +164,22 @@ describe("tray upgrade", () => {
     expect(readFileSync(exe)).toEqual(Buffer.from(NEW_BINARY));
     expect(handedOver).toBe(true);
     expect(w.seen.some((s) => s.url.endsWith("/releases/latest"))).toBe(false);
+  });
+
+  test("an exact version that was never released fails before downloading or replacing anything", async () => {
+    const w = world();
+    const exe = fakeInstall();
+    const before = readFileSync(exe);
+    const error = await upgrade(ctxFor(w.fetch), {
+      execPath: exe,
+      target: "darwin-arm64",
+      version: "0.2.0",
+      to: "9.9.9",
+    }).catch((e) => e);
+    expect(error).toMatchObject({ code: "version_not_found", message: "There's no tray 9.9.9" });
+    expect(error.hint).toContain("github.com/siddharthborderwala/tray/releases");
+    expect(readFileSync(exe)).toEqual(before);
+    expect(w.seen.some((s) => s.url.includes("/releases/download/"))).toBe(false);
   });
 
   test("beta: the newest release, betas included (a newer stable wins)", async () => {

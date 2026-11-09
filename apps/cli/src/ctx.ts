@@ -4,7 +4,7 @@ import { createApi, type Api } from "./api.ts";
 import { loadAccounts } from "./config.ts";
 import { apiBaseUrl, resolveDomain, resolveKey, type KeyStore } from "./credentials.ts";
 import { EXIT, TrayError, cancelled, missingFlag } from "./errors.ts";
-import { toJson } from "./format.ts";
+import { toJson, withDomain } from "./format.ts";
 import type { Mode } from "./mode.ts";
 import { VERSION } from "./version.ts";
 
@@ -69,7 +69,7 @@ export function receipt(ctx: Ctx, message: string): void {
  * reading columns sees the shape).
  */
 export function empty(ctx: Ctx, headers: string[], message: string, next?: string): void {
-  ctx.stderr(next ? `${message}\n    ${next}` : message);
+  ctx.stderr(next ? `${message}\n    ${withDomain(next, ctx.domainFlag)}` : message);
   if (ctx.mode.stdoutTTY === false) ctx.stdout(headers.join("\t"));
 }
 
@@ -91,10 +91,26 @@ export function warn(ctx: Ctx, message: string, code = "warning"): void {
   else ctx.stderr(`warning: ${message.replaceAll("`", "")}`);
 }
 
-/** `tray <what was typed> <extra>`: a retry command for errors. */
+const SHORT_FLAGS: Record<string, string> = { "--site": "-s", "--yes": "-y" };
+
+/**
+ * `tray <what was typed> <extra>`: a retry command for errors. A flag in
+ * `extra` that takes a value (`--site <OTHER>`) replaces the one typed.
+ */
 export function retry(ctx: Ctx, extra: string): string | undefined {
   if (!ctx.argv) return undefined;
-  const words = ctx.argv.filter((a) => a !== "--json" && a !== "--non-interactive");
+  let words = ctx.argv.filter((a) => a !== "--json" && a !== "--non-interactive");
+  const [flag, value] = extra.split(" ");
+  if (flag?.startsWith("-") && value !== undefined) {
+    const names = [flag, SHORT_FLAGS[flag]].filter(Boolean) as string[];
+    const kept: string[] = [];
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i]!;
+      if (names.includes(w)) i++; // drop the flag and its value
+      else if (!names.some((n) => w.startsWith(`${n}=`))) kept.push(w);
+    }
+    words = kept;
+  }
   return ["tray", ...words, extra].join(" ");
 }
 

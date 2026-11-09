@@ -26,7 +26,7 @@ export class TrayError extends Error {
 }
 
 export const siteNotFound = (site: string) =>
-  new TrayError(404, "site_not_found", `site ${site} not found`, {
+  new TrayError(404, "site_not_found", `No site named ${site}`, {
     param: "site",
     hint: "Run `tray list` to see your sites.",
   });

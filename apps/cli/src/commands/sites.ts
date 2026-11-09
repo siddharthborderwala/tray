@@ -133,13 +133,13 @@ export async function rollback(ctx: Ctx, name: string, to: string | undefined): 
       throw new TrayError(`No earlier deploy for ${name}`, "deploy_not_found", EXIT.failed);
     if (!ctx.mode.interactive)
       throw new TrayError(
-        `Rollback needs --to in non-interactive mode`,
+        `Rollback needs a deploy id in non-interactive mode`,
         "missing_input",
         EXIT.usage,
         previous ? "Roll back to the previous deploy:" : "Pick a deploy:",
-        "--to",
+        "deploy",
         {
-          next: [previous ? `tray rollback ${name} --to ${previous.id}` : `tray deploys ${name}`],
+          next: [previous ? `tray rollback ${name} ${previous.id}` : `tray deploys ${name}`],
         },
       );
     // Put the previous deploy first so Enter does the usual thing.

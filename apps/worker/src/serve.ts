@@ -292,7 +292,7 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   const etag = toolbar ? `"${entry.hash}-${TOOLBAR_VERSION}"` : `"${entry.hash}"`;
   const headers: Record<string, string> = {
     etag: `W/${etag}`,
-    "content-type": entry.type || "application/octet-stream",
+    "content-type": withCharset(entry.type || "application/octet-stream"),
     "x-content-type-options": "nosniff",
     ...(meta.visibility === "private" ? PRIVATE_HEADERS : {}),
   };
@@ -320,4 +320,20 @@ function matches(ifNoneMatch: string | undefined, etag: string) {
   if (!ifNoneMatch) return false;
   if (ifNoneMatch.trim() === "*") return true;
   return ifNoneMatch.split(",").some((t) => t.trim().replace(/^W\//, "") === etag);
+}
+
+/**
+ * Text without a charset (`text/markdown`, `text/csv`) gets `charset=utf-8`:
+ * otherwise browsers may guess a legacy encoding and garble non-ASCII text.
+ * The CLI uploads UTF-8 text; older deploys stored the bare type.
+ */
+export function withCharset(type: string): string {
+  if (/;\s*charset=/i.test(type)) return type;
+  const base = type.split(";")[0]!.trim().toLowerCase();
+  const text =
+    base.startsWith("text/") ||
+    base.endsWith("+json") ||
+    base.endsWith("+xml") ||
+    ["application/json", "application/javascript", "application/xml"].includes(base);
+  return text ? `${type}; charset=utf-8` : type;
 }

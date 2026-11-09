@@ -87,6 +87,7 @@ export function cloudflare(token: string, fetchImpl: Fetch = fetch) {
           ...(body !== undefined && !isForm ? { "content-type": "application/json" } : {}),
         },
         ...(body === undefined ? {} : { body: isForm ? body : JSON.stringify(body) }),
+        signal: AbortSignal.timeout(120_000),
       });
     } catch (err) {
       throw new TrayError(

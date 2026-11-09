@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { zipSync } from "fflate";
 import {
   commonDir,
+  contentType,
   defaultSiteName,
   collect,
   filesFromTarGz,
@@ -403,5 +404,16 @@ describe("generic folder names", () => {
     mkdirSync(join(parent, "dist"), { recursive: true });
     writeFileSync(join(parent, "dist/index.html"), "x");
     expect((await collect(join(parent, "dist"))).defaultSite).toBe("launch-page");
+  });
+});
+
+describe("contentType", () => {
+  test("text says UTF-8, and source files are text instead of downloads", () => {
+    expect(contentType("notes.md")).toBe("text/markdown;charset=utf-8");
+    expect(contentType("data.csv")).toBe("text/csv;charset=utf-8");
+    expect(contentType("index.html")).toBe("text/html;charset=utf-8");
+    expect(contentType("script.py")).toBe("text/plain;charset=utf-8");
+    expect(contentType("photo.png")).toBe("image/png");
+    expect(contentType("blob.bin")).toBe("application/octet-stream");
   });
 });
