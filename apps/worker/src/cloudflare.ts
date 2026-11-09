@@ -67,6 +67,9 @@ export function cloudflareApi(
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
+    // Some calls (DELETE of a Worker Custom Domain) answer 204 with no body: that's success.
+    if (res.ok && (res.status === 204 || res.headers.get("content-length") === "0"))
+      return null as T;
     const data = (await res.json().catch(() => null)) as Envelope<T> | null;
     if (!res.ok || !data?.success) {
       const detail =

@@ -86,8 +86,7 @@ export const domains = newRouter()
     }
 
     const existing = await getJson<HostRecord>(c.env.BUCKET, paths.host(host));
-    if (existing) {
-      if (existing.site === req.site) return c.json({ host, ...existing }, 200);
+    if (existing && existing.site !== req.site) {
       throw new TrayError(409, "domain_taken", `${host} already points at ${existing.site}`, {
         param: "host",
         hint: `Remove it first: \`tray domain remove ${host}\``,
@@ -97,9 +96,12 @@ export const domains = newRouter()
     const site = await loadSite(c.env, req.site);
     if (!site) throw siteNotFound(req.site);
 
+    // Attaching is idempotent: a repeat add re-checks the routes and repairs a
+    // host whose Cloudflare side went missing (say, a half-finished remove).
     const cf = c.var.deps.cloudflare(c.env);
     await cf.attachDomain(host);
     await cf.addSigninHost(host);
+    if (existing) return c.json({ host, ...existing }, 200);
 
     const record: HostRecord = { site: req.site, createdAt: now() };
     await putJson(c.env.BUCKET, paths.host(host), record, { ...record });

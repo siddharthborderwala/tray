@@ -40,7 +40,9 @@ function fakeApi(routes: { pattern: string; script?: string | null }[] = []) {
       return ok({ id: "dom1", ...body });
     if (path.startsWith("/accounts/acct/workers/domains?"))
       return ok([{ id: "dom1", hostname: "docs.acme.com" }]);
-    if (path === "/accounts/acct/workers/domains/dom1" && method === "DELETE") return ok(null);
+    // Like Cloudflare: 204, no body.
+    if (path === "/accounts/acct/workers/domains/dom1" && method === "DELETE")
+      return new Response(null, { status: 204 });
     if (path === "/accounts/acct/access/apps/app1" && method === "GET") return ok(app);
     if (path === "/accounts/acct/access/policies/pol1" && method === "PUT") {
       app.policies[0] = { ...app.policies[0]!, ...(body as object) };

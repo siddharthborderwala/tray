@@ -140,7 +140,8 @@ describe("domains", () => {
     res = await api("/domains", { method: "POST", json: { host: "docs.acme.com", site: "docs" } });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(domain);
-    expect(cf.calls).toHaveLength(2);
+    // A repeat re-attaches (idempotent), repairing a host whose Cloudflare side went missing.
+    expect(cf.calls.slice(2)).toEqual(["attach docs.acme.com", "signin+ docs.acme.com"]);
 
     res = await api("/domains", { method: "POST", json: { host: "docs.acme.com", site: "blog" } });
     expect(res.status).toBe(409);

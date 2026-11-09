@@ -96,6 +96,9 @@ export function cloudflare(token: string, fetchImpl: Fetch = fetch) {
         EXIT.failed,
       );
     }
+    // A 204 (no body) is success, e.g. deleting a Worker Custom Domain.
+    if (res.ok && (res.status === 204 || res.headers.get("content-length") === "0"))
+      return { success: true, errors: [], result: null as T } as Envelope<T>;
     const data = (await res.json().catch(() => null)) as Envelope<T> | null;
     if (!res.ok || !data?.success) {
       const errors = data?.errors ?? [];
