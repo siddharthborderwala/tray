@@ -280,6 +280,12 @@ describe("private sites", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/deck?p=2");
 
+    // A CF_Authorization cookie (which a sibling site can toss onto this path) is never used.
+    const tossed = { cookie: `CF_Authorization=${await accessJwt("mallory@evil.io", SIGNIN_AUD)}` };
+    expect((await visit("https://secret.acme.dev/.tray/signin", { headers: tossed })).status).toBe(
+      403,
+    );
+
     res = await visit("https://secret.acme.dev/.tray/signin?next=https://evil.example", {
       headers,
     });

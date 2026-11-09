@@ -23,6 +23,7 @@ interface Call {
 function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: string } = {}) {
   const state = {
     buckets: new Set<string>(),
+    lifecycle: undefined as unknown,
     idps: [] as { id: string; type: string; name: string }[],
     policies: [] as { id: string; name: string; decision: string; include: unknown[] }[],
     apps: [] as any[],
@@ -105,6 +106,10 @@ function fakeCloudflare(opts: { zeroTrust?: boolean; zones?: string[]; token?: s
       return state.buckets.has(m[1]!)
         ? ok({ name: m[1] })
         : fail(404, 10006, "The specified bucket does not exist.");
+    }
+    if ((m = path.match(new RegExp(`^${a}/r2/buckets/([^/]+)/lifecycle$`))) && method === "PUT") {
+      state.lifecycle = body;
+      return ok({});
     }
     if (route === `POST ${a}/r2/buckets`) {
       state.buckets.add(body.name);
@@ -255,7 +260,7 @@ describe("tray setup", () => {
         id: expect.any(String),
         name: "tray sign-in (acme.dev)",
         decision: "allow",
-        include: [{ everyone: {} }],
+        include: [{ email: { email: "sid@acme.com" } }],
       },
     ]);
     const [approve, signin] = s.apps;
@@ -344,9 +349,13 @@ describe("tray setup", () => {
     const firstKey = keys.data["acme.dev"]!;
     // A custom host the Worker added to the sign-in app since.
     cf.state.apps[1].destinations.push({ type: "public", uri: "docs.acme.com/.tray/signin" });
+    // And the sign-in allow list the Worker maintains: a re-run leaves it alone.
+    const synced = [{ email: { email: "sid@acme.com" } }, { email: { email: "bob@acme.com" } }];
+    cf.state.policies[1]!.include = synced;
 
     await setup(ctxFor(cf.fetch), undefined, { workerSource: WORKER + "//v2" });
     const s = cf.state;
+    expect(s.policies[1]!.include).toEqual(synced);
     expect(s.buckets.size).toBe(1);
     expect(s.idps).toHaveLength(1);
     expect(s.policies).toHaveLength(2);
@@ -365,6 +374,11 @@ describe("tray setup", () => {
     expect(
       cf.calls.filter((c) => c.method === "POST" && c.path.endsWith("/r2/buckets")),
     ).toHaveLength(1);
+    // Abandoned device logins expire; keys and setup-key claims never do.
+    const prefixes = (s.lifecycle as { rules: { conditions: { prefix: string } }[] }).rules.map(
+      (r) => r.conditions.prefix,
+    );
+    expect(prefixes).toEqual(["auth/pending/", "auth/codes/", "auth/polls/"]);
   });
 
   test("changing the owner email updates the owner policy", async () => {

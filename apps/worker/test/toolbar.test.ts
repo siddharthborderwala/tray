@@ -248,3 +248,24 @@ describe("favicon", () => {
     expect(res.headers.get("content-type")).toBe("image/x-icon");
   });
 });
+
+test("hosted pages can't install service workers", async () => {
+  const { deploy, visit } = await setup();
+  await deploy("app", { "/index.html": "x", "/sw.js": "self.x=1" });
+  const sw = { headers: { "service-worker": "script" } };
+  expect((await visit("https://app.acme.dev/sw.js", sw)).status).toBe(404);
+  expect((await visit("https://app.acme.dev/sw.js")).status).toBe(200);
+});
+
+test("private content can't be loaded or framed by other sites; public content can", async () => {
+  const { deploy, visit, api } = await setup();
+  await deploy("secret", { "/index.html": "x", "/data.js": "y" }, { visibility: "private" });
+  await deploy("open", { "/index.html": "x" });
+  const priv = await visit("https://secret.acme.dev/data.js", { headers: await cookie(OWNER) });
+  expect(priv.headers.get("cross-origin-resource-policy")).toBe("same-origin");
+  expect(priv.headers.get("content-security-policy")).toBe("frame-ancestors 'self'");
+  expect(
+    (await visit("https://open.acme.dev/")).headers.get("cross-origin-resource-policy"),
+  ).toBeNull();
+  void api;
+});

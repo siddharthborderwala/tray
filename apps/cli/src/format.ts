@@ -63,6 +63,12 @@ export function toJson(value: unknown, pretty: boolean): string {
 }
 
 /**
+ * Server-supplied text made safe for a terminal: control and format characters
+ * (ANSI escapes, OSC 52, bidi overrides, extra lines) become `�`.
+ */
+export const plain = (s: string) => s.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, "\uFFFD");
+
+/**
  * A headline ends in a period. Not capitalized here: CLI messages are written
  * capitalized, and ones that start with a name (a site, from the Worker) keep it as is.
  */
@@ -103,12 +109,16 @@ export function formatError(
     });
   }
   if (err.code === "canceled") return err.message;
+  // Messages, details and hints can come from the Worker: print them inert.
   const mark = opts.color ? "\x1b[31m✗\x1b[0m " : "Error: ";
-  const lines = [mark + sentence(err.message), ...(err.details ?? []).map((d) => `  ${d}`)];
-  const hint = err.hint?.replaceAll("`", "");
+  const lines = [
+    mark + sentence(plain(err.message)),
+    ...(err.details ?? []).map((d) => `  ${plain(d)}`),
+  ];
+  const hint = err.hint?.replaceAll("`", "").split("\n").map(plain).join("\n");
   if (hint || err.next) lines.push("");
   if (hint) lines.push(hint);
-  if (err.next) lines.push(...err.next.map((c) => `    ${c}`));
+  if (err.next) lines.push(...err.next.map((c) => `    ${plain(c)}`));
   return lines.join("\n");
 }
 

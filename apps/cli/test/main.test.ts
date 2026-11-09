@@ -304,19 +304,11 @@ describe("auth + modes", () => {
     expect(loadAccounts(join(configHome, "tray")).current).toBeUndefined();
   });
 
-  test("approve shows the device then approves with --yes", async () => {
-    const { done, calls } = run(["approve", "qxft-7k2m", "--yes"], {
-      "GET /v1/auth/device/:code": () => ({
-        name: "ci-box",
-        ip: "10.0.0.2",
-        expiresAt: "2026-10-26T09:22:03Z",
-      }),
-      "POST /v1/auth/approve": () => new Response(null, { status: 204 }),
-    });
-    expect(await done).toBe(0);
-    expect(calls[0]!.path).toBe("/v1/auth/device/QXFT-7K2M");
-    expect(err.join("\n")).toContain("ci-box");
-    expect(calls[1]!.body).toEqual({ userCode: "QXFT-7K2M", approve: true });
+  test("approve needs a person: without a terminal (even with --yes) it only gives the browser link", async () => {
+    const { done, calls } = run(["approve", "qxft-7k2m", "--yes"]);
+    expect(await done).toBe(2);
+    expect(calls).toHaveLength(0);
+    expect(err.join("\n")).toEndWith("    https://tray.acme.dev/approve?code=QXFT-7K2M");
   });
 
   test("login --json: the approve link as one JSON line on stderr, the result alone on stdout", async () => {

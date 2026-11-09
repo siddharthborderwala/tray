@@ -38,9 +38,8 @@ export function detectTarget(
 export const assetName = (target: string) =>
   `tray-${target}${target.startsWith("windows") ? ".zip" : ".tar.gz"}`;
 
-/** The latest release's version, e.g. `0.2.0`. */
-export async function latestVersion(fetchImpl: Fetch): Promise<string> {
-  const res = await fetchImpl(`https://api.github.com/repos/${REPO}/releases/latest`, {
+async function github<T>(fetchImpl: Fetch, path: string): Promise<T> {
+  const res = await fetchImpl(`https://api.github.com/repos/${REPO}/${path}`, {
     headers: { accept: "application/vnd.github+json" },
   }).catch((err: Error) => {
     throw new TrayError(`Could not reach GitHub: ${err.message}`, "network", EXIT.failed);
@@ -51,10 +50,24 @@ export async function latestVersion(fetchImpl: Fetch): Promise<string> {
       "release_lookup_failed",
       EXIT.failed,
     );
-  const { tag_name } = (await res.json()) as { tag_name?: string };
-  if (!tag_name)
-    throw new TrayError("The latest release has no tag", "release_lookup_failed", EXIT.failed);
-  return tag_name.replace(/^v/, "");
+  return (await res.json()) as T;
+}
+
+/**
+ * The newest release's version, e.g. `0.2.0`. Stable only (GitHub's "latest"
+ * never points at a prerelease), or with `beta`, the newest of every release,
+ * betas included, so a beta user moves on to a newer stable one too.
+ */
+export async function latestVersion(fetchImpl: Fetch, channel?: "beta"): Promise<string> {
+  const tags = channel
+    ? (await github<{ tag_name: string; draft: boolean }[]>(fetchImpl, "releases?per_page=30"))
+        .filter((r) => !r.draft)
+        .map((r) => r.tag_name)
+    : [(await github<{ tag_name?: string }>(fetchImpl, "releases/latest")).tag_name];
+  const versions = tags.filter((t): t is string => !!t).map((t) => t.replace(/^v/, ""));
+  if (!versions.length)
+    throw new TrayError("No release found", "release_lookup_failed", EXIT.failed);
+  return versions.reduce((a, b) => (Bun.semver.order(a, b) < 0 ? b : a));
 }
 
 async function download(fetchImpl: Fetch, url: string): Promise<Uint8Array> {

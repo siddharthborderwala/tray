@@ -1,6 +1,6 @@
 // Turn a folder, .zip, .tar.gz, .html file, any other file, several files, or
 // stdin into a flat list of files keyed by their path inside the site.
-import { readdirSync, realpathSync, statSync, type Stats } from "node:fs";
+import { lstatSync, readdirSync, realpathSync, statSync, type Stats } from "node:fs";
 import { basename, dirname, join, posix, relative, resolve, sep } from "node:path";
 import { unzipSync } from "fflate";
 import { RESERVED_SITE_NAMES, SITE_NAME_RE } from "@tray-sh/schema";
@@ -234,30 +234,71 @@ function statInput(input: string, abs: string): Stats {
 }
 
 /** A plain file at `/<name>`. Dotfiles are refused so `.env` is never put by accident. */
-async function plainFile(abs: string, st: Stats): Promise<SiteFile> {
-  const name = basename(abs);
+async function plainFile(abs: string, st: Stats, name = basename(abs)): Promise<SiteFile> {
   if (!st.isFile()) throw usageError(`Can't put ${name}`, "Pass a regular file or a folder.");
   if (shouldSkip(name))
     throw usageError(`Won't put ${name}`, "Dotfiles are never published. Rename it to put it.");
   return { path: `/${name}`, data: await Bun.file(abs).bytes(), type: contentType(abs) };
 }
 
+/**
+ * A file named on the command line may be a symlink (a cloned repo can ship
+ * `report.pdf -> ~/.ssh/id_rsa`). Follow it only to a file in the link's own
+ * folder that isn't skipped (dotfiles, node_modules…), the same containment
+ * as the folder walk. Returns the path to read.
+ */
+export function containedFile(input: string, abs: string): string {
+  let link: Stats;
+  try {
+    link = lstatSync(abs);
+  } catch {
+    return abs; // missing: statInput reports it
+  }
+  if (!link.isSymbolicLink()) return abs;
+  let target: string;
+  let home: string;
+  try {
+    target = realpathSync(abs);
+    home = realpathSync(dirname(abs));
+  } catch {
+    throw usageError(`${input} is a broken link`);
+  }
+  if (statSync(target).isDirectory()) return abs; // a linked folder is walked with its own containment
+  const rel = relative(home, target);
+  if (
+    rel === "" ||
+    rel.startsWith("..") ||
+    resolve(home, rel) !== target ||
+    shouldSkipPath(rel.split(sep).join("/"))
+  )
+    throw usageError(
+      `Won't put ${input}: it links to a file outside its folder (or a skipped one)`,
+      "Copy the file you mean to share next to it, or put the folder it's in.",
+    );
+  return target;
+}
+
 async function collectOne(input: string, opts: CollectOptions): Promise<Collected> {
-  const abs = resolve(opts.cwd ?? process.cwd(), input);
+  const given = resolve(opts.cwd ?? process.cwd(), input);
+  const abs = containedFile(input, given);
   const st = statInput(input, abs);
   const isDirectory = st.isDirectory();
-  const defaultSite = defaultSiteName(abs, isDirectory);
+  const defaultSite = defaultSiteName(given, isDirectory);
   switch (inputKind(abs, isDirectory)) {
     case "folder":
-      return { files: await filesFromFolder(abs), defaultSite, source: abs };
+      return { files: await filesFromFolder(abs), defaultSite, source: given };
     case "zip":
-      return { files: filesFromZip(await Bun.file(abs).bytes()), defaultSite, source: abs };
+      return { files: filesFromZip(await Bun.file(abs).bytes()), defaultSite, source: given };
     case "tar.gz":
-      return { files: await filesFromTarGz(await Bun.file(abs).bytes()), defaultSite, source: abs };
+      return {
+        files: await filesFromTarGz(await Bun.file(abs).bytes()),
+        defaultSite,
+        source: given,
+      };
     case "html":
-      return { files: htmlFile(await Bun.file(abs).bytes()), defaultSite, source: abs };
+      return { files: htmlFile(await Bun.file(abs).bytes()), defaultSite, source: given };
     default:
-      return { files: [await plainFile(abs, st)], defaultSite, source: abs };
+      return { files: [await plainFile(abs, st, basename(given))], defaultSite, source: given };
   }
 }
 
@@ -266,12 +307,13 @@ async function collectFiles(inputs: string[], opts: CollectOptions): Promise<Col
   const several = () =>
     usageError("Put one folder, or several files", "Pass one folder on its own, or files only.");
   if (inputs.includes("-")) throw several();
-  const abs = inputs.map((i) => resolve(opts.cwd ?? process.cwd(), i));
+  const given = inputs.map((i) => resolve(opts.cwd ?? process.cwd(), i));
+  const abs = inputs.map((input, i) => containedFile(input, given[i]!));
   const stats = inputs.map((input, i) => statInput(input, abs[i]!));
   if (stats.some((st) => st.isDirectory())) throw several();
   const files: SiteFile[] = [];
   for (const [i, path] of abs.entries()) {
-    const file = await plainFile(path, stats[i]!);
+    const file = await plainFile(path, stats[i]!, basename(given[i]!));
     if (files.some((f) => f.path === file.path))
       throw usageError(
         `Two files named ${file.path.slice(1)}`,
@@ -279,7 +321,7 @@ async function collectFiles(inputs: string[], opts: CollectOptions): Promise<Col
       );
     files.push(file);
   }
-  return { files, source: commonDir(abs) };
+  return { files, source: commonDir(given) };
 }
 
 /** Deepest folder containing every path: `/a/b/x`, `/a/c/y` → `/a`. */

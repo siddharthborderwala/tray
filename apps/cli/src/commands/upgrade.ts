@@ -21,6 +21,8 @@ export interface UpgradeDeps {
   workerSource?: string;
   /** Overrides the CLI version (tests). */
   version?: string;
+  /** `tray upgrade <VERSION>`: "beta" (the newest release, betas included) or an exact version. */
+  to?: string;
 }
 
 const UPGRADED_FROM = "TRAY_UPGRADED_FROM";
@@ -59,11 +61,15 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
   if (!ctx.env[UPGRADED_FROM]) {
     const spin = spinner(ctx);
     spin.start("Checking for a new release…");
-    const latest = await latestVersion(fetchImpl).catch((err) => {
-      spin.error("Release check failed");
-      throw err;
-    });
-    if (olderThan(version, latest)) {
+    // An exact version is installed as asked (even an older one); otherwise only a newer one.
+    const exact = deps.to && deps.to !== "beta" ? deps.to : undefined;
+    const latest =
+      exact ??
+      (await latestVersion(fetchImpl, deps.to === "beta" ? "beta" : undefined).catch((err) => {
+        spin.error("Release check failed");
+        throw err;
+      }));
+    if (exact ? exact !== version : olderThan(version, latest)) {
       if (!replaceableBinary(execPath)) {
         spin.stop(`tray ${latest} is available`);
         throw new TrayError(
@@ -71,7 +77,7 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
           "not_standalone",
           EXIT.failed,
           /node_modules/.test(execPath)
-            ? "Installed with npm: run `npm i -g @tray-sh/cli@latest`."
+            ? `Installed with npm: run \`npm i -g @tray-sh/cli@${deps.to ?? "latest"}\`.`
             : "Reinstall with: curl -fsSL https://tray.sh/install | sh",
         );
       }
@@ -101,7 +107,7 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
         );
       return;
     }
-    spin.stop(`tray ${version} is the latest`);
+    spin.stop(exact ? `tray ${version} is already installed` : `tray ${version} is the latest`);
   }
 
   // Step 2 (new binary, or already up to date): skills + Workers.

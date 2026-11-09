@@ -5,7 +5,8 @@ import { AddSharesRequest, type Share, ShareEntry, ShareList, SiteName } from "@
 import type { Env } from "../env.ts";
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
-import { loadSite, now, paths, putJson, siteOwner, type SiteMeta } from "../storage.ts";
+import { syncSigninPolicy } from "../signin-policy.ts";
+import { loadSite, now, siteOwner, updateMeta, type SiteMeta } from "../storage.ts";
 
 const siteParam = z.object({ site: SiteName });
 
@@ -74,17 +75,20 @@ export const shares = newRouter()
 
   .openapi(addShares, async (c) => {
     const { site: name } = c.req.valid("param");
-    const meta = await privateSite(c.env, name);
-    const owner = siteOwner(meta, c.env);
-    const added = c.req
-      .valid("json")
-      .entries.map((e) => e.toLowerCase())
-      .filter((e, i, all) => e !== owner && !meta.sharedWith.includes(e) && all.indexOf(e) === i);
-    if (added.length) {
-      meta.sharedWith.push(...added);
-      meta.updatedAt = now();
-      await putJson(c.env.BUCKET, paths.meta(name), meta);
-    }
+    const before = await privateSite(c.env, name);
+    const entries = c.req.valid("json").entries.map((e) => e.toLowerCase());
+    const meta =
+      (await updateMeta(c.env.BUCKET, name, (m) => {
+        const owner = siteOwner(m, c.env);
+        const added = entries.filter(
+          (e, i, all) => e !== owner && !m.sharedWith.includes(e) && all.indexOf(e) === i,
+        );
+        if (!added.length) return false;
+        m.sharedWith.push(...added);
+        m.updatedAt = now();
+      })) ?? before;
+    // Always, even with nothing added: retrying repairs a sync that failed.
+    await syncSigninPolicy(c);
     return c.json(shareList(meta, c.env), 200);
   })
 
@@ -95,10 +99,11 @@ export const shares = newRouter()
     if (entry === siteOwner(meta, c.env)) {
       throw new TrayError(400, "invalid_request", "the owner can't be removed", { param: "entry" });
     }
-    if (meta.sharedWith.includes(entry)) {
-      meta.sharedWith = meta.sharedWith.filter((e) => e !== entry);
-      meta.updatedAt = now();
-      await putJson(c.env.BUCKET, paths.meta(name), meta);
-    }
+    await updateMeta(c.env.BUCKET, name, (m) => {
+      if (!m.sharedWith.includes(entry)) return false;
+      m.sharedWith = m.sharedWith.filter((e) => e !== entry);
+      m.updatedAt = now();
+    });
+    await syncSigninPolicy(c);
     return c.body(null, 204);
   });

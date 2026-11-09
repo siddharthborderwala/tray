@@ -4,7 +4,16 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { AddDomainRequest, Domain, DomainList, DomainListQuery, Hostname } from "@tray-sh/schema";
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
-import { getJson, type HostRecord, listAll, loadSite, now, paths, putJson } from "../storage.ts";
+import {
+  getJson,
+  type HostRecord,
+  listAll,
+  loadSite,
+  now,
+  paths,
+  putJson,
+  updateMeta,
+} from "../storage.ts";
 import { trayDomain } from "../domain.ts";
 
 const listDomains = createRoute({
@@ -94,11 +103,11 @@ export const domains = newRouter()
 
     const record: HostRecord = { site: req.site, createdAt: now() };
     await putJson(c.env.BUCKET, paths.host(host), record, { ...record });
-    if (!site.meta.domains.includes(host)) {
-      site.meta.domains = [...site.meta.domains, host].sort();
-      site.meta.updatedAt = record.createdAt;
-      await putJson(c.env.BUCKET, paths.meta(req.site), site.meta);
-    }
+    await updateMeta(c.env.BUCKET, req.site, (m) => {
+      if (m.domains.includes(host)) return false;
+      m.domains = [...m.domains, host].sort();
+      m.updatedAt = record.createdAt;
+    });
     return c.json({ host, ...record }, 201);
   })
 
@@ -117,11 +126,10 @@ export const domains = newRouter()
     await cf.removeSigninHost(host);
     await c.env.BUCKET.delete(paths.host(host));
 
-    const site = await loadSite(c.env, record.site);
-    if (site?.meta.domains.includes(host)) {
-      site.meta.domains = site.meta.domains.filter((d) => d !== host);
-      site.meta.updatedAt = now();
-      await putJson(c.env.BUCKET, paths.meta(record.site), site.meta);
-    }
+    await updateMeta(c.env.BUCKET, record.site, (m) => {
+      if (!m.domains.includes(host)) return false;
+      m.domains = m.domains.filter((d) => d !== host);
+      m.updatedAt = now();
+    });
     return c.body(null, 204);
   });

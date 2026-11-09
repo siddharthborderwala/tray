@@ -5,6 +5,7 @@ import { accessToken } from "./access.ts";
 import type { Env } from "./env.ts";
 import { TrayError } from "./errors.ts";
 import type { Ctx, Identity } from "./router.ts";
+import { syncSigninPolicy } from "./signin-policy.ts";
 import {
   getJson,
   getText,
@@ -50,9 +51,17 @@ async function identityFromKey(c: Context<Ctx>, header: string): Promise<Identit
   const key = header.slice("Bearer ".length).trim();
   if (!key.startsWith(API_KEY_PREFIX)) return null;
   const { id, hash } = await keyId(key);
-  const record =
-    (await getJson<KeyRecord>(c.env.BUCKET, paths.key(id))) ?? (await claimSetupKey(c.env, id));
+  const stored = await getJson<KeyRecord>(c.env.BUCKET, paths.key(id));
+  const record = stored ?? (await claimSetupKey(c.env, id));
   if (!record || !safeEqual(record.hash, hash)) return null;
+  // The first call after `tray setup`: bring the sign-in policy up to date (the
+  // owner may have changed, or this tray predates the allow list). Best effort:
+  // the next share change syncs it too.
+  if (!stored) {
+    await syncSigninPolicy(c).catch((err) =>
+      console.error("sign-in policy sync after setup failed:", err),
+    );
+  }
 
   // Never rewrite keys/<id>.json here: a write that lands after a revoke would bring the key back.
   if (Date.now() - (lastUsedWrites.get(id) ?? 0) > LAST_USED_RESOLUTION_MS) {

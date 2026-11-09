@@ -97,6 +97,31 @@ export async function putJson(
   });
 }
 
+/**
+ * Change a site's meta.json without losing a concurrent change (a share removed
+ * while a deploy runs, say): read, apply `change` to the fresh copy, and write
+ * only if nothing else wrote since (etag), else retry. `change` returns false
+ * to skip the write. Null if the site doesn't exist.
+ */
+export async function updateMeta(
+  bucket: R2Bucket,
+  name: string,
+  change: (meta: SiteMeta) => boolean | void,
+): Promise<SiteMeta | null> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const obj = await bucket.get(paths.meta(name));
+    if (!obj) return null;
+    const meta = await obj.json<SiteMeta>();
+    if (change(meta) === false) return meta;
+    const written = await bucket.put(paths.meta(name), JSON.stringify(meta), {
+      httpMetadata: { contentType: "application/json" },
+      onlyIf: { etagMatches: obj.etag },
+    });
+    if (written) return meta;
+  }
+  throw new Error(`meta.json for ${name} kept changing; try again`);
+}
+
 export async function getText(bucket: R2Bucket, key: string): Promise<string | null> {
   const obj = await bucket.get(key);
   return obj ? obj.text() : null;
@@ -116,6 +141,37 @@ export async function listAll(
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
   return objects;
+}
+
+/** Every site's name. */
+export async function siteNames(bucket: R2Bucket): Promise<string[]> {
+  const names: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({ prefix: paths.sitesPrefix, delimiter: "/", cursor });
+    names.push(...page.delimitedPrefixes.map((p) => p.slice(paths.sitesPrefix.length, -1)));
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return names;
+}
+
+/**
+ * Who may sign in through Access at all: the owner, plus every email and
+ * @domain a private site is shared with. Anyone else is turned away by Access
+ * before they count as a Zero Trust seat. Sorted, so it compares stably.
+ */
+export async function signinAllowList(env: Env): Promise<string[]> {
+  const entries = new Set<string>();
+  if (env.OWNER_EMAIL) entries.add(env.OWNER_EMAIL.toLowerCase());
+  const metas = await mapLimit(await siteNames(env.BUCKET), 50, (name) =>
+    getJson<SiteMeta>(env.BUCKET, paths.meta(name)),
+  );
+  for (const meta of metas) {
+    if (meta?.visibility !== "private") continue;
+    entries.add(siteOwner(meta, env));
+    for (const e of meta.sharedWith) entries.add(e);
+  }
+  return [...entries].sort();
 }
 
 /** Run `fn` over `items` with at most `limit` in flight. */

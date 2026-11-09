@@ -206,6 +206,29 @@ describe("single file", () => {
   });
 });
 
+describe("a named file that is a symlink", () => {
+  test("is followed only to a non-skipped file in its own folder; the link's name is kept", async () => {
+    const outside = tmp();
+    writeFileSync(join(outside, "id_rsa"), "SECRET");
+    const dir = tmp();
+    writeFileSync(join(dir, "real.pdf"), "%PDF");
+    writeFileSync(join(dir, ".env"), "X=1");
+    symlinkSync(join(outside, "id_rsa"), join(dir, "report.pdf"));
+    symlinkSync(join(dir, ".env"), join(dir, "notes.txt"));
+    symlinkSync(join(dir, "real.pdf"), join(dir, "q3.pdf"));
+    for (const bad of ["report.pdf", "notes.txt"]) {
+      const err = await collect(join(dir, bad)).catch((e) => e);
+      expect(err.message).toContain("links to a file outside its folder");
+      const several = await collect([join(dir, bad), join(dir, "real.pdf")]).catch((e) => e);
+      expect(several.message).toContain("links to a file outside its folder");
+    }
+    const ok = await collect(join(dir, "q3.pdf"));
+    expect(ok.files.find((f) => f.path === "/q3.pdf")?.data).toEqual(
+      new TextEncoder().encode("%PDF"),
+    );
+  });
+});
+
 describe("several files", () => {
   test("each goes to /<name>, archives and .html as is; source is the common folder", async () => {
     const root = tmp();

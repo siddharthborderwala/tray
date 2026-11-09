@@ -70,12 +70,13 @@ line is enough.
 
 ## When it fails
 
-Errors go to stderr, ending with the command that fixes it. Run that.
+Errors go to stderr, ending with the command that fixes it. Run it, unless it
+adds `--yes`: that confirms a deletion or access change, so ask the user first.
 
 - "already exists (last put from …)": pick a new `-s`. Use `--replace` only if
   the user asked to overwrite it (`tray rollback` can undo it).
 - Exit 4: not logged in or the key was revoked. Log in again (step 1).
-- Network or DNS errors (`could not reach tray.…`) inside a sandbox: the
+- Network or DNS errors (`Couldn't reach tray.…`) inside a sandbox: the
   sandbox is blocking the network. Tell the user the fix for their agent:
   - Codex: in `~/.codex/config.toml`, set `[sandbox_workspace_write]`
     `network_access = true`.
@@ -90,8 +91,7 @@ Errors go to stderr, ending with the command that fixes it. Run that.
   content.
 - Never run `tray setup` yourself, and never ask for or read the Cloudflare
   token. Only the user handles it, in their own terminal.
-- Never run `tray approve`. It grants a new device access to the user's tray,
-  and only the user should do that, in their browser.
+- Never run `tray approve`: only the user approves devices, in their browser.
 - Never publish `.env` files, secrets or a whole repo root. A tray URL is
   meant to be shared, so treat everything you put as public to its viewers.
 - Don't curl the URL to verify it. Private sites sit behind a login, and the

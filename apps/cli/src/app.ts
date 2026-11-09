@@ -301,7 +301,25 @@ export const app = route(
     ),
     globals,
   ),
-  command(name("upgrade"), description("Update tray and your trays' Workers"), globals),
+  command(
+    name("upgrade"),
+    description("Update tray and your trays' Workers"),
+    argument(
+      name("upgradeVersion"),
+      label("[VERSION]"),
+      schema(
+        z
+          .string()
+          .regex(/^(beta|v?\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)$/, "beta, or a version like 0.2.0")
+          .transform((v) => v.replace(/^v/, ""))
+          .optional(),
+      ),
+      description(
+        'Default: the latest stable release. "beta" for the newest beta, or an exact version like 0.2.0-beta.1.',
+      ),
+    ),
+    globals,
+  ),
 );
 
 /** Command aliases, per route level. The router matches names exactly, so argv is rewritten first. */

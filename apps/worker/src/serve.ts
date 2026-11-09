@@ -4,7 +4,6 @@ import type { Manifest, ManifestEntry } from "@tray-sh/schema";
 import { SiteName } from "@tray-sh/schema";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { accessToken } from "./access.ts";
 import { messagePage, notFoundPage, PAGE_HEADERS } from "./pages.tsx";
 import type { Ctx } from "./router.ts";
 import {
@@ -89,10 +88,24 @@ export function resolvePath(files: Manifest, path: string, spa: boolean): Resolv
   return null;
 }
 
+/**
+ * Private content is for the people it's shared with, on its own site: other
+ * sites (siblings on the same domain included) can't load it as a script,
+ * style or image (CORP), or frame it.
+ */
+const PRIVATE_HEADERS = {
+  "cross-origin-resource-policy": "same-origin",
+  "x-frame-options": "SAMEORIGIN",
+  "content-security-policy": "frame-ancestors 'self'",
+} as const;
+
 function trayNotFound(c: Context<Ctx>, email: string | null) {
   const url = new URL(c.req.url);
   const html = notFoundPage(url.pathname + url.search, email);
-  const headers = { "content-type": "text/html; charset=utf-8", ...PAGE_HEADERS };
+  const headers = {
+    "content-type": "text/html; charset=utf-8",
+    ...PAGE_HEADERS,
+  };
   return c.req.method === "HEAD" ? c.body(null, 404, headers) : c.body(html, 404, headers);
 }
 
@@ -123,7 +136,10 @@ export function safeNext(next: string | undefined): string {
 
 /** `/.tray/signin` sits behind the sign-in Access app; once Access lets the visitor through, send them on. */
 async function signin(c: Context<Ctx>) {
-  const token = accessToken(c);
+  // Only the header Access adds after it has checked this very request. Never the
+  // CF_Authorization cookie: a sibling site can toss one onto this host's path
+  // (Domain=.<domain>), and it would be pinned as the visitor's identity here.
+  const token = c.req.header("cf-access-jwt-assertion") || undefined;
   if (!(await viewer(c, token))) {
     return c.html(
       messagePage(
@@ -242,6 +258,12 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
   if (url.pathname === SIGNOUT_PATH) return signout(c);
   if (url.pathname === ME_PATH) return me(c);
   if (url.pathname === TOOLBAR_PATH) return toolbarScript(c);
+  // Hosted pages can't install service workers. One at a site's root would sit
+  // in front of /.tray/signin (and could read the sign-in token on its way in),
+  // and would outlive the site. The browser marks the fetch, so refuse it here.
+  if (c.req.header("service-worker") === "script") {
+    return c.body(null, 404, { "content-type": "text/plain; charset=utf-8", ...PAGE_HEADERS });
+  }
 
   const { name, meta, current, email, allowed } = await lookup(c);
   const favicon = url.pathname === FAVICON_PATH;
@@ -272,6 +294,7 @@ export async function serveSite(c: Context<Ctx>): Promise<Response> {
     etag: `W/${etag}`,
     "content-type": entry.type || "application/octet-stream",
     "x-content-type-options": "nosniff",
+    ...(meta.visibility === "private" ? PRIVATE_HEADERS : {}),
   };
   if (status === 200 && matches(c.req.header("if-none-match"), etag))
     return c.body(null, 304, headers);

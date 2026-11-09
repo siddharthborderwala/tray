@@ -142,7 +142,15 @@ export const Manifest = z.record(z.string().startsWith("/").max(1024), ManifestE
 export type Manifest = z.infer<typeof Manifest>;
 
 /** Where a site was last put from. Drives the `site_exists` check. */
-export const Source = z.object({ path: z.string().min(1), machine: z.string().min(1) });
+/** Printable text: no control or format characters (they could fake lines or recolor a terminal). */
+const printable = (max: number) =>
+  z
+    .string()
+    .min(1)
+    .max(max)
+    .regex(/^[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+$/u, "no control characters");
+/** Where a deploy came from. Echoed back in `site_exists` errors, so bounded and printable. */
+export const Source = z.object({ path: printable(1024), machine: printable(128) });
 export type Source = z.infer<typeof Source>;
 
 export const DeployRequest = z.object({

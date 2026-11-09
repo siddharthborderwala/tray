@@ -17,6 +17,7 @@ import {
 import type { Env } from "../env.ts";
 import { siteNotFound, TrayError } from "../errors.ts";
 import { bearer, body, errors, json, newRouter } from "../router.ts";
+import { syncSigninPolicy } from "../signin-policy.ts";
 import {
   type DeployRecord,
   getJson,
@@ -26,7 +27,9 @@ import {
   missingBlobs,
   now,
   paths,
+  siteNames,
   putJson,
+  updateMeta,
   randomHex,
   type SiteMeta,
   toSite,
@@ -161,14 +164,7 @@ async function requireSite(env: Env, name: string) {
 
 export const sites = newRouter()
   .openapi(listSites, async (c) => {
-    const names: string[] = [];
-    let cursor: string | undefined;
-    do {
-      const page = await c.env.BUCKET.list({ prefix: paths.sitesPrefix, delimiter: "/", cursor });
-      names.push(...page.delimitedPrefixes.map((p) => p.slice(paths.sitesPrefix.length, -1)));
-      cursor = page.truncated ? page.cursor : undefined;
-    } while (cursor);
-
+    const names = await siteNames(c.env.BUCKET);
     const loaded = await mapLimit(names, 50, async (name) => ({
       name,
       site: await loadSite(c.env, name),
@@ -189,12 +185,14 @@ export const sites = newRouter()
   .openapi(editSite, async (c) => {
     const { site: name } = c.req.valid("param");
     const { visibility } = c.req.valid("json");
-    const { meta, current } = await requireSite(c.env, name);
-    if (meta.visibility !== visibility) {
-      meta.visibility = visibility;
-      meta.updatedAt = now();
-      await putJson(c.env.BUCKET, paths.meta(name), meta);
-    }
+    const { current } = await requireSite(c.env, name);
+    const meta =
+      (await updateMeta(c.env.BUCKET, name, (m) => {
+        if (m.visibility === visibility) return false;
+        m.visibility = visibility;
+        m.updatedAt = now();
+      })) ?? (await requireSite(c.env, name)).meta;
+    await syncSigninPolicy(c); // its share list now counts, or no longer does
     return c.json(toSite(c.env, name, meta, current), 200);
   })
 
@@ -212,6 +210,7 @@ export const sites = newRouter()
     // Everything under sites/<site>/ (meta, current, deploy records). Blobs stay for a later gc.
     const keys = (await listAll(c.env.BUCKET, paths.sitePrefix(name))).map((o) => o.key);
     for (let i = 0; i < keys.length; i += 1000) await c.env.BUCKET.delete(keys.slice(i, i + 1000));
+    if (meta.visibility === "private") await syncSigninPolicy(c);
     return c.body(null, 204);
   })
 
@@ -264,8 +263,23 @@ export const sites = newRouter()
       src.path !== req.source.path ||
       src.machine !== req.source.machine ||
       (req.replace === true && req.visibility !== undefined && req.visibility !== meta.visibility);
-    meta.source = req.source;
-    if (existing && req.replace && req.visibility) meta.visibility = req.visibility;
+    const apply = (m: SiteMeta) => {
+      m.source = req.source;
+      if (existing && req.replace && req.visibility) m.visibility = req.visibility;
+      m.updatedAt = stamp;
+    };
+    // An existing site's meta is updated in place (shares or domains may have
+    // changed meanwhile); a new one is written whole.
+    const save = async (): Promise<SiteMeta> => {
+      apply(meta);
+      if (!existing) {
+        await putJson(bucket, paths.meta(name), meta);
+        return meta;
+      }
+      const saved = (await updateMeta(bucket, name, apply)) ?? meta;
+      if (req.replace && req.visibility) await syncSigninPolicy(c);
+      return saved;
+    };
 
     const current = existing?.current
       ? await getJson<DeployRecord>(bucket, paths.deploy(name, existing.current))
@@ -273,12 +287,9 @@ export const sites = newRouter()
 
     // Same manifest as what's live: nothing to do (safe retry).
     if (current && sameDeploy(current, req.files, req.spa)) {
-      if (metaChanged) {
-        meta.updatedAt = stamp;
-        await putJson(bucket, paths.meta(name), meta);
-      }
+      const saved = metaChanged ? await save() : meta;
       return c.json(
-        { site: toSite(c.env, name, meta, current.id), deploy: deploySummary(current) },
+        { site: toSite(c.env, name, saved, current.id), deploy: deploySummary(current) },
         200,
       );
     }
@@ -312,10 +323,8 @@ export const sites = newRouter()
       createdBy: summary.createdBy,
     });
     await bucket.put(paths.current(name), record.id);
-    meta.updatedAt = stamp;
-    await putJson(bucket, paths.meta(name), meta);
-
-    return c.json({ site: toSite(c.env, name, meta, record.id), deploy: summary }, 201);
+    const saved = await save();
+    return c.json({ site: toSite(c.env, name, saved, record.id), deploy: summary }, 201);
   })
 
   .openapi(listDeploys, async (c) => {
@@ -357,7 +366,8 @@ export const sites = newRouter()
   .openapi(rollback, async (c) => {
     const { site: name } = c.req.valid("param");
     const { to } = c.req.valid("json");
-    const { meta, current } = await requireSite(c.env, name);
+    const { meta: before, current } = await requireSite(c.env, name);
+    let meta = before;
     if (current !== to) {
       const target = DeployId.safeParse(to).success
         ? await c.env.BUCKET.head(paths.deploy(name, to))
@@ -369,8 +379,10 @@ export const sites = newRouter()
         });
       }
       await c.env.BUCKET.put(paths.current(name), to);
-      meta.updatedAt = now();
-      await putJson(c.env.BUCKET, paths.meta(name), meta);
+      meta =
+        (await updateMeta(c.env.BUCKET, name, (m) => {
+          m.updatedAt = now();
+        })) ?? meta;
     }
     return c.json(toSite(c.env, name, meta, to), 200);
   });

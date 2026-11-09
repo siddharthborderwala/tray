@@ -389,7 +389,9 @@ Flow (device code):
      and IP with an Approve button. The Worker reads the verified email from
      `Cf-Access-Jwt-Assertion`.
    - **CLI**: `tray approve <code>` on a logged-in machine shows device name and
-     IP and asks `Approve? y/N`.
+     IP and asks for confirmation. It only runs with a person at a terminal:
+     non-interactive (agents, CI) it refuses, even with `--yes`, and prints the
+     approve link instead, since approving hands a device a key.
 3. The CLI polls `POST /auth/token` until it receives an API key bound to that
    email and device name.
 
@@ -658,7 +660,14 @@ A visitor must not be able to tell a private site from one that doesn't exist.
   cookie, then goes to `/cdn-cgi/access/logout`.
 - Public sites never touch Access.
 - Every person who signs in uses a Cloudflare Zero Trust seat (Free plan: 50).
-  `tray setup` mentions this.
+  `tray setup` mentions this. So only people who can view something may sign
+  in at all: the sign-in app's policy lists exactly the owner and every email
+  and `@domain` a private site is shared with. Access turns anyone else away
+  before they get a seat. `tray setup` starts it with the owner; the Worker
+  re-syncs it from R2 after every share, unshare, visibility change and private
+  site removal (and on the first call after `tray setup`), and a failed sync
+  fails that request, so retrying repairs it. Later setup runs leave the list
+  alone, replacing only an old "everyone" rule.
 
 ### Favicon
 
@@ -667,6 +676,13 @@ one (and the visitor may see the site), else Tray's: the square period on a
 paper tile (16/32/48 px ICO). The default is the same for missing, private
 and unshared sites, and comes before the `--spa` and `404.html` fallbacks.
 Pages that name their own icon with `<link rel="icon">` keep it.
+
+### No service workers
+
+Hosted pages can't install service workers: a request the browser marks
+`Service-Worker: script` gets a plain 404. A worker at a site's root would sit
+in front of `/.tray/signin` (where it could read the sign-in token) and
+outlive the site.
 
 ### Toolbar
 

@@ -18,6 +18,46 @@ describe("shares", () => {
     }
   });
 
+  test("only the owner and people private sites are shared with can sign in", async () => {
+    const { api, deploy, cf } = await setup();
+    const allowed = () => cf.signinAllowList;
+    await deploy("report", { "/index.html": "a" }, { visibility: "private" });
+    await deploy("open", { "/index.html": "a" });
+    await api("/sites/report/shares", {
+      method: "POST",
+      json: { entries: ["bob@acme.com", "@corp.io"] },
+    });
+    expect(allowed()).toEqual(["@corp.io", "bob@acme.com", "sid@acme.com"]);
+    await api("/sites/report/shares/@corp.io", { method: "DELETE" });
+    expect(allowed()).toEqual(["bob@acme.com", "sid@acme.com"]);
+    await api("/sites/report", { method: "PATCH", json: { visibility: "public" } });
+    expect(allowed()).toEqual(["sid@acme.com"]);
+    await api("/sites/report", { method: "PATCH", json: { visibility: "private" } });
+    expect(allowed()).toEqual(["bob@acme.com", "sid@acme.com"]);
+    await api("/sites/report", { method: "DELETE" });
+    expect(allowed()).toEqual(["sid@acme.com"]);
+  });
+
+  test("a share removed while a deploy runs stays removed (no lost update)", async () => {
+    const { api, deploy, bucket } = await setup();
+    await deploy("report", { "/index.html": "a" }, { visibility: "private" });
+    await api("/sites/report/shares", { method: "POST", json: { entries: ["bob@acme.com"] } });
+    // The deploy reads meta.json; the share is removed before it writes back.
+    const get = bucket.get.bind(bucket);
+    let raced = false;
+    bucket.get = async (key) => {
+      const obj = await get(key);
+      if (key === "sites/report/meta.json" && !raced) {
+        raced = true;
+        await api("/sites/report/shares/bob@acme.com", { method: "DELETE" });
+      }
+      return obj;
+    };
+    await deploy("report", { "/index.html": "b" });
+    const res = await api("/sites/report/shares");
+    expect(await res.json()).toEqual({ data: [{ entry: "sid@acme.com", owner: true }] });
+  });
+
   test("add, list (owner first), dedupe, remove; owner can't be removed", async () => {
     const { api, deploy } = await setup();
     await deploy("report", { "/index.html": "a" }, { visibility: "private" });

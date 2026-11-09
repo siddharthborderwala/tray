@@ -16,7 +16,7 @@ import {
   type Ctx,
 } from "../ctx.ts";
 import { EXIT, TrayError, cancelled, usageError } from "../errors.ts";
-import { formatBytes, plural } from "../format.ts";
+import { formatBytes, plain, plural } from "../format.ts";
 import {
   buildManifest,
   checkSize,
@@ -110,7 +110,8 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
         },
       );
     }
-    if (!(await confirm({ ...ctx, yes: false }, `${err.message}. Replace?`))) throw cancelled();
+    if (!(await confirm({ ...ctx, yes: false }, `${plain(err.message)}. Replace?`)))
+      throw cancelled();
     replace = true;
     deployed = await deployWithBlobRetry(api, site, request(replace), files, addUploaded);
   }

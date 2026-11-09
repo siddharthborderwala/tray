@@ -67,7 +67,7 @@ export const EXAMPLES: Record<string, string[]> = {
   skill: ["tray skill"],
   "skill install": ["tray skill install", "tray skill install --project"],
   setup: ["tray setup --domain acme.dev --email you@acme.dev"],
-  upgrade: ["tray upgrade"],
+  upgrade: ["tray upgrade", "tray upgrade beta", "tray upgrade 0.2.0-beta.1"],
 };
 
 const NOTES: Record<string, string[]> = {

@@ -7,6 +7,8 @@
 //   add/remove `<host>/.tray/signin` on the single sign-in Access app
 //     GET    /accounts/{account}/access/apps/{app}
 //     PUT    /accounts/{account}/access/apps/{app}
+//   keep the sign-in app's policy to the owner and the people sites are shared with
+//     PUT    /accounts/{account}/access/policies/{policy}
 //   find the host's zone on this account
 //     GET    /zones?name=&account.id=
 //
@@ -21,6 +23,8 @@ export interface CloudflareApi {
   detachDomain(host: string): Promise<void>;
   addSigninHost(host: string): Promise<void>;
   removeSigninHost(host: string): Promise<void>;
+  /** Set the sign-in app's policy to exactly these emails and `@domain`s. */
+  setSigninAllowList(entries: string[]): Promise<void>;
 }
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -40,7 +44,7 @@ interface AccessApp {
   domain?: string;
   destinations?: { type: string; uri?: string }[];
   self_hosted_domains?: string[];
-  policies?: { id: string; precedence?: number }[];
+  policies?: { id: string; name?: string; precedence?: number; include?: unknown[] }[];
   [field: string]: unknown;
 }
 
@@ -93,14 +97,18 @@ export function cloudflareApi(
     return null;
   }
 
-  async function updateSigninApp(change: (uris: string[]) => string[]) {
+  async function signinApp(): Promise<[string, AccessApp]> {
     const appId = env.ACCESS_SIGNIN_APP_ID;
     if (!appId) {
       throw new TrayError(500, "internal", "the Worker doesn't know its sign-in Access app", {
         hint: "Re-run `tray setup` to store ACCESS_SIGNIN_APP_ID on the Worker.",
       });
     }
-    const app = await cf<AccessApp>("GET", `/accounts/${account}/access/apps/${appId}`);
+    return [appId, await cf<AccessApp>("GET", `/accounts/${account}/access/apps/${appId}`)];
+  }
+
+  async function updateSigninApp(change: (uris: string[]) => string[]) {
+    const [appId, app] = await signinApp();
     const current = app.destinations?.length
       ? app.destinations.filter((d) => d.type === "public" && d.uri).map((d) => d.uri!)
       : (app.self_hosted_domains ?? (app.domain ? [app.domain] : []));
@@ -164,5 +172,25 @@ export function cloudflareApi(
       ),
     removeSigninHost: (host) =>
       updateSigninApp((uris) => uris.filter((u) => u !== signinUri(host))),
+
+    async setSigninAllowList(entries) {
+      if (!entries.length) return; // Access needs a rule; nothing to allow yet.
+      const [, app] = await signinApp();
+      const policy = app.policies?.[0];
+      if (!policy) {
+        throw new TrayError(500, "internal", "the sign-in Access app has no policy", {
+          hint: "Re-run `tray setup` to recreate it.",
+        });
+      }
+      const include = entries.map((e) =>
+        e.startsWith("@") ? { email_domain: { domain: e.slice(1) } } : { email: { email: e } },
+      );
+      if (JSON.stringify(policy.include) === JSON.stringify(include)) return;
+      await cf("PUT", `/accounts/${account}/access/policies/${policy.id}`, {
+        name: policy.name ?? "tray sign-in",
+        decision: "allow",
+        include,
+      });
+    },
   };
 }

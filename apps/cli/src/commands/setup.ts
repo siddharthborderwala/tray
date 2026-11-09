@@ -22,6 +22,7 @@ import {
   cloudflare,
   ensureAccessApp,
   ensureBucket,
+  ensureLifecycle,
   ensureCustomDomain,
   ensureOtpLogin,
   ensurePolicy,
@@ -197,6 +198,7 @@ export async function setup(
   // R2
   spin.start("R2 bucket…");
   await ensureBucket(cf, accountId, bucket).catch((err) => fail(spin, err));
+  await ensureLifecycle(cf, accountId, bucket).catch((err) => fail(spin, err));
   spin.stop("R2 bucket ready");
   report(ctx, "R2 bucket", bucket);
 
@@ -209,9 +211,17 @@ export async function setup(
     const ownerPolicy = await ensurePolicy(cf, accountId, `tray owner (${domain})`, [
       { email: { email } },
     ]);
-    const anyonePolicy = await ensurePolicy(cf, accountId, `tray sign-in (${domain})`, [
-      { everyone: {} },
-    ]);
+    // Starts with just the owner. The Worker then keeps it to the owner plus the
+    // people private sites are shared with, so strangers can't sign in and use
+    // up Zero Trust seats. Its list is left alone on later runs (an old
+    // "everyone" rule is replaced; the Worker re-syncs on its first call).
+    const signinPolicy = await ensurePolicy(
+      cf,
+      accountId,
+      `tray sign-in (${domain})`,
+      [{ email: { email } }],
+      (include) => include.length > 0 && !include.some((r) => "everyone" in (r as object)),
+    );
     const approveApp = await ensureAccessApp(cf, accountId, {
       name: `tray approve (${domain})`,
       uris: [approveUri],
@@ -222,7 +232,7 @@ export async function setup(
     const signinApp = await ensureAccessApp(cf, accountId, {
       name: `tray sign-in (${domain})`,
       uris: [signinUri],
-      policyId: anyonePolicy,
+      policyId: signinPolicy,
       idpId: otp,
       sessionDuration: "168h",
       keepExtra: true, // custom hosts the Worker added

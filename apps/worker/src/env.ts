@@ -52,6 +52,8 @@ export interface R2PutOptions {
   sha256?: string;
   customMetadata?: Record<string, string>;
   httpMetadata?: { contentType?: string };
+  /** Write only if the stored object's etag matches; R2 then returns null. */
+  onlyIf?: { etagMatches?: string };
 }
 
 export interface R2ListOptions {

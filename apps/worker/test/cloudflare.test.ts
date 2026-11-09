@@ -41,6 +41,10 @@ function fakeApi() {
       return ok([{ id: "dom1", hostname: "docs.acme.com" }]);
     if (path === "/accounts/acct/workers/domains/dom1" && method === "DELETE") return ok(null);
     if (path === "/accounts/acct/access/apps/app1" && method === "GET") return ok(app);
+    if (path === "/accounts/acct/access/policies/pol1" && method === "PUT") {
+      app.policies[0] = { ...app.policies[0]!, ...(body as object) };
+      return ok({});
+    }
     if (path === "/accounts/acct/access/apps/app1" && method === "PUT") {
       app = { ...app, ...body };
       return ok(app);
@@ -116,6 +120,22 @@ describe("cloudflareApi", () => {
 
     await cf.removeSigninHost("docs.acme.com");
     expect(f.app().destinations).toEqual([{ type: "public", uri: "*.acme.dev/.tray/signin" }]);
+  });
+
+  test("the sign-in allow list replaces the policy's rules; unchanged, no PUT", async () => {
+    const f = fakeApi();
+    const cf = cloudflareApi(env, f.fetch);
+    await cf.setSigninAllowList(["@acme.com", "sid@acme.com"]);
+    const put = f.calls.find((c) => c.method === "PUT")!;
+    expect(put.url).toEndWith("/accounts/acct/access/policies/pol1");
+    expect(put.body).toEqual({
+      name: "anyone",
+      decision: "allow",
+      include: [{ email_domain: { domain: "acme.com" } }, { email: { email: "sid@acme.com" } }],
+    });
+    f.calls.length = 0;
+    await cf.setSigninAllowList(["@acme.com", "sid@acme.com"]);
+    expect(f.calls.map((c) => c.method)).toEqual(["GET"]);
   });
 
   test("API failures and missing config become TrayErrors", async () => {

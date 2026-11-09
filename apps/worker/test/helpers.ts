@@ -22,6 +22,7 @@ interface Stored {
   data: Uint8Array;
   customMetadata?: Record<string, string>;
   uploaded: Date;
+  version?: number;
 }
 
 async function toBytes(
@@ -44,9 +45,10 @@ export async function sha256(data: Uint8Array | string): Promise<string> {
 export class MemoryBucket implements R2Bucket {
   objects = new Map<string, Stored>();
   calls = { head: 0, get: 0, put: 0, list: 0, delete: 0 };
+  private writes = 0;
 
   private meta(key: string, s: Stored): R2Object {
-    const etag = `${key}:${s.data.byteLength}`;
+    const etag = `${key}:${s.version}`;
     return {
       key,
       size: s.data.byteLength,
@@ -89,7 +91,18 @@ export class MemoryBucket implements R2Bucket {
         "put: The SHA-256 checksum you specified did not match what we received. (10037)",
       );
     }
-    const s: Stored = { data, customMetadata: options.customMetadata, uploaded: new Date() };
+    const prior = this.objects.get(key);
+    if (
+      options.onlyIf?.etagMatches &&
+      (!prior || this.meta(key, prior).etag !== options.onlyIf.etagMatches)
+    )
+      return null;
+    const s: Stored = {
+      data,
+      customMetadata: options.customMetadata,
+      uploaded: new Date(),
+      version: ++this.writes,
+    };
     this.objects.set(key, s);
     return this.meta(key, s);
   }
@@ -177,6 +190,12 @@ export class FakeCloudflare implements CloudflareApi {
   async addSigninHost(host: string) {
     this.calls.push(`signin+ ${host}`);
     this.signinHosts.add(host);
+  }
+  /** The sign-in policy's allow list, as last set. */
+  signinAllowList: string[] | undefined;
+  async setSigninAllowList(entries: string[]) {
+    this.calls.push(`allow ${entries.join(" ")}`);
+    this.signinAllowList = entries;
   }
   async removeSigninHost(host: string) {
     this.calls.push(`signin- ${host}`);

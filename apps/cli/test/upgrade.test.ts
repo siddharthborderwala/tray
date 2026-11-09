@@ -10,6 +10,7 @@ import type { Ctx } from "../src/ctx.ts";
 import { TrayError } from "../src/errors.ts";
 import {
   assetName,
+  latestVersion,
   detectTarget,
   fetchBinary,
   replaceableBinary,
@@ -143,6 +144,38 @@ describe("tray upgrade", () => {
     ]);
     // The old binary didn't touch any Worker; the new one does that.
     expect(w.seen.some((s) => s.url.includes("api.cloudflare.com"))).toBe(false);
+  });
+
+  test("an exact version installs that release (a beta), without asking GitHub for the latest", async () => {
+    const w = world({ release: release({ version: "0.3.0-beta.1" }) });
+    const exe = fakeInstall();
+    let handedOver = false;
+    await upgrade(ctxFor(w.fetch), {
+      execPath: exe,
+      target: "darwin-arm64",
+      version: "0.2.0",
+      to: "0.3.0-beta.1",
+      runNew: async () => ((handedOver = true), 0),
+    });
+    expect(readFileSync(exe)).toEqual(Buffer.from(NEW_BINARY));
+    expect(handedOver).toBe(true);
+    expect(w.seen.some((s) => s.url.endsWith("/releases/latest"))).toBe(false);
+  });
+
+  test("beta: the newest release, betas included (a newer stable wins)", async () => {
+    const list =
+      (...tags: string[]) =>
+      async (input: Request | string | URL) =>
+        String(input).endsWith("/releases?per_page=30")
+          ? Response.json([
+              ...tags.map((tag_name) => ({ tag_name, draft: false })),
+              { tag_name: "v9.0.0", draft: true },
+            ])
+          : new Response(null, { status: 404 });
+    expect(await latestVersion(list("v0.2.0", "v0.3.0-beta.1", "v0.3.0-beta.2"), "beta")).toBe(
+      "0.3.0-beta.2",
+    );
+    expect(await latestVersion(list("v0.3.0", "v0.3.0-beta.2"), "beta")).toBe("0.3.0");
   });
 
   test("checksum mismatch: fails closed and leaves the binary alone", async () => {

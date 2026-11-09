@@ -216,6 +216,24 @@ export async function ensureBucket(
   return "created";
 }
 
+/**
+ * Device-login records (`POST /v1/auth/device` needs no auth) are only cleaned
+ * up when that code is used again. Let R2 expire the abandoned ones after a
+ * day, so anonymous starts can't pile up. Only those three prefixes: the
+ * rest of `auth/` (keys, setup-key claims) must never expire. Replaces the
+ * bucket's rules, which Tray owns.
+ */
+export async function ensureLifecycle(cf: CloudflareClient, accountId: string, name: string) {
+  await cf.send("PUT", `/accounts/${accountId}/r2/buckets/${name}/lifecycle`, {
+    rules: ["auth/pending/", "auth/codes/", "auth/polls/"].map((prefix) => ({
+      id: `tray-expire-${prefix.split("/")[1]}`,
+      enabled: true,
+      conditions: { prefix },
+      deleteObjectsTransition: { condition: { type: "Age", maxAge: 86400 } },
+    })),
+  });
+}
+
 const r2NotEnabled = (accountId: string) =>
   new TrayError(
     "R2 isn't enabled on this Cloudflare account",
@@ -249,6 +267,8 @@ export async function ensurePolicy(
   accountId: string,
   name: string,
   include: unknown[],
+  /** Leave an existing policy's rules alone when this says so (someone else maintains them). */
+  keep?: (existing: unknown[]) => boolean,
 ): Promise<string> {
   const body = { name, decision: "allow", include };
   const existing = (
@@ -257,6 +277,7 @@ export async function ensurePolicy(
     )
   ).find((p) => p.name === name);
   if (existing) {
+    if (keep?.(existing.include ?? [])) return existing.id;
     if (JSON.stringify(existing.include) !== JSON.stringify(include)) {
       await cf.send("PUT", `/accounts/${accountId}/access/policies/${existing.id}`, body);
     }

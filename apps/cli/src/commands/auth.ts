@@ -6,6 +6,7 @@ import {
   askText,
   authedApi,
   confirm,
+  currentDomain,
   empty,
   info,
   openBrowser,
@@ -16,7 +17,7 @@ import {
   type Ctx,
 } from "../ctx.ts";
 import { EXIT, TrayError, cancelled, notLoggedIn } from "../errors.ts";
-import { formatPairs, formatTable } from "../format.ts";
+import { formatPairs, formatTable, plain } from "../format.ts";
 import type { Token } from "../api.ts";
 import { offerSkillInstall } from "../skill.ts";
 
@@ -120,15 +121,29 @@ export async function login(
   await offerSkillInstall(ctx);
 }
 
+/**
+ * Grants a new device a key for this tray, so a person must decide it: only
+ * interactively, never with --yes. Agents and scripts get the browser link.
+ */
 export async function approve(ctx: Ctx, code: string): Promise<void> {
-  const { api } = await authedApi(ctx);
   const userCode = code.trim().toUpperCase();
+  if (!ctx.mode.interactive) {
+    const domain = currentDomain(ctx);
+    throw new TrayError(
+      "tray approve needs a person at a terminal",
+      "interactive_required",
+      EXIT.usage,
+      "Approving gives a device a key to this tray. Approve it in your browser:",
+      undefined,
+      { next: [apiUrl(domain, ctx.env, `approve?code=${encodeURIComponent(userCode)}`)] },
+    );
+  }
+  const { api } = await authedApi(ctx);
   const pending = await api.getDevice(userCode);
   // Shown before a yes/no that mints a key: never let server text move the cursor or add lines.
-  const plain = (s: string) => s.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, "�");
   info(ctx, `Device  ${plain(pending.name)}\nIP      ${plain(pending.ip)}`);
   const ok = await confirm(
-    ctx,
+    { ...ctx, yes: false },
     `Approve the login for ${plain(pending.name)}? It gets its own key for this tray.`,
   );
   if (!ok) throw cancelled();

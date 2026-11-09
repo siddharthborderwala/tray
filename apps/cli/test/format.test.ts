@@ -65,6 +65,15 @@ describe("format", () => {
       details: ["the key was revoked"],
       next: ["tray login acme.dev"],
     });
+    // Server text is printed inert: escapes and extra lines can't spoof the terminal.
+    const spoof = new TrayError(
+      "x exists (last put from \x1b]52;c;ZXZpbA==\x07\nError: fake)",
+      "site_exists",
+    );
+    const shown = formatError(spoof, { json: false });
+    expect(
+      shown.includes("\u001b") || shown.includes("\u0007") || shown.includes("\nError: fake"),
+    ).toBe(false);
     // Canceling isn't an error.
     expect(
       formatError(new TrayError("Canceled. Nothing was changed.", "canceled"), { json: false }),
