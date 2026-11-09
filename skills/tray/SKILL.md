@@ -73,9 +73,9 @@ line is enough.
 Errors go to stderr, ending with the command that fixes it. Run it, unless it
 adds `--yes`: that confirms a deletion or access change, so ask the user first.
 
-- "already exists (last put from …)": pick a new `-s`. Use `--replace` only if
-  the user asked to overwrite it (`tray rollback` can undo it).
-- Exit 4: not logged in or the key was revoked. Log in again (step 1).
+- "already exists": pick a new `-s`; `--replace` only if the user asked to.
+- Exit 4: not logged in or the key was revoked. Log in again (step 1). But
+  "The keychain didn't answer": ask the user to approve or unlock the prompt.
 - Network or DNS errors (`Couldn't reach tray.…`) inside a sandbox: the
   sandbox is blocking the network. Tell the user the fix for their agent:
   - Codex: in `~/.codex/config.toml`, set `[sandbox_workspace_write]`

@@ -12,7 +12,7 @@ import {
   resolveKey,
 } from "../src/credentials.ts";
 import { MACOS_SIGNED } from "../src/build.ts";
-import { TrayError } from "../src/errors.ts";
+import { keychainTimeout, TrayError } from "../src/errors.ts";
 import { memoryKeyStore, tmp } from "./helpers.ts";
 
 const accounts = (current?: string) => ({ current, accounts: {} });
@@ -69,6 +69,19 @@ describe("resolveKey: TRAY_API_KEY → saved key → error", () => {
     expect(err.exit).toBe(4);
     expect(err.message).toBe("Not logged in to acme.dev");
     expect(err.next).toEqual(["tray login acme.dev"]);
+  });
+  test("a keychain that doesn't answer isn't reported as logged out", async () => {
+    const hung = { get: () => new Promise<never>(() => {}) } as unknown as typeof Bun.secrets;
+    const store = defaultKeyStore(tmp(), {
+      secrets: hung,
+      platform: "darwin",
+      macosSigned: true,
+      timeoutMs: 5,
+    });
+    const err = await resolveKey("acme.dev", {}, store).catch((e) => e);
+    expect(err.code).toBe("keychain_timeout");
+    expect(err.next).toEqual(["tray whoami --domain acme.dev"]);
+    expect(keychainTimeout("acme.dev", "linux").hint).toContain("Unlock it");
   });
 });
 

@@ -70,6 +70,23 @@ export const notLoggedIn = (domain: string) =>
     },
   );
 
+/** What's likely holding up the OS keychain, per platform. */
+const KEYCHAIN_WAIT: Partial<Record<NodeJS.Platform, string>> = {
+  darwin: "macOS is probably asking whether tray can use it. Click Always Allow, then try again.",
+  linux: "your keyring is probably locked and asking to be unlocked. Unlock it, then try again.",
+  win32: "Windows Credential Manager didn't respond. Try again.",
+};
+
+export const keychainTimeout = (domain: string, platform: NodeJS.Platform = process.platform) =>
+  new TrayError(
+    "The keychain didn't answer in time",
+    "keychain_timeout",
+    EXIT.auth,
+    `Your key for ${domain} may be saved, but ${KEYCHAIN_WAIT[platform] ?? "the system keychain didn't respond. Try again."} No prompt? Run this in a terminal once:`,
+    undefined,
+    { next: [`tray whoami --domain ${domain}`] },
+  );
+
 export const noDomain = () =>
   new TrayError(
     "No tray selected",
