@@ -30,7 +30,7 @@ Uploads are content-addressed, so unchanged files are never sent twice. Publishi
     "/index.html": {
       "hash": "9f86d081884c7d65…",
       "size": 5120,
-      "type": "text/html"
+      "type": "text/html;charset=utf-8"
     }
   },
   "spa": false,
@@ -47,14 +47,14 @@ Uploads are content-addressed, so unchanged files are never sent twice. Publishi
     "name": "q3-review",
     "url": "https://q3-review.acme.dev",
     "visibility": "public",
-    "currentDeploy": "lq3k2-8f1a",
+    "currentDeploy": "mh7q2k1c-8f1a",
     "domains": [],
     "shareCount": 1,
     "createdAt": "2026-10-26T09:12:03Z",
     "updatedAt": "2026-10-26T09:12:03Z"
   },
   "deploy": {
-    "id": "lq3k2-8f1a",
+    "id": "mh7q2k1c-8f1a",
     "files": 1,
     "bytes": 5120,
     "spa": false,
@@ -86,7 +86,9 @@ Uploads are content-addressed, so unchanged files are never sent twice. Publishi
 | ------ | ---------------------- | ---------------------------------------------------------- |
 | `GET`  | `/sites/<site>/shares` | Who can see a private site. POST to add, DELETE to remove. |
 | `GET`  | `/domains`             | Custom domains. POST to add, DELETE to remove.             |
-| `GET`  | `/keys`                | API keys. POST to create, DELETE to revoke.                |
+| `GET`  | `/keys`                | API keys (`current` marks the one asking). POST to create. |
+| `DELETE` | `/keys/<id>`         | Revoke a key.                                              |
+| `DELETE` | `/keys/current`      | Revoke the key making the request (log out).               |
 
 ### Login
 
@@ -103,17 +105,23 @@ Errors return a status code and a JSON body.
 
 ```json response title="RESPONSE · 409"
 {
-  "error": "q3-review already exists",
+  "error": "q3-review already exists (last put from /Users/bob/work/q3 on bob-mbp)",
   "code": "site_exists",
-  "hint": "Pass replace: true, or use another name.",
+  "hint": "Pass replace: true (CLI: --replace) or use another site name.",
   "param": "site"
 }
 ```
 
-| Status | Meaning                                    |
-| ------ | ------------------------------------------ |
-| `400`  | Bad input. `param` names the field.        |
-| `401`  | Missing or wrong key.                      |
-| `404`  | No such site, domain or key.               |
-| `409`  | Name taken. Code site_exists.              |
-| `413`  | Over 100 MB.                               |
+Branch on `code`, never on `error`: the wording can change.
+
+| Status | Codes                                                                                 |
+| ------ | ------------------------------------------------------------------------------------- |
+| `400`  | `invalid_request` (`param` names the field), `digest_mismatch`; during login `authorization_pending`, `slow_down`, `expired_token`, `access_denied`. |
+| `401`  | `unauthenticated`: missing or wrong key.                                              |
+| `403`  | `forbidden`.                                                                          |
+| `404`  | `site_not_found`, `deploy_not_found`, `domain_not_found`, `key_not_found`.            |
+| `409`  | `site_exists`, `domain_taken`, `host_taken_by_route` (another Worker's route catches the host), `missing_blobs` (upload them, then deploy again), `site_public` (only private sites are shared). |
+| `411`  | `length_required`: blob uploads need a Content-Length.                                |
+| `413`  | `too_large`: a deploy is over 100 MB.                                                 |
+| `422`  | `zone_not_in_account`: a custom domain's zone isn't on this Cloudflare account.       |
+| `5xx`  | `internal`.                                                                           |

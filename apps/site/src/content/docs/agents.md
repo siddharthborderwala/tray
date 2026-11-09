@@ -15,6 +15,8 @@ Read https://tray.sh/skill.md and set me up with Tray
 
 It installs the CLI and the Tray skill. For a new tray, it gives you one command to run yourself, `tray setup`. For a tray you already have, it logs in and sends you a link to approve.
 
+On macOS, the first command an agent runs after you install or upgrade tray can stop at a keychain prompt it can’t click. Run `tray whoami` once in a terminal and click Always Allow: see [Troubleshooting](/troubleshooting#the-keychain-didnt-answer-in-time).
+
 ## skill.md
 
 The skill is one Markdown file, [tray.sh/skill.md](/skill.md). It tells your agent when to reach for Tray, how to name and publish a site, when to make it private, and how to recover from errors.
