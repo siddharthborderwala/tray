@@ -77,14 +77,32 @@ const KEYCHAIN_WAIT: Partial<Record<NodeJS.Platform, string>> = {
   win32: "Windows Credential Manager didn't respond. Try again.",
 };
 
+const keychainWait = (platform: NodeJS.Platform) =>
+  KEYCHAIN_WAIT[platform] ?? "the system keychain didn't respond. Try again.";
+
 export const keychainTimeout = (domain: string, platform: NodeJS.Platform = process.platform) =>
   new TrayError(
     "The keychain didn't answer in time",
     "keychain_timeout",
     EXIT.auth,
-    `Your key for ${domain} may be saved, but ${KEYCHAIN_WAIT[platform] ?? "the system keychain didn't respond. Try again."} No prompt? Run this in a terminal once:`,
+    `Your key for ${domain} may be saved, but ${keychainWait(platform)} No prompt? Run this in a terminal once:`,
     undefined,
     { next: [`tray whoami --domain ${domain}`] },
+  );
+
+/** The saved Cloudflare token couldn't be read in time (`retry`: the command that needs it). */
+export const tokenKeychainTimeout = (
+  domain: string,
+  retry: string,
+  platform: NodeJS.Platform = process.platform,
+) =>
+  new TrayError(
+    "The keychain didn't answer in time",
+    "keychain_timeout",
+    EXIT.auth,
+    `The Cloudflare token for ${domain} may be saved, but ${keychainWait(platform)} No prompt? Run this in a terminal:`,
+    undefined,
+    { next: [retry] },
   );
 
 export const noDomain = () =>

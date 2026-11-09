@@ -27,6 +27,9 @@ export const tokenSlotFor = (domain: string) => `cloudflare:${domain}`;
 const tokenSlot = tokenSlotFor;
 
 export const savedToken = (store: KeyStore, domain: string) => store.get(tokenSlot(domain));
+/** True when reading the saved token timed out (a keychain prompt nobody answered). */
+export const tokenTimedOut = (store: KeyStore, domain: string) =>
+  store.keychainTimedOut?.(tokenSlot(domain)) ?? false;
 export const saveToken = (store: KeyStore, domain: string, token: string) =>
   store.set(tokenSlot(domain), token);
 

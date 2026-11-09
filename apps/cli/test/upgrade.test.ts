@@ -289,6 +289,23 @@ describe("tray upgrade", () => {
     expect(JSON.parse(out.at(-1)!).warnings[0].message).toContain("CLOUDFLARE_API_TOKEN");
     expect(w.seen.some((s) => s.method === "PUT")).toBe(false);
   });
+
+  test("a saved token the keychain didn't hand over in time: says so, not 'set a token'", async () => {
+    keys = {
+      ...memoryKeyStore(),
+      keychainTimedOut: (name: string) => name === "cloudflare:acme.dev",
+    };
+    const w = world({ release: release({ version: "0.2.0" }), workerVersion: "0.1.0" });
+    const err = await upgrade(ctxFor(w.fetch, { TRAY_UPGRADED_FROM: "0.1.0" }), {
+      version: "0.2.0",
+      workerSource: "x",
+    }).catch((e) => e);
+    expect(err.code).toBe("keychain_timeout");
+    expect(err.message).toBe("acme.dev: The keychain didn't answer in time");
+    expect(err.hint).toContain("The Cloudflare token for acme.dev may be saved");
+    expect(err.next).toEqual(["tray upgrade"]);
+    expect(w.seen.some((s) => s.method === "PUT")).toBe(false);
+  });
 });
 
 describe("release helpers", () => {

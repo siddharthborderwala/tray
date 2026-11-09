@@ -69,5 +69,6 @@ export const memoryKeyStore = (initial: Record<string, string> = {}) => {
     async delete(d: string) {
       delete data[d];
     },
+    keychainTimedOut: undefined as ((name: string) => boolean) | undefined,
   };
 };

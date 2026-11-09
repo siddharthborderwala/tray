@@ -69,7 +69,10 @@ describe("folder", () => {
     symlinkSync(join(outside, "id_rsa"), join(dir, "vendor.js"));
     symlinkSync(join(dir, ".env"), join(dir, "config.txt"));
     symlinkSync(join(dir, "index.html"), join(dir, "home.html"));
-    expect(paths((await collect(dir)).files)).toEqual(["/home.html", "/index.html"]);
+    const c = await collect(dir);
+    expect(paths(c.files)).toEqual(["/home.html", "/index.html"]);
+    // Reported, so `tray put` can say what it left out.
+    expect(c.skippedLinks).toEqual(["config.txt", "vendor.js"]);
   });
 
   test("does not strip a single top-level folder for folders", async () => {

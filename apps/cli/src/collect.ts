@@ -22,6 +22,8 @@ export interface Collected {
   source: string;
   /** Set when Tray added `/index.html`: `redirect` to the only file, or a `list` of several. */
   generatedIndex?: "redirect" | "list";
+  /** Links in a folder that weren't published: they point outside it (or at a skipped file). */
+  skippedLinks?: string[];
 }
 
 const SKIP_NAMES = new Set([".git", ".DS_Store", "node_modules", "__MACOSX"]);
@@ -166,7 +168,10 @@ export async function filesFromTarGz(data: Uint8Array): Promise<SiteFile[]> {
   return stripSingleTopFolder(files);
 }
 
-export async function filesFromFolder(root: string): Promise<SiteFile[]> {
+export async function filesFromFolder(
+  root: string,
+  skippedLinks: string[] = [],
+): Promise<SiteFile[]> {
   const files: SiteFile[] = [];
   const realRoot = realpathSync(root);
   /** A file link counts only if it points inside the folder at a file we'd publish anyway. */
@@ -201,7 +206,10 @@ export async function filesFromFolder(root: string): Promise<SiteFile[]> {
         }
         if (isDir) continue; // don't follow directory links (avoids cycles)
         // Never publish what a link points to outside the folder (`config.txt -> ~/.env`).
-        if (!linkTargetOk(abs)) continue;
+        if (!linkTargetOk(abs)) {
+          skippedLinks.push(relPath.slice(1));
+          continue;
+        }
       }
       if (isDir) await walk(abs, relPath);
       else if (isFile)
@@ -308,8 +316,16 @@ async function collectOne(input: string, opts: CollectOptions): Promise<Collecte
   const isDirectory = st.isDirectory();
   const defaultSite = defaultSiteName(given, isDirectory);
   switch (inputKind(abs, isDirectory)) {
-    case "folder":
-      return { files: await filesFromFolder(abs), defaultSite, source: given };
+    case "folder": {
+      const skippedLinks: string[] = [];
+      const files = await filesFromFolder(abs, skippedLinks);
+      return {
+        files,
+        defaultSite,
+        source: given,
+        ...(skippedLinks.length ? { skippedLinks } : {}),
+      };
+    }
     case "zip":
       return { files: filesFromZip(await Bun.file(abs).bytes()), defaultSite, source: given };
     case "tar.gz":

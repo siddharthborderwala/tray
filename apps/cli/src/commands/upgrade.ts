@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { olderThan } from "../api.ts";
 import { apiUrl } from "../credentials.ts";
 import { info, receipt, result, spinner, success, warn, type Ctx } from "../ctx.ts";
-import { EXIT, TrayError, type ExitCode } from "../errors.ts";
+import { EXIT, TrayError, tokenKeychainTimeout, type ExitCode } from "../errors.ts";
 import { cloudflare, loadWorkerSource, updateWorkerCode } from "../setup/cloudflare.ts";
 import {
   assertReleaseExists,
@@ -15,7 +15,7 @@ import {
   latestVersion,
   replaceableBinary,
 } from "../setup/release.ts";
-import { loadSetups, savedToken } from "../setup/state.ts";
+import { loadSetups, savedToken, tokenTimedOut } from "../setup/state.ts";
 import { refreshInstalledSkills } from "../skill.ts";
 import { VERSION } from "../version.ts";
 
@@ -118,7 +118,13 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
         );
       return;
     }
-    spin.stop(exact ? `tray ${version} is already installed` : `tray ${version} is the latest`);
+    spin.stop(
+      exact
+        ? `tray ${version} is already installed`
+        : version === latest
+          ? `tray ${version} is the latest`
+          : `tray ${version} is newer than the latest ${deps.to === "beta" ? "release" : "stable release"} (${latest})`,
+    );
   }
 
   // Step 2 (new binary, or already up to date): skills + Workers.
@@ -146,7 +152,9 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
               err.exit,
               `It was revoked, expired, or is missing a permission. Run \`tray setup --domain ${domain}\` to save a new one.`,
             )
-          : new TrayError(`${domain}: ${err.message}`, err.code, err.exit, err.hint);
+          : new TrayError(`${domain}: ${err.message}`, err.code, err.exit, err.hint, undefined, {
+              next: err.next,
+            });
       warn(ctx, `${error.message}\n${error.hint ?? ""}`.trim());
       failed.push({ domain, error });
       workers.push({ domain, redeployed: false, error: error.message });
@@ -161,6 +169,8 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
       first.code,
       first.exit,
       failed.length === 1 ? first.hint : failed.map((f) => f.error.message).join("\n"),
+      undefined,
+      { next: failed.length === 1 ? first.next : undefined },
     );
   }
   receipt(ctx, from ? `Upgraded tray ${from} → ${version}` : `tray ${version} is up to date`);
@@ -172,7 +182,9 @@ export async function upgrade(ctx: Ctx, deps: UpgradeDeps = {}): Promise<void> {
 
 async function workerVersion(ctx: Ctx, domain: string): Promise<string | null> {
   try {
-    const res = await (ctx.fetch ?? fetch)(apiUrl(domain, ctx.env, "v1/openapi.json"));
+    const res = await (ctx.fetch ?? fetch)(apiUrl(domain, ctx.env, "v1/openapi.json"), {
+      signal: AbortSignal.timeout(15_000),
+    });
     return res.headers.get("tray-version");
   } catch {
     return null;
@@ -192,6 +204,8 @@ async function redeployIfOlder(
     return { domain, from: current, to: current, redeployed: false };
   }
   const token = ctx.env.CLOUDFLARE_API_TOKEN?.trim() || (await savedToken(ctx.keyStore, domain));
+  if (!token && tokenTimedOut(ctx.keyStore, domain))
+    throw tokenKeychainTimeout(domain, "tray upgrade");
   if (!token) {
     warn(
       ctx,

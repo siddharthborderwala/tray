@@ -74,6 +74,7 @@ export const keys = newRouter()
       })
     )
       .filter((k): k is Key => k !== null)
+      .map((k) => ({ ...k, current: k.id === c.var.identity.keyId }))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     return c.json({ data }, 200);
   })

@@ -48,6 +48,14 @@ export async function put(ctx: Ctx, args: PutArgs): Promise<void> {
       `Nothing to put: ${args.paths[0]} has no files`,
       "Dotfiles, .git and node_modules are skipped.",
     );
+  if (collected.skippedLinks?.length) {
+    const [first, ...rest] = collected.skippedLinks;
+    warn(
+      ctx,
+      `Skipped ${first}${rest.length ? ` and ${plural(rest.length, "other link")}` : ""}: links to files outside the folder aren't published.`,
+      "link_skipped",
+    );
+  }
   const site = await siteName(ctx, args.site ?? collected.defaultSite, args.paths);
   const files = hashFiles(collected.files);
   checkSize(files);

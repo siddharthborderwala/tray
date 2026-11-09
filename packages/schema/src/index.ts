@@ -225,6 +225,8 @@ export const Key = z
     email: z.string(),
     createdAt: z.string(),
     lastUsedAt: z.string().nullable(),
+    /** In lists: true for the key that made the request. */
+    current: z.boolean().optional(),
   })
   .meta({ id: "Key" });
 export type Key = z.infer<typeof Key>;

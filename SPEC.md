@@ -232,7 +232,9 @@ image…), several files, or `-` (stdin HTML).
 
 **Collecting files**
 - Folder: walk recursively; skip `.git`, `.DS_Store`, `node_modules`, dotfiles
-  (except `.well-known`).
+  (except `.well-known`). File links are followed only to a published file
+  inside the folder; others are left out with a warning naming them. Folder
+  links aren't followed.
 - Zip / tar.gz: unpack in memory (fflate / `Bun.Archive`); skip `__MACOSX`;
   strip a single shared top-level folder.
 - Single `.html` or stdin: becomes `/index.html`.

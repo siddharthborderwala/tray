@@ -56,7 +56,7 @@ everything else is `{ "<thing>": {...}, "outcome": "…" }`. Either can carry
 // tray account switch  → {"account":{"domain"},"outcome":"updated"}
 
 // tray key create      → {"key":{"id","name","key":"tray_k_…"},"outcome":"created"}   (shown once)
-// tray key list        → {"keys":[{"id","name","email","createdAt","lastUsedAt"}]}
+// tray key list        → {"keys":[{"id","name","email","createdAt","lastUsedAt","current"}]}
 // tray key revoke      → {"key":{"id","name"},"outcome":"revoked"}
 ```
 

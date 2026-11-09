@@ -17,14 +17,16 @@ export async function keyList(ctx: Ctx): Promise<void> {
   const { api } = await authedApi(ctx);
   const { data } = await api.listKeys();
   const t = ctx.mode.stdoutTTY !== false;
+  // `*` marks the key this machine (or TRAY_API_KEY) is using.
   const rows = data.map((k) => [
+    k.current ? "*" : "",
     k.id,
     k.name,
     k.email,
     timeCell(k.createdAt, t),
     timeCell(k.lastUsedAt, t),
   ]);
-  result(ctx, formatTable(["ID", "NAME", "EMAIL", "CREATED", "LAST USED"], rows, t), {
+  result(ctx, formatTable(["", "ID", "NAME", "EMAIL", "CREATED", "LAST USED"], rows, t), {
     keys: data,
   });
 }

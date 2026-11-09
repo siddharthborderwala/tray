@@ -16,7 +16,7 @@ import {
   receipt,
   type Ctx,
 } from "../ctx.ts";
-import { EXIT, TrayError, cancelled } from "../errors.ts";
+import { EXIT, TrayError, cancelled, tokenKeychainTimeout } from "../errors.ts";
 import {
   type Binding,
   cloudflare,
@@ -43,6 +43,7 @@ import {
   savedToken,
   saveToken,
   tokenSlotFor,
+  tokenTimedOut,
 } from "../setup/state.ts";
 import { offerSkillInstall } from "../skill.ts";
 import { Email } from "@tray-sh/schema";
@@ -72,6 +73,9 @@ async function askToken(
   if (fromEnv) return { token: fromEnv, saved: false };
   const saved = useSaved ? await savedToken(ctx.keyStore, domain) : null;
   if (saved) return { token: saved, saved: true };
+  // Saved but unreadable (an unanswered keychain prompt): don't ask for a new one.
+  if (useSaved && tokenTimedOut(ctx.keyStore, domain))
+    throw tokenKeychainTimeout(domain, `tray setup --domain ${domain}`);
   const link = tokenTemplateUrl(domain);
   if (!ctx.mode.interactive) {
     throw new TrayError(
@@ -341,6 +345,7 @@ async function revoke(ctx: Ctx, domain: string, key: string) {
     await (ctx.fetch ?? fetch)(apiUrl(domain, ctx.env, "v1/keys/current"), {
       method: "DELETE",
       headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(15_000),
     });
   } catch {}
 }
@@ -351,7 +356,10 @@ async function waitForWorker(ctx: Ctx, domain: string, key: string): Promise<boo
   const url = apiUrl(domain, ctx.env, "v1/keys");
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
-      const res = await (ctx.fetch ?? fetch)(url, { headers: { authorization: `Bearer ${key}` } });
+      const res = await (ctx.fetch ?? fetch)(url, {
+        headers: { authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(15_000),
+      });
       if (res.ok) return true;
     } catch {}
     await sleep(5000);

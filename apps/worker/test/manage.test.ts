@@ -209,7 +209,10 @@ describe("keys", () => {
       email: "sid@acme.com",
       createdAt: ci.createdAt,
       lastUsedAt: null,
+      current: false,
     });
+    // The key that asked is marked.
+    expect(list.find((k: { name: string }) => k.name === "test-machine").current).toBe(true);
     expect(JSON.stringify(list)).not.toContain("tray_k_");
     expect(JSON.stringify(list)).not.toContain("hash");
 

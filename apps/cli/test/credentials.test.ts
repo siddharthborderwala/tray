@@ -83,6 +83,24 @@ describe("resolveKey: TRAY_API_KEY → saved key → error", () => {
     expect(err.next).toEqual(["tray whoami --domain acme.dev"]);
     expect(keychainTimeout("acme.dev", "linux").hint).toContain("Unlock it");
   });
+
+  test("a timeout is remembered per keychain item, not for the whole process", async () => {
+    const secrets = {
+      get: ({ name }: { name: string }) =>
+        name === "slow.dev" ? new Promise<never>(() => {}) : Promise.resolve("tray_k_fast"),
+    } as unknown as typeof Bun.secrets;
+    const store = defaultKeyStore(tmp(), {
+      secrets,
+      platform: "darwin",
+      macosSigned: true,
+      timeoutMs: 5,
+    });
+    expect(await store.get("slow.dev")).toBeNull();
+    expect(await store.get("fast.dev")).toBe("tray_k_fast");
+    expect(store.keychainTimedOut!("slow.dev")).toBe(true);
+    expect(store.keychainTimedOut!("fast.dev")).toBe(false);
+    expect(await resolveKey("fast.dev", {}, store)).toBe("tray_k_fast");
+  });
 });
 
 describe("key stores", () => {

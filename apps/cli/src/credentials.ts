@@ -12,8 +12,8 @@ export interface KeyStore {
   delete(domain: string): Promise<void>;
   /** Where the saved key for `domain` lives, for `tray whoami`. */
   source?(domain: string): Promise<KeySource | null>;
-  /** True when a keychain read timed out, so "no key" may really mean "no answer". */
-  keychainTimedOut?(): boolean;
+  /** True when the last keychain read of `name` timed out, so "no key" may really mean "no answer". */
+  keychainTimedOut?(name: string): boolean;
 }
 
 const SERVICE = "sh.tray.cli";
@@ -100,17 +100,17 @@ export function defaultKeyStore(dir: string, opts: KeyStoreOptions = {}): KeySto
   const timeoutMs = opts.timeoutMs ?? KEYCHAIN_TIMEOUT_MS;
   const preferred = preferredKeyStore(opts.platform ?? process.platform, opts.macosSigned ?? false);
   const file = fileKeyStore(dir);
-  let readTimedOut = false;
+  const timedOut = new Set<string>();
 
   const keychain = {
     async get(domain: string): Promise<string | null> {
       if (!secrets) return null;
       try {
-        return (
-          (await withTimeout(secrets.get({ service: SERVICE, name: domain }), timeoutMs)) || null
-        );
+        const value = await withTimeout(secrets.get({ service: SERVICE, name: domain }), timeoutMs);
+        timedOut.delete(domain);
+        return value || null;
       } catch (err) {
-        if (err instanceof KeychainTimeout) readTimedOut = true;
+        if (err instanceof KeychainTimeout) timedOut.add(domain);
         return null;
       }
     },
@@ -159,7 +159,7 @@ export function defaultKeyStore(dir: string, opts: KeyStoreOptions = {}): KeySto
       await file.delete(domain);
       await keychain.delete(domain);
     },
-    keychainTimedOut: () => readTimedOut,
+    keychainTimedOut: (name) => timedOut.has(name),
   };
 }
 
@@ -188,7 +188,7 @@ export async function resolveKey(
   const saved = await store.get(domain);
   if (saved) return saved;
   // A key may well be there: macOS is likely waiting on an "allow access?" prompt.
-  if (store.keychainTimedOut?.()) throw keychainTimeout(domain);
+  if (store.keychainTimedOut?.(domain)) throw keychainTimeout(domain);
   throw notLoggedIn(domain);
 }
 

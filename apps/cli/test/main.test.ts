@@ -429,6 +429,41 @@ describe("other commands", () => {
     );
   });
 
+  test("key list marks the key in use", async () => {
+    const { done } = run(["key", "list"], {
+      "GET /v1/keys": () => ({
+        data: [
+          {
+            id: "aaaaaaaaaaaa",
+            name: "mbp",
+            email: "sid@acme.com",
+            createdAt: "2026-10-26T09:12:03Z",
+            lastUsedAt: null,
+            current: true,
+          },
+          {
+            id: "bbbbbbbbbbbb",
+            name: "ci",
+            email: "sid@acme.com",
+            createdAt: "2026-10-26T09:12:03Z",
+            lastUsedAt: null,
+            current: false,
+          },
+        ],
+      }),
+    });
+    expect(await done).toBe(0);
+    expect(
+      out[0]!
+        .split("\n")
+        .slice(1)
+        .map((r) => r.split("\t").slice(0, 3)),
+    ).toEqual([
+      ["*", "aaaaaaaaaaaa", "mbp"],
+      ["", "bbbbbbbbbbbb", "ci"],
+    ]);
+  });
+
   test("key revoke maps the name to an id", async () => {
     const key = (id: string, name: string) => ({
       id,
