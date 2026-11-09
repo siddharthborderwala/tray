@@ -15,6 +15,8 @@ const docs = defineCollection({
     description: z.string(),
     /** Optional extra line under the description (API page). */
     note: z.string().optional(),
+    /** false: don't list this page's sections in the sidebar. */
+    toc: z.boolean().optional(),
   }),
 });
 

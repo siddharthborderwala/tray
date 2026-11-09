@@ -335,6 +335,10 @@ function transform(node: Element | Root): void {
       if (meaningful.length === 1 && isEl(meaningful[0], "a")) {
         child.properties.className = ["more"];
       }
+      // A paragraph that is only inline code (an error as printed) reads as a quiet line.
+      if (meaningful.length === 1 && isEl(meaningful[0], "code")) {
+        child.properties.className = ["output-line"];
+      }
     }
 
     transform(child);

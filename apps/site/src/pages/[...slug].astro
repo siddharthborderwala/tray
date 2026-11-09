@@ -15,7 +15,7 @@ if (!doc) return Astro.rewrite("/404");
 const { Content, headings } = await render(doc);
 const overview = doc.id === "index";
 const inSidebar = PAGES.some((p) => p.id === doc.id);
-const sections = inSidebar
+const sections = inSidebar && doc.data.toc !== false
   ? headings.filter((h) => h.depth === 2).map((h) => ({ id: h.slug, label: h.text }))
   : [];
 const title = overview ? `${SITE_NAME} · ${TAGLINE}` : `${doc.data.title} · ${SITE_NAME}`;

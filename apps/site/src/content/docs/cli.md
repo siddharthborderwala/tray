@@ -160,7 +160,7 @@ Approve a login from another device, at a terminal on a machine that’s logged 
 
 ### `tray whoami`
 
-The tray, email and key in use, and where the key comes from (`env`, `keychain` or `file`). Never prompts. On macOS, running it once in a terminal lets you answer a keychain prompt an agent couldn’t (see [Troubleshooting](/troubleshooting#the-keychain-didnt-answer-in-time)).
+The tray, email and key in use, and where the key comes from (`env`, `keychain` or `file`). Never prompts. On macOS, running it once in a terminal lets you answer a keychain prompt an agent couldn’t (see [Troubleshooting](/troubleshooting#tray-cant-read-my-saved-key-after-an-install-or-upgrade)).
 
 ## key
 

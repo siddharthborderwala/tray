@@ -490,6 +490,26 @@ button {
   font-size: inherit;
 }
 
+/* Troubleshooting: each problem is a sentence heading, its error a quiet line. */
+.page-troubleshooting h3.label {
+  font-size: 15px;
+  line-height: 25px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tray-foreground);
+  scroll-margin-top: 32px;
+}
+.page-troubleshooting h3.label:not(h2 + h3) {
+  margin-top: 20px;
+}
+.prose p.output-line {
+  padding-left: 12px;
+  border-left: 2px solid var(--tray-border);
+  color: var(--tray-muted-foreground);
+  overflow-wrap: anywhere;
+}
+
 /* Links: in text, deep blue with a 1.5px underline; on hover, ink. */
 .prose p a {
   color: var(--tray-accent);

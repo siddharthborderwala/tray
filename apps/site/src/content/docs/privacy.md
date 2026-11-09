@@ -15,7 +15,7 @@ Each tray is self-hosted on your own Cloudflare account. Your sites, your files 
 
 Sign-in for private sites is handled by Cloudflare Access on your account. Tray doesn't store passwords.
 
-If Cloudflare Web Analytics is on for your domain, Cloudflare adds its script to your sites too. That data goes to your Cloudflare account, not to us. See [Troubleshooting](/troubleshooting#a-script-you-didnt-add) to turn it off.
+If Cloudflare Web Analytics is on for your domain, Cloudflare adds its script to your sites too. That data goes to your Cloudflare account, not to us. See [Troubleshooting](/troubleshooting#my-site-has-a-script-i-didnt-add) to turn it off.
 
 ## The CLI
 
