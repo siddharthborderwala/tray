@@ -371,6 +371,9 @@ tray domain list [-s docs]
 - v1 requires the host's zone to be on the same Cloudflare account. Otherwise
   exit 1 with an explanation.
 - The host is added to the sign-in Access app, so "Sign in to view" works there too.
+- A Worker route on the zone that matches the host and belongs to another
+  Worker (say another tray's `*.acme.dev/*`) wins over a Custom Domain, so the
+  host would never reach this tray: 409 `host_taken_by_route`, nothing attached.
 
 ---
 
@@ -527,7 +530,7 @@ POST   /sites/{site}/shares         {entries[]} → {data:[Share]}
 DELETE /sites/{site}/shares/{entry} → 204
 
 GET    /domains                     ?site= → {data:[Domain]}
-POST   /domains                     {host,site} → 201 Domain | 200 same mapping | 409 domain_taken
+POST   /domains                     {host,site} → 201 Domain | 200 same mapping | 409 domain_taken | 409 host_taken_by_route
 DELETE /domains/{host}              → 204
 
 GET    /keys                        → {data:[Key]}
@@ -607,7 +610,7 @@ codes add fields (e.g. `missing`).
 | 401 | `unauthenticated` |
 | 403 | `forbidden` |
 | 404 | `site_not_found`, `deploy_not_found`, `domain_not_found`, `key_not_found` |
-| 409 | `site_exists`, `domain_taken`, `missing_blobs`, `site_public` |
+| 409 | `site_exists`, `domain_taken`, `host_taken_by_route`, `missing_blobs`, `site_public` |
 | 411 | `length_required` |
 | 413 | `too_large` |
 | 422 | `zone_not_in_account` |

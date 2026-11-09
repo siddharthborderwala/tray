@@ -1,6 +1,6 @@
 // The real Cloudflare API module, against a recorded fake of the REST API.
 import { describe, expect, test } from "bun:test";
-import { cloudflareApi } from "../src/cloudflare.ts";
+import { cloudflareApi, routeMatchesHost } from "../src/cloudflare.ts";
 import type { Env } from "../src/env.ts";
 import { TrayError } from "../src/errors.ts";
 
@@ -12,7 +12,7 @@ const env = {
   WORKER_NAME: "tray",
 } as Env;
 
-function fakeApi() {
+function fakeApi(routes: { pattern: string; script?: string | null }[] = []) {
   const calls: { method: string; url: string; body?: unknown; auth: string | null }[] = [];
   let app = {
     id: "app1",
@@ -35,6 +35,7 @@ function fakeApi() {
       const name = new URL(url).searchParams.get("name");
       return ok(name === "acme.com" ? [{ id: "zone1", name: "acme.com" }] : []);
     }
+    if (path === "/zones/zone1/workers/routes") return ok(routes);
     if (path === "/accounts/acct/workers/domains" && method === "PUT")
       return ok({ id: "dom1", ...body });
     if (path.startsWith("/accounts/acct/workers/domains?"))
@@ -58,6 +59,36 @@ function fakeApi() {
 }
 
 describe("cloudflareApi", () => {
+  test("attachDomain refuses a host another Worker's route catches (it would never reach this tray)", async () => {
+    const f = fakeApi([
+      { pattern: "*.acme.com/*", script: "tray-acme-com" },
+      { pattern: "tray.acme.dev/*", script: "tray" },
+    ]);
+    const err = await cloudflareApi(env, f.fetch)
+      .attachDomain("docs.acme.com")
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(TrayError);
+    expect(err.code).toBe("host_taken_by_route");
+    expect(err.message).toBe(
+      "docs.acme.com is caught by the Worker route *.acme.com/* (tray-acme-com)",
+    );
+    expect(f.calls.some((c) => c.method === "PUT")).toBe(false);
+    // Its own routes are fine.
+    const mine = fakeApi([{ pattern: "*.acme.com/*", script: "tray" }]);
+    await cloudflareApi(env, mine.fetch).attachDomain("docs.acme.com");
+    expect(mine.calls.at(-1)!.method).toBe("PUT");
+  });
+
+  test("routeMatchesHost", () => {
+    expect(routeMatchesHost("*.acme.com/*", "docs.acme.com")).toBe(true);
+    expect(routeMatchesHost("*.acme.com/*", "a.b.acme.com")).toBe(true);
+    expect(routeMatchesHost("*.acme.com/*", "acme.com")).toBe(false);
+    expect(routeMatchesHost("docs.acme.com/*", "docs.acme.com")).toBe(true);
+    expect(routeMatchesHost("docs.acme.com/*", "blog.acme.com")).toBe(false);
+    expect(routeMatchesHost("*acme.com/*", "acme.com")).toBe(true);
+    expect(routeMatchesHost("https://Docs.acme.com/x/*", "docs.acme.com")).toBe(true);
+  });
+
   test("attachDomain finds the zone, then PUTs the Worker custom domain", async () => {
     const f = fakeApi();
     await cloudflareApi(env, f.fetch).attachDomain("docs.acme.com");
@@ -68,9 +99,10 @@ describe("cloudflareApi", () => {
     ).toEqual([
       "GET /zones?name=docs.acme.com&account.id=acct",
       "GET /zones?name=acme.com&account.id=acct",
+      "GET /zones/zone1/workers/routes",
       "PUT /accounts/acct/workers/domains",
     ]);
-    expect(f.calls[2]!.body).toEqual({
+    expect(f.calls[3]!.body).toEqual({
       hostname: "docs.acme.com",
       service: "tray",
       zone_id: "zone1",

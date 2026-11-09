@@ -9,8 +9,9 @@
 //     PUT    /accounts/{account}/access/apps/{app}
 //   keep the sign-in app's policy to the owner and the people sites are shared with
 //     PUT    /accounts/{account}/access/policies/{policy}
-//   find the host's zone on this account
+//   find the host's zone on this account, and Worker routes there that would catch it
 //     GET    /zones?name=&account.id=
+//     GET    /zones/{zone}/workers/routes
 //
 // Per-site Access apps don't exist (SPEC.md §5 "Private sites").
 import type { Env, Fetch } from "./env.ts";
@@ -149,6 +150,25 @@ export function cloudflareApi(
           },
         );
       }
+      // A Worker route matching the host (say another tray's `*.acme.dev/*`)
+      // wins over a Custom Domain: the host would never reach this tray.
+      const routes = await cf<{ pattern: string; script?: string | null }[]>(
+        "GET",
+        `/zones/${zoneId}/workers/routes`,
+      );
+      const own = env.WORKER_NAME || "tray";
+      const taken = routes.find((r) => r.script !== own && routeMatchesHost(r.pattern, host));
+      if (taken) {
+        throw new TrayError(
+          409,
+          "host_taken_by_route",
+          `${host} is caught by the Worker route ${taken.pattern}${taken.script ? ` (${taken.script})` : ""}`,
+          {
+            param: "host",
+            hint: "Cloudflare sends it to that route, not to this tray. Pick a hostname the route doesn't match, or remove the route.",
+          },
+        );
+      }
       await cf("PUT", `/accounts/${account}/workers/domains`, {
         hostname: host,
         service: env.WORKER_NAME || "tray",
@@ -193,4 +213,19 @@ export function cloudflareApi(
       });
     },
   };
+}
+
+/** Whether a Worker route pattern (`*.acme.dev/*`, `docs.acme.dev/*`) covers `host`. */
+export function routeMatchesHost(pattern: string, host: string): boolean {
+  const hostPart = pattern
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]!
+    .toLowerCase();
+  const re = new RegExp(
+    `^${hostPart
+      .split("*")
+      .map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+      .join(".*")}$`,
+  );
+  return re.test(host.toLowerCase());
 }

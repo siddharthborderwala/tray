@@ -72,6 +72,7 @@ export const ErrorCode = z.enum([
   "key_not_found",
   "site_exists",
   "domain_taken",
+  "host_taken_by_route",
   "missing_blobs",
   "site_public",
   "length_required",

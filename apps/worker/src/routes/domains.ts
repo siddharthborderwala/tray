@@ -90,7 +90,7 @@ export const domains = newRouter()
       if (existing.site === req.site) return c.json({ host, ...existing }, 200);
       throw new TrayError(409, "domain_taken", `${host} already points at ${existing.site}`, {
         param: "host",
-        hint: `Remove it first: tray domain rm ${host}`,
+        hint: `Remove it first: \`tray domain remove ${host}\``,
       });
     }
 
